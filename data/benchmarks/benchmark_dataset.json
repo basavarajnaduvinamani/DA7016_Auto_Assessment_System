@@ -1,0 +1,26 @@
+﻿[
+  {
+    "submission_id": "SUB-001",
+    "question": "Explain the multi-head attention mechanism and how it differs from single-head self-attention.",
+    "human_grade": 8.5,
+    "max_marks": 10.0,
+    "ocr_confidence": 0.96,
+    "student_text": "Multi-head attention projects Queries, Keys, and Values h times with different learned linear projections to dk, dk, and dv dimensions. These are then processed in parallel using scaled dot-product attention and concatenated together. This enables the model to jointly attend to information from different representation subspaces at different positions."
+  },
+  {
+    "submission_id": "SUB-002",
+    "question": "Derive the loss formulation for Diffusion Probabilistic Models (DDPM) variational lower bound.",
+    "human_grade": 7.0,
+    "max_marks": 10.0,
+    "ocr_confidence": 0.91,
+    "student_text": "The variational lower bound maximizes the log-likelihood by parameterizing the reverse trajectory as Gaussians. The KL divergence between the forward posterior q(x_{t-1}|x_t, x_0) and reverse parameterization p_theta(x_{t-1}|x_t) simplifies to predicting the noise epsilon with an MSE loss."
+  },
+  {
+    "submission_id": "SUB-003",
+    "question": "What is the role of Rotary Position Embedding (RoPE) in modern LLMs?",
+    "human_grade": 9.0,
+    "max_marks": 10.0,
+    "ocr_confidence": 0.98,
+    "student_text": "RoPE encodes absolute position with a rotation matrix and naturally incorporates relative position dependency in self-attention formulation through orthogonal transformation of query and key representations."
+  }
+]

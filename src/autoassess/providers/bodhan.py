@@ -22,10 +22,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from autoassess.budget import BudgetExceeded, Ledger, bodhan_ledger
 from autoassess.cache import DiskCache, content_key
 from autoassess.providers.base import OCRProvider, Translator
 from autoassess.providers.indic_ocr import blocks_to_page
 from autoassess.schemas import OCRPage
+
+__all__ = ["BodhanError", "BodhanOCR", "BodhanTranslate", "BudgetExceeded", "Ledger", "language_code"]
 
 DEFAULT_BASE_URL = "https://api.bodhan.ai"
 OCR_INR_PER_PAGE = 0.20
@@ -55,33 +58,6 @@ class BodhanError(RuntimeError):
     pass
 
 
-class BudgetExceeded(BodhanError):
-    pass
-
-
-class Ledger:
-    """Running estimate of Bodhan spend in rupees, kept next to the cache."""
-
-    def __init__(self, path: Path, budget_inr: float | None):
-        self.path = path
-        self.budget = budget_inr
-
-    def spent(self) -> float:
-        if not self.path.exists():
-            return 0.0
-        return float(json.loads(self.path.read_text())["spent_inr"])
-
-    def check(self, cost: float) -> None:
-        if self.budget is not None and self.spent() + cost > self.budget + 1e-9:
-            raise BudgetExceeded(
-                f"Bodhan budget of Rs {self.budget:g} reached (spent Rs {self.spent():.2f}); raise BODHAN_BUDGET_INR to continue"
-            )
-
-    def add(self, cost: float) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps({"spent_inr": round(self.spent() + cost, 4)}))
-
-
 class _BodhanClient:
     def __init__(self, api_key: str, base_url: str, cache: DiskCache | None, budget_inr: float | None, timeout: float):
         if not api_key:
@@ -90,7 +66,7 @@ class _BodhanClient:
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/").removesuffix("/v1")
         self.cache = cache
         self.timeout = timeout
-        self.ledger = Ledger((cache.dir.parent if cache else Path(".cache")) / "bodhan_ledger.json", budget_inr)
+        self.ledger: Ledger = bodhan_ledger(cache.dir.parent if cache else Path(".cache"), budget_inr)
 
     def _post(self, path: str, body: dict) -> dict:
         req = urllib.request.Request(

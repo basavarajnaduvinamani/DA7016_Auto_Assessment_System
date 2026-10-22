@@ -28,6 +28,7 @@ import math
 import random
 import re
 import textwrap
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -215,7 +216,21 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
     pos = {p.page_index: i for i, p in enumerate(pages)}
     marks: list[Mark] = []
     praise_left = 2
+    margin_free: dict[int, float] = {}  # page -> first free y in the right margin
+    starts: dict[int, list[float]] = defaultdict(list)  # page -> y where each answer starts
     for qg in grade.questions:
+        seg = segments.get(qg.question_id)
+        for pg in seg.pages[:1] if seg else []:
+            if own := _page_lines(pages, pg, seg):
+                starts[pos[pg]].append(own[0].bbox.y0)
+
+    def sheet_order(qg: QuestionGrade) -> tuple[int, float]:
+        # Students answer out of order; lay margin notes out in the order they appear on the sheet.
+        seg = segments.get(qg.question_id)
+        own = _page_lines(pages, seg.pages[0], seg) if seg and seg.pages else []
+        return (pos[seg.pages[0]], own[0].bbox.y0) if own else (10**6, 0.0)
+
+    for qg in sorted(grade.questions, key=sheet_order):
         seg = segments.get(qg.question_id)
         lines = [(pg, ln) for pg in (seg.pages if seg else []) for ln in _page_lines(pages, pg, seg)]
         if not lines:
@@ -284,12 +299,16 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
             marks.append(Mark(kind="caret", page=pos[last_page], x=lb.x1 + 6 * scale, y=lb.y1 - 4 * scale, size=sz))
         # Margin remark under the bracketed marks.
         if qg.remark:
-            y = first.bbox.y0 + 44 * scale
+            y = max(first.bbox.y0 + 44 * scale, margin_free.get(p0, 0.0))
+            stop = min([v - 12 * scale for v in starts[p0] if v > first.bbox.y0 + 1], default=H - 60 * scale)
             width_chars = max(14, int((W - rx - 10) / (12 * scale)))
             for part in qg.remark.lines():
                 for chunk in textwrap.wrap(part, width=width_chars, max_lines=3, placeholder="…"):
+                    if y + 26 * scale > stop:
+                        break  # no room before the next answer; the notes page has the full remark
                     marks.append(Mark(kind="text", page=p0, x=rx - 10 * scale, y=y, text=chunk, size=sz * 0.62))
                     y += 26 * scale
+            margin_free[p0] = y + 14 * scale
     conf = min((q.confidence for q in grade.questions), default=1.0)
     return AnnotationPlan(
         student_id=grade.student_id,

@@ -34,3 +34,23 @@ def test_text_ocr_reads_sheet():
 def test_bodhan_requires_key():
     with pytest.raises(ValueError, match="BODHAN_API_KEY"):
         make_ocr(Settings(ocr_provider="bodhan", bodhan_api_key=""))
+
+
+def test_llm_rate_limit_backs_off_and_retries(monkeypatch):
+    import io
+    import urllib.error
+
+    from autoassess.providers import llm as llm_mod
+
+    tries = []
+
+    def urlopen(req, timeout):
+        tries.append(1)
+        if len(tries) < 3:
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, io.BytesIO(b"{}"))
+        return io.BytesIO(b'{"ok": 1}')
+
+    monkeypatch.setattr(llm_mod.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(llm_mod.time, "sleep", lambda s: None)
+    client = llm_mod.OpenAICompatibleLLM("https://example.test/v1", "m")
+    assert client._post({}) == {"ok": 1} and len(tries) == 3

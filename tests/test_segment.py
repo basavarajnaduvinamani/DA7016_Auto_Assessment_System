@@ -47,3 +47,25 @@ def test_llm_fallback_when_no_labels():
     seg = segment(SPEC, [_page("attention text", "ft text")], llm)
     assert seg["Q1"].text == "attention text" and seg["Q3"].text == "ft text"
     assert "<sheet>" in llm.calls[0][1]
+
+
+def test_comma_after_label():
+    seg = segment_pages(SPEC, [_page("1, queries keys", "2, hallucination")])
+    assert seg["Q1"].text == "queries keys" and seg["Q2"].text == "hallucination"
+
+
+def test_llm_resplit_fixes_misread_label_and_is_grounded():
+    # OCR read the "2." label as "3.", so the rules put Q2's answer under Q3 and leave Q2 empty.
+    pages = [_page("1. queries keys values", "3. fluent but false text", "3. fine-tuning updates weights")]
+    assert segment_pages(SPEC, pages)["Q2"].text == ""
+    llm = FakeLLM([{"answers": {"Q1": "queries keys values", "Q2": "fluent but false text and an invented claim", "Q3": "fine-tuning updates weights"}}])
+    seg = segment(SPEC, pages, llm)
+    assert seg["Q2"].text == "fluent but false text"  # the invented words are not on the sheet
+    assert seg["Q3"].text == "fine-tuning updates weights"
+    assert seg["Q2"].lines and seg["Q2"].lines[0].text == "3. fluent but false text"
+
+
+def test_no_llm_call_when_every_question_found():
+    llm = FakeLLM([])
+    seg = segment(SPEC, [_page("1. a b", "2. c d", "3. e f")], llm)
+    assert seg["Q3"].text == "e f" and not llm.calls

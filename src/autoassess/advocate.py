@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 
+from autoassess.grader import policy_note
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import CriterionResult, Question, Verdict
 
@@ -46,6 +47,7 @@ def build_advocate_prompt(question: Question, answer: str, results: list[Criteri
     earlier = f"EARLIER ANSWERS (context):\n{context}\n\n" if context else ""
     return (
         f"QUESTION {question.id}: {question.text}\n\n"
+        f"{policy_note(question)}"
         f"MODEL ANSWER:\n{question.model_answer or '(none given)'}\n\n"
         f"{earlier}"
         f"<student_answer>\n{answer}\n</student_answer>\n\n"

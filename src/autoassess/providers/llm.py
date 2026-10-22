@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -56,7 +57,7 @@ class OpenAICompatibleLLM(LLMClient):
         # Gemini's OpenAI-compatible endpoint rejects "seed" with a 400.
         self.sends_seed = "generativelanguage.googleapis.com" not in self.base_url
 
-    def _post(self, payload: dict) -> dict:
+    def _post(self, payload: dict, retries: int = 5) -> dict:
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
@@ -66,6 +67,10 @@ class OpenAICompatibleLLM(LLMClient):
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as err:
+            if err.code in (429, 502, 503) and retries > 0:
+                # Rate limit or a provider hiccup: back off 4, 8, 16, 32, 64 seconds.
+                time.sleep(4 * 2 ** (5 - retries))
+                return self._post(payload, retries - 1)
             body = err.read().decode(errors="replace")
             try:
                 detail = json.loads(body)

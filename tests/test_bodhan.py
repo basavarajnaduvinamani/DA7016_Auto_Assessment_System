@@ -73,3 +73,45 @@ def test_language_codes():
     assert language_code("Hindi") == "hi" and language_code("kn") == "kn" and language_code("sd-Arab") == "sd-Arab"
     with pytest.raises(ValueError):
         language_code("Klingon")
+
+
+def test_truncated_page_is_read_in_halves(tmp_path):
+    from PIL import Image
+
+    from autoassess.providers.bodhan import BodhanError
+
+    img = tmp_path / "page_000.png"
+    Image.new("RGB", (100, 200), "white").save(img)
+    ocr = BodhanOCR("k", "https://api.bodhan.ai/v1", None, budget_inr=10)
+    calls = []
+
+    def post(path, body):
+        calls.append(body)
+        if len(calls) == 1:
+            raise BodhanError("502: 1 of 3 blocks (order 2: truncated); the page was not transcribed")
+        return _fake_ocr_response()
+
+    ocr.client._post = post
+    page = ocr.read_page(img, 0)
+    assert len(calls) == 3 and len(page.lines) == 2
+    assert page.lines[1].bbox.y0 == 20 + 100  # bottom half shifted down by half the page
+
+
+def test_rate_limit_backs_off_and_retries(tmp_path, monkeypatch):
+    import io
+    import urllib.error
+
+    from autoassess.providers import bodhan
+
+    tries = []
+
+    def urlopen(req, timeout):
+        tries.append(1)
+        if len(tries) < 3:
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, io.BytesIO(b"{}"))
+        return io.BytesIO(b'{"ok": 1}')
+
+    monkeypatch.setattr(bodhan.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(bodhan.time, "sleep", lambda s: None)
+    ocr = BodhanOCR("k", "https://api.bodhan.ai/v1", None, budget_inr=10)
+    assert ocr.client._post("/v1/x", {}) == {"ok": 1} and len(tries) == 3

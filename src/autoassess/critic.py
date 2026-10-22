@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 
+from autoassess.grader import policy_note
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import CriterionResult, Question, Verdict
 
@@ -47,6 +48,7 @@ def build_critic_prompt(question: Question, answer: str, results: list[Criterion
     ]
     return (
         f"QUESTION {question.id}: {question.text}\n\n"
+        f"{policy_note(question)}"
         f"MODEL ANSWER:\n{question.model_answer or '(none given)'}\n\n"
         f"<student_answer>\n{answer}\n</student_answer>\n\n"
         f"AWARDS TO AUDIT:\n{json.dumps(awarded, indent=2, ensure_ascii=False)}"

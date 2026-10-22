@@ -267,3 +267,24 @@ def test_handwriting_penalty():
     out = handwriting_penalty(scan, typed, {"a": {"handwriting": "poor"}, "b": {"handwriting": "good"}})
     assert out["mean_delta"] == -0.5 and out["sheets_losing_marks"] == ["a"]
     assert out["by_handwriting"] == {"good": 0.0, "poor": -1.0}
+
+
+
+def test_lenient_marking_policy_reaches_every_prompt():
+    from autoassess.advocate import build_advocate_prompt
+    from autoassess.critic import build_critic_prompt
+
+    data = SPEC.model_dump()
+    data["marking"] = "lenient"
+    for q in data["questions"]:
+        q["marking"] = None  # inherit the exam's policy
+    data["questions"][1]["marking"] = "standard"  # a question can opt out
+    spec = ExamSpec.model_validate(data)
+    q1, q2 = spec.questions[0], spec.questions[1]
+    r = [CriterionResult(criterion_id=c.id, verdict=Verdict.PARTIAL, marks_awarded=0.5, evidence="x", reason="") for c in q1.criteria]
+    for prompt in (build_prompt(q1, "ans"), build_critic_prompt(q1, "ans", r), build_advocate_prompt(q1, "ans", r)):
+        assert "MARKING POLICY: lenient" in prompt
+    assert "MARKING POLICY" not in build_prompt(q2, "ans")
+    assert "MARKING POLICY" not in build_prompt(SPEC.questions[0], "ans")  # standard is the default
+    with pytest.raises(ValueError):
+        ExamSpec.model_validate({**SPEC.model_dump(), "marking": "generous"})

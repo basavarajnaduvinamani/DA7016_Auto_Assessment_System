@@ -38,10 +38,14 @@ def read_sheet(path: str | Path, ocr: OCRProvider, work_dir: str | Path | None =
     path = Path(path)
     if path.suffix.lower() == ".txt":
         return [PlainTextOCR().read_page(path, 0)]
-    from autoassess.ingest import ingest
+    from autoassess.ingest import ingest, is_blank
 
     work = Path(work_dir or Path(".cache") / "pages" / path.stem)
-    return [ocr.read_page(p, i, language) for i, p in enumerate(ingest(path, work))]
+    # Blank pages (or mirrored show-through) are not sent to OCR.
+    return [
+        OCRPage(page_index=i, image_path=str(p), provider="blank") if is_blank(p) else ocr.read_page(p, i, language)
+        for i, p in enumerate(ingest(path, work))
+    ]
 
 
 def run(

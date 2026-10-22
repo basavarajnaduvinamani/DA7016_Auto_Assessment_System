@@ -6,8 +6,15 @@ ignored. A question whose label appears again with a prefix ("Q1 contd") has
 its parts joined in sheet order. On a sheet that uses "Q"/"Ans" labels, bare
 numbers are treated as list items; on a bare-number sheet, a number only
 starts an answer not seen yet. A numbered list inside an answer on a
-bare-number sheet can still mis-split; the LLM fallback is the remedy. An optional LLM fallback handles
-sheets with no recognisable labels.
+bare-number sheet can still mis-split; the LLM fallback is the remedy.
+
+With an LLM, the sheet is re-split by the LLM when the rules found no labels
+or left a question empty (OCR often misreads a handwritten "26" as "23", and
+students answer out of order). The LLM sees the question texts, so it can
+place an answer whose label was misread. Its split is checked line by line:
+each answer is rebuilt from the sheet's own OCR lines, so nothing the student
+did not write can enter an answer, and the lines keep their boxes for the
+red-pen marks and image crops.
 
 Crossed-out work is dropped before grading: OCR that reports strikethrough
 writes it as ~~text~~ (Markdown), and vision transcription as [crossed out].
@@ -43,7 +50,7 @@ def _norm_label(label: str) -> str:
 _LABEL = re.compile(
     r"^\s*(?:(?:q|ques|question|ans|answer)\s*\.?\s*(?:no\.?\s*)?)?"
     r"(\d{1,2}\s*(?:\(?[a-h]\)?|\(?(?:i|ii|iii|iv|v|vi)\)?)?)"
-    r"\s*(?:[.):\-]|\s(?=\S)|$)",
+    r"\s*(?:[.,):\-]|\s(?=\S)|$)",
     re.IGNORECASE,
 )
 
@@ -122,13 +129,63 @@ def segment_with_llm(spec: ExamSpec, sheet_text: str, llm: LLMClient) -> dict[st
     }
 
 
+def _line_key(text: str) -> str:
+    return " ".join(re.findall(r"\w+", text.lower()))
+
+
+def ground_segments(
+    spec: ExamSpec, pages: list[OCRPage], answers: dict[str, AnswerSegment], variants: dict[str, str] | None = None
+) -> dict[str, AnswerSegment]:
+    """Rebuild each LLM answer from the sheet's OCR lines that it contains.
+
+    A line belongs to the first answer (in sheet order of its text) that
+    contains it; lines no answer contains are dropped, and so is any text the
+    LLM wrote that is not on the sheet.
+    """
+    variants = variants or _label_variants(spec)
+    keys = {qid: _line_key(seg.text) for qid, seg in answers.items()}
+    rows: dict[str, list[tuple[int, OCRLine, str]]] = {q.id: [] for q in spec.questions}
+    last: str | None = None
+    for page in pages:
+        for line in page.lines:
+            raw = strip_crossed_out(line.text)
+            hit = _find_label(raw, variants)
+            body = raw[hit[1]:].strip() if hit else raw
+            k = _line_key(body)
+            if len(k) < 2:
+                continue
+            owners = [qid for qid, key in keys.items() if f" {k} " in f" {key} "]
+            if not owners:
+                continue
+            # A short line ("values.") may occur in several answers: stay with the answer being read.
+            qid = last if last in owners else owners[0]
+            rows[qid].append((page.page_index, line, body))
+            last = qid
+    return {
+        q.id: AnswerSegment(
+            question_id=q.id,
+            text="\n".join(t for _, _, t in rows[q.id]).strip(),
+            pages=sorted({p for p, _, _ in rows[q.id]}),
+            lines=[line for _, line, _ in rows[q.id]],
+        )
+        for q in spec.questions
+    }
+
+
 def segment(spec: ExamSpec, pages: list[OCRPage], llm: LLMClient | None = None) -> dict[str, AnswerSegment]:
-    """Rule-based first; LLM fallback only when no labels were found at all."""
+    """Rule-based first; the LLM re-splits when no labels were found or a question came out empty."""
     from autoassess.privacy import anonymise
 
     segments = segment_pages(spec, pages)
-    if llm is not None and not any(s.text for s in segments.values()):
-        segments = segment_with_llm(spec, "\n".join(p.text for p in pages), llm)
+    if llm is not None and any(p.lines for p in pages) and not all(s.text for s in segments.values()):
+        answers = segment_with_llm(spec, "\n".join(p.text for p in pages), llm)
+        grounded = ground_segments(spec, pages, answers)
+        # Keep the LLM split unless it answers fewer questions or drops much of the
+        # sheet (it rightly drops page totals and repeated lines, so not all of it).
+        filled = lambda segs: sum(1 for x in segs.values() if x.text)  # noqa: E731
+        placed = lambda segs: sum(len(x.lines) for x in segs.values())  # noqa: E731
+        if filled(grounded) >= filled(segments) and placed(grounded) >= 0.8 * placed(segments):
+            segments = grounded
     return {k: v.model_copy(update={"text": anonymise(v.text)}) for k, v in segments.items()}
 
 

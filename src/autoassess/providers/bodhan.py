@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -70,7 +71,7 @@ class _BodhanClient:
         self.timeout = timeout
         self.ledger: Ledger = bodhan_ledger(cache.dir.parent if cache else Path(".cache"), budget_inr)
 
-    def _post(self, path: str, body: dict) -> dict:
+    def _post(self, path: str, body: dict, retries: int = 4) -> dict:
         req = urllib.request.Request(
             f"{self.base_url}{path}",
             data=json.dumps(body).encode(),
@@ -80,6 +81,10 @@ class _BodhanClient:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as err:
+            if err.code in (429, 503) and retries > 0:
+                # Rate limit: back off 5, 10, 20, 40 seconds.
+                time.sleep(5 * 2 ** (4 - retries))
+                return self._post(path, body, retries - 1)
             try:
                 e = json.loads(err.read())["error"]
                 msg = f"{err.code} {e.get('code')}: {e.get('message')} (request_id={e.get('request_id')})"
@@ -105,9 +110,7 @@ class BodhanOCR(OCRProvider):
         self.client.ledger.add(OCR_INR_PER_PAGE)
         return {"blocks": result.get("blocks", []), "markdown": result["choices"][0]["message"]["content"]}
 
-    def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
-        image = Path(image_path).read_bytes()
-        mime = mimetypes.guess_type(str(image_path))[0] or "image/png"
+    def _read(self, image: bytes, mime: str, page_index: int, image_path: str) -> OCRPage:
         cache = self.client.cache
         parsed = (
             cache.get_or_compute(content_key("bodhan-ocr", image), lambda: self._ocr(image, mime))
@@ -117,7 +120,36 @@ class BodhanOCR(OCRProvider):
         if not parsed.get("blocks") and parsed.get("markdown"):
             # No layout blocks: fall back to the Markdown, one line per line, no boxes.
             parsed = {"blocks": [{"order": 0, "type": "Text", "text": parsed["markdown"]}]}
-        return blocks_to_page(parsed, page_index, str(image_path), self.name)
+        return blocks_to_page(parsed, page_index, image_path, self.name)
+
+    def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
+        image = Path(image_path).read_bytes()
+        mime = mimetypes.guess_type(str(image_path))[0] or "image/png"
+        try:
+            return self._read(image, mime, page_index, str(image_path))
+        except BodhanError as err:
+            # Dense handwritten pages can make the recogniser truncate a block and
+            # reject the whole page; reading the two halves separately fixes it.
+            if "truncated" not in str(err) and "not transcribed" not in str(err):
+                raise
+            return self._read_halves(image, page_index, str(image_path))
+
+    def _read_halves(self, image: bytes, page_index: int, image_path: str) -> OCRPage:
+        import io
+
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(image))
+        mid = img.height // 2
+        lines = []
+        for top, box in ((0, (0, 0, img.width, mid)), (mid, (0, mid, img.width, img.height))):
+            buf = io.BytesIO()
+            img.crop(box).save(buf, format="PNG")
+            for line in self._read(buf.getvalue(), "image/png", page_index, image_path).lines:
+                if line.bbox is not None:
+                    line = line.model_copy(update={"bbox": line.bbox.model_copy(update={"y0": line.bbox.y0 + top, "y1": line.bbox.y1 + top})})
+                lines.append(line)
+        return OCRPage(page_index=page_index, image_path=image_path, lines=lines, provider=self.name)
 
 
 class BodhanTranslate(Translator):

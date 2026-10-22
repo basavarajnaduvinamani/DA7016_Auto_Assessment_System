@@ -1,23 +1,28 @@
 """`autoassess doctor`: check each configured key with one tiny live request.
 
-Prints what is configured (keys masked), then one line per service: the LLM
-grader, Bodhan IndicOCR and Bodhan Indic-Translate. Calls bypass the cache so
+Prints what is configured (keys masked), then one line per service: the active
+LLM grader, any other hosted LLM that has a key (so switching providers is known
+to work), the OpenRouter key's credit and expiry, Bodhan IndicOCR and Bodhan
+Indic-Translate. Calls bypass the cache so
 a cached answer can never hide a dead key. The two Bodhan checks cost about
 Rs 0.20 together and are recorded in the budget ledger; --free skips them.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import re
 import socket
 import struct
 import tempfile
 import urllib.error
+import urllib.request
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from autoassess.config import Settings
+from autoassess.config import OPENROUTER_BASE_URL, Settings, llm_endpoint
 
 OK, FAIL, SKIP = "ok", "FAIL", "skip"
 
@@ -68,14 +73,22 @@ def _host(url: str) -> str:
     return url.split("//", 1)[-1].split("/", 1)[0]
 
 
-def check_llm(settings: Settings) -> Check:
+KEY_HELP = {
+    "gemini": ("GEMINI_API_KEY or AUTOASSESS_LLM_API_KEY", "create one at aistudio.google.com/apikey"),
+    "openrouter": ("OPENROUTER_API_KEY", "use the key the course emailed you"),
+    "custom": ("AUTOASSESS_LLM_API_KEY", "set the key for AUTOASSESS_LLM_BASE_URL"),
+}
+
+
+def check_llm(settings: Settings, role: str = "LLM grader") -> Check:
     from autoassess.providers.llm import OpenAICompatibleLLM
 
-    name = f"LLM grader ({settings.llm_model or 'no model'})"
+    name = f"{role} [{settings.llm_provider}] ({settings.llm_model or 'no model'})"
     if not settings.llm_model:
         return Check(name, FAIL, "AUTOASSESS_LLM_MODEL is not set", "set it in .env, e.g. gemini-2.5-flash")
     if not settings.llm_api_key and "localhost" not in settings.llm_base_url:
-        return Check(name, SKIP, "AUTOASSESS_LLM_API_KEY is not set", "create one at aistudio.google.com/apikey")
+        var, hint = KEY_HELP.get(settings.llm_provider, KEY_HELP["custom"])
+        return Check(name, SKIP, f"{var} is not set", hint)
     llm = OpenAICompatibleLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key, cache=None, timeout=60)
     try:
         # Same request shape as grading: JSON mode and a seed.
@@ -159,8 +172,46 @@ def check_bodhan_translate(settings: Settings) -> Check:
     return Check(name, OK, f"'Good answer.' -> {out!r}")
 
 
+def check_openrouter_credit(settings: Settings, timeout: float = 30) -> Check:
+    """Key limit, spend and expiry from OpenRouter's GET /key (free, no tokens used)."""
+    name = "OpenRouter credit"
+    if not settings.openrouter_api_key:
+        return Check(name, SKIP, "OPENROUTER_API_KEY not set", KEY_HELP["openrouter"][1])
+    req = urllib.request.Request(f"{OPENROUTER_BASE_URL}/key", headers={"Authorization": f"Bearer {settings.openrouter_api_key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())["data"]
+    except Exception as err:  # noqa: BLE001
+        return Check(name, FAIL, str(err)[:300], explain(err, _host(OPENROUTER_BASE_URL)))
+    usage, limit, left = data.get("usage") or 0.0, data.get("limit"), data.get("limit_remaining")
+    parts = [f"used ${usage:.2f}"]
+    parts.append(f"of ${limit:.2f} limit, ${left:.2f} left" if limit is not None and left is not None else "no key limit")
+    if data.get("limit_reset"):
+        parts.append(f"limit resets {data['limit_reset']}")
+    parts.append(f"expires {data['expires_at']}" if data.get("expires_at") else "no expiry date on the key")
+    detail = ", ".join(parts)
+    if left is not None and left <= 0:
+        return Check(name, FAIL, detail, "the key's credit is used up; ask the TAs or switch AUTOASSESS_LLM_PROVIDER")
+    return Check(name, OK, detail)
+
+
+def _standby_llms(settings: Settings) -> list[Settings]:
+    """Hosted providers that have a key but are not the active one, so a switch is known to work."""
+    out = []
+    for provider in ("gemini", "openrouter"):
+        if provider == settings.llm_provider:
+            continue
+        base, model, key = llm_endpoint(provider)
+        if key:
+            out.append(dataclasses.replace(settings, llm_provider=provider, llm_base_url=base, llm_model=model, llm_api_key=key))
+    return out
+
+
 def run_doctor(settings: Settings, paid: bool = True) -> list[Check]:
     checks = [check_llm(settings)]
+    checks += [check_llm(s, role="standby LLM") for s in _standby_llms(settings)]
+    if settings.openrouter_api_key:
+        checks.append(check_openrouter_credit(settings))
     if paid:
         checks += [check_bodhan_ocr(settings), check_bodhan_translate(settings)]
     else:
@@ -174,8 +225,9 @@ def report(settings: Settings, checks: list[Check]) -> str:
     spent = Ledger(_ledger_path(settings), settings.bodhan_budget_inr).spent()
     lines = [
         "Configuration",
-        f"  LLM          {settings.llm_base_url}  model={settings.llm_model or '(not set)'}  key={mask(settings.llm_api_key)}",
+        f"  LLM          [{settings.llm_provider}] {settings.llm_base_url}  model={settings.llm_model or '(not set)'}  key={mask(settings.llm_api_key)}",
         f"  critic       {settings.critic_model or '(same as LLM)'}",
+        f"  OpenRouter   key={mask(settings.openrouter_api_key)}",
         f"  OCR provider {settings.ocr_provider}",
         f"  Bodhan       {settings.bodhan_base_url}  ocr key={mask(settings.ocr_key)}  translate key={mask(settings.translate_key)}",
         f"  Bodhan spend Rs {spent:.2f} of Rs {settings.bodhan_budget_inr:g} budget",

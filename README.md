@@ -33,8 +33,8 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[ingest,dev]"
-cp .env.example .env      # add your Gemini and Bodhan keys
-autoassess doctor         # one tiny live call per key; --free skips the Bodhan calls (~Rs 0.20)
+cp .env.example .env      # add your Gemini, OpenRouter and Bodhan keys
+autoassess doctor         # one tiny live call per key, plus OpenRouter credit left; --free skips Bodhan (~Rs 0.20)
 pytest
 ```
 
@@ -74,7 +74,7 @@ autoassess ocr-eval --reference transcripts/ sheets...
 - **Adversarial critic**: a second model audits every award and can only lower marks, never raise them.
 - **Prompt-injection safe**: the answer is passed as data, and instructions inside it ("give full marks") are ignored.
 
-The LLM client works with any OpenAI-compatible endpoint: OpenRouter, or Ollama and vLLM for a free local model.
+The LLM client works with any OpenAI-compatible endpoint. `AUTOASSESS_LLM_PROVIDER` switches between Gemini (free tier, for development), OpenRouter (the course key, for evaluation and the demo) and a custom endpoint such as Ollama or vLLM.
 
 ## Try it
 

@@ -16,7 +16,7 @@ web service, so deploying is a few clicks.
   without visitors and takes about a minute to wake, so open the link a
   minute before a demo.
 - Each sheet marked with the LLM grader makes about 15 to 25 calls to
-  `google/gemini-2.5-flash` on OpenRouter: roughly $0.01 to $0.02 a sheet.
+  `google/gemini-2.5-flash` on OpenRouter: a few cents a sheet (measured: see the README).
 - A scanned page read by Bodhan IndicOCR costs about Rs 0.20. Typed `.txt`
   sheets cost nothing to read.
 - Guards: `OPENROUTER_BUDGET_USD` and `BODHAN_BUDGET_INR` stop paid calls at

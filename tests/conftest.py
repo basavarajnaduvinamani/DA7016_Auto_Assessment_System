@@ -23,8 +23,11 @@ class FakeLLM(LLMClient):
 
 
 @pytest.fixture(autouse=True)
-def _no_real_keys(monkeypatch):
-    """Real keys in the environment must never turn a test into a paid live call."""
+def _no_real_keys(monkeypatch, tmp_path):
+    """Real keys in the environment must never turn a test into a paid live call,
+    and fake paid calls must never land in the real spend ledgers under ./.cache."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AUTOASSESS_CACHE_DIR", str(tmp_path / ".cache"))
     for var in (
         "AUTOASSESS_LLM_PROVIDER", "AUTOASSESS_LLM_API_KEY", "AUTOASSESS_LLM_BASE_URL", "AUTOASSESS_LLM_MODEL",
         "GEMINI_API_KEY", "OPENROUTER_API_KEY", "BODHAN_API_KEY", "BODHAN_OCR_API_KEY", "BODHAN_TRANSLATE_API_KEY",

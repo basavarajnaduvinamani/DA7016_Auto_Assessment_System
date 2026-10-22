@@ -7,10 +7,10 @@ evidence quote and a reason. Code then enforces the rubric:
 - awarded marks need a quote that really occurs in the student's answer;
   a bad quote triggers one repair round, after which the marks are withdrawn;
 - several independent runs are combined by the median per criterion;
-- an optional adversarial critic (critic.py) may then lower any award it
-  finds too generous, and an optional advocate (advocate.py) may raise a
-  mark it finds was missed, but only with a verified quote, so the checks
-  pull both ways instead of only down;
+- an optional advocate (advocate.py) may then raise a mark it finds was
+  missed, but only with a verified quote, and an optional adversarial critic
+  (critic.py) audits every award, the advocate's included, and may lower
+  any it finds too generous, so the checks pull both ways, not only down;
 - an optional second examiner (a different model) grades once more, and
   confidence.py turns run spread, model disagreement, OCR confidence and the
   critic's and advocate's changes into one confidence; a low one marks the
@@ -347,24 +347,25 @@ def grade_question(
         signals["model_agreement"] = 1.0 - gap / mx
         if gap / mx > 1.0 - low_confidence:
             flags.append("examiners_disagree")
-    if critic is not None:
-        from autoassess.critic import audit
-
-        before = criteria
-        criteria, critic_flags = audit(question, answer, criteria, critic)
-        flags.extend(critic_flags)
-        critic_change = _changed(before, criteria)
-    else:
-        critic_change = 0.0
+    # The advocate looks for missed credit first; the critic then audits every award,
+    # the advocate's raises included, so a generous raise can still be taken back.
+    change = 0.0
     if advocate is not None:
         from autoassess.advocate import advocate as advocate_pass
 
         before = criteria
         criteria, adv_flags = advocate_pass(question, answer, criteria, advocate, context=context, run_spread=spread)
         flags.extend(adv_flags)
-        signals["review_agreement"] = 1.0 - (critic_change + _changed(before, criteria)) / mx
-    elif critic is not None:
-        signals["review_agreement"] = 1.0 - critic_change / mx
+        change += _changed(before, criteria)
+    if critic is not None:
+        from autoassess.critic import audit
+
+        before = criteria
+        criteria, critic_flags = audit(question, answer, criteria, critic)
+        flags.extend(critic_flags)
+        change += _changed(before, criteria)
+    if advocate is not None or critic is not None:
+        signals["review_agreement"] = 1.0 - change / mx
     withdrawn = sum(1 for f in flags if f.startswith("unsupported_evidence:"))
     if withdrawn:
         signals["evidence"] = max(0.0, 1.0 - withdrawn / len(question.criteria))

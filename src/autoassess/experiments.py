@@ -38,6 +38,7 @@ class Config:
     require_evidence: bool = True
     model_answer: bool = True
     lexical: bool = False
+    input_mode: str = "text"
 
 
 DEFAULT_CONFIGS = [
@@ -49,6 +50,10 @@ DEFAULT_CONFIGS = [
     Config("no_evidence_rule", require_evidence=False),
     Config("no_model_answer", model_answer=False),
     Config("lexical_baseline", lexical=True),
+    # Input ablation (needs page images). Compare image_only with no_review, hybrid with full:
+    # image_only can't check quotes, so it runs without the critic and advocate, which need them.
+    Config("image_only", critic=False, advocate=False, input_mode="image"),
+    Config("hybrid", input_mode="hybrid"),
 ]
 
 
@@ -57,7 +62,11 @@ def _without_model_answers(spec: ExamSpec) -> ExamSpec:
 
 
 def make_grade_fn(
-    cfg: Config, llm: LLMClient | None, critic: LLMClient | None, second: LLMClient | None = None
+    cfg: Config,
+    llm: LLMClient | None,
+    critic: LLMClient | None,
+    second: LLMClient | None = None,
+    images: Callable[[AnswerSegment], list[bytes]] | None = None,
 ) -> GradeFn:
     if cfg.lexical:
         return grade_question_lexical
@@ -66,10 +75,13 @@ def make_grade_fn(
     reviewer = critic or llm
 
     def fn(q: Question, seg: AnswerSegment) -> QuestionGrade:
+        crops = images(seg) if images and cfg.input_mode != "text" else None
         return grade_question(
             q,
             seg,
             llm,
+            images=crops,
+            mode=cfg.input_mode if crops else "text",
             runs=cfg.runs,
             critic=reviewer if cfg.critic else None,
             advocate=reviewer if cfg.advocate else None,
@@ -100,15 +112,25 @@ def run_ablation(
     critic: LLMClient | None = None,
     configs: list[Config] | None = None,
     second: LLMClient | None = None,
+    pages: dict[str, list] | None = None,
 ) -> dict:
+    """pages (sheet id -> OCR pages with images) enables the image_only and hybrid configs."""
     results = {}
     for cfg in configs or DEFAULT_CONFIGS:
         if llm is None and not cfg.lexical:
             continue
-        if cfg.second and second is None:
+        if (cfg.second and second is None) or (cfg.input_mode != "text" and not pages):
             continue
         cspec = spec if cfg.model_answer else _without_model_answers(spec)
-        grades = grade_all(cspec, sheets, make_grade_fn(cfg, llm, critic, second))
+        if cfg.input_mode == "text":
+            grades = grade_all(cspec, sheets, make_grade_fn(cfg, llm, critic, second))
+        else:
+            from autoassess.page_images import answer_crops
+
+            grades = [
+                grade_all(cspec, {sid: segs}, make_grade_fn(cfg, llm, critic, second, lambda seg, p=pages.get(sid, []): answer_crops(seg, p)))[0]
+                for sid, segs in sheets.items()
+            ]
         results[cfg.name] = compare(cspec, grades, human)
     return results
 

@@ -15,6 +15,9 @@ evidence quote and a reason. Code then enforces the rubric:
   confidence.py turns run spread, model disagreement, OCR confidence and the
   critic's and advocate's changes into one confidence; a low one marks the
   question "?" for a human.
+Input modes (for the OCR-versus-vision ablation): "text" grades the OCR text;
+"image" grades the page crops alone, with no OCR, so quotes can't be
+checked; "hybrid" sends both and checks quotes against the OCR text.
 Quotes are matched loosely enough that one misread OCR character does not
 cost a criterion. Follow-through criteria (ECF) see the student's answers to
 the questions they build on.
@@ -129,15 +132,31 @@ def _criterion_line(c) -> str:
     return f"- {c.id} ({c.marks:g} marks, {kind}): {c.description}"
 
 
-def build_prompt(question: Question, answer: str, context: str | None = None) -> str:
+INPUT_MODES = ("text", "image", "hybrid")
+_IMAGE_NOTE = {
+    "image": "The student's answer is in the attached page images; read it from there. Quote evidence exactly as written on the page.",
+    "hybrid": (
+        "The attached page images show the same answer, including any diagrams, equations or crossed-out work. "
+        "Use them to understand the answer, but copy evidence quotes from the OCR text below."
+    ),
+}
+
+
+def build_prompt(question: Question, answer: str, context: str | None = None, mode: str = "text") -> str:
     rubric = "\n".join(_criterion_line(c) for c in question.criteria)
     model = question.model_answer or "(none given)"
     earlier = f"EARLIER ANSWERS (context only, not graded here):\n<earlier_answers>\n{context}\n</earlier_answers>\n\n" if context else ""
+    if mode == "image":
+        return (
+            f"QUESTION {question.id} ({question.max_marks:g} marks): {question.text}\n\n"
+            f"RUBRIC:\n{rubric}\n\nMODEL ANSWER:\n{model}\n\n{earlier}{_IMAGE_NOTE['image']}"
+        )
+    note = f"{_IMAGE_NOTE['hybrid']}\n\n" if mode == "hybrid" else ""
     return (
         f"QUESTION {question.id} ({question.max_marks:g} marks): {question.text}\n\n"
         f"RUBRIC:\n{rubric}\n\n"
         f"MODEL ANSWER:\n{model}\n\n"
-        f"{earlier}"
+        f"{earlier}{note}"
         f"<student_answer>\n{answer}\n</student_answer>"
     )
 
@@ -220,16 +239,30 @@ def grade_once(
     temperature: float = 0.0,
     require_evidence: bool = True,
     context: str | None = None,
+    images: list[bytes] | None = None,
+    mode: str = "text",
 ) -> tuple[list[CriterionResult], list[str]]:
-    user = build_prompt(question, answer, context)
-    raw = llm.complete_json(GRADER_SYSTEM, user, temperature=temperature, seed=seed)
+    if mode not in INPUT_MODES:
+        raise ValueError(f"input mode must be one of {INPUT_MODES}")
+    if mode != "text" and not images:
+        raise ValueError(f"input mode {mode!r} needs page images")
+    if mode == "image":
+        require_evidence = False  # nothing to check quotes against without OCR text
+    user = build_prompt(question, answer, context, mode)
+
+    def ask(prompt: str) -> dict:
+        if mode == "text":
+            return llm.complete_json(GRADER_SYSTEM, prompt, temperature=temperature, seed=seed)
+        return llm.complete_json_images(GRADER_SYSTEM, prompt, images, temperature=temperature, seed=seed)
+
+    raw = ask(user)
     check = _enforce(question, raw, answer, require_evidence)
     if check.problems:
         repair = (
             f"{user}\n\nYour previous grading:\n{json.dumps(raw, ensure_ascii=False)}\n\n"
             "Fix these problems and return the full JSON again:\n- " + "\n- ".join(check.problems)
         )
-        raw = llm.complete_json(GRADER_SYSTEM, repair, temperature=temperature, seed=seed)
+        raw = ask(repair)
         check = _enforce(question, raw, answer, require_evidence)
     if not require_evidence:
         return check.results, []
@@ -268,11 +301,13 @@ def grade_question(
     second: LLMClient | None = None,
     require_evidence: bool = True,
     context: str | None = None,
+    images: list[bytes] | None = None,
+    mode: str = "text",
 ) -> QuestionGrade:
     from autoassess.confidence import combine_signals
 
     answer = segment.text.strip()
-    if not answer:
+    if not answer and not (mode == "image" and images):
         return QuestionGrade(
             question_id=question.id,
             marks_awarded=0,
@@ -294,7 +329,9 @@ def grade_question(
             flags.append("low_ocr_confidence")
     if any(line.kind == "diagram" for line in segment.lines):
         flags.append("contains_diagram")
-    kw = dict(require_evidence=require_evidence, context=context)
+    if mode == "image":
+        require_evidence = False
+    kw = dict(require_evidence=require_evidence, context=context, images=images, mode=mode)
     for k in range(runs):
         results, run_flags = grade_once(question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0, **kw)
         all_runs.append(results)
@@ -355,16 +392,27 @@ def dependency_context(question: Question, segments: dict[str, AnswerSegment]) -
 
 
 def grade_sheet(
-    spec: ExamSpec, segments: dict[str, AnswerSegment], llm: LLMClient, student_id: str, **kwargs
+    spec: ExamSpec,
+    segments: dict[str, AnswerSegment],
+    llm: LLMClient,
+    student_id: str,
+    *,
+    pages: list | None = None,
+    mode: str = "text",
+    **kwargs,
 ) -> SheetGrade:
-    grades = [
-        grade_question(
-            q,
-            segments.get(q.id) or AnswerSegment(question_id=q.id, text=""),
-            llm,
-            context=dependency_context(q, segments),
-            **kwargs,
+    grades = []
+    for q in spec.questions:
+        seg = segments.get(q.id) or AnswerSegment(question_id=q.id, text="")
+        images = None
+        if mode != "text":
+            from autoassess.page_images import answer_crops
+
+            images = answer_crops(seg, pages or []) or None
+        g = grade_question(
+            q, seg, llm, context=dependency_context(q, segments), images=images, mode=mode if images else "text", **kwargs
         )
-        for q in spec.questions
-    ]
+        if mode != "text" and not images and seg.text.strip():
+            g = g.model_copy(update={"flags": [*g.flags, "no_page_image"]})
+        grades.append(g)
     return SheetGrade(exam_id=spec.exam_id, student_id=student_id, questions=grades)

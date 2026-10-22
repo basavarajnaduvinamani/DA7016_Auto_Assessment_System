@@ -6,6 +6,7 @@ cached on (model, messages, temperature, seed).
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import urllib.error
@@ -74,6 +75,18 @@ class OpenAICompatibleLLM(LLMClient):
             raise LLMError(f"{err.code} from {self.base_url}: {detail}", err.code) from err
 
     def complete_json(self, system: str, user: str, *, temperature: float = 0.0, seed: int | None = None) -> dict:
+        return self._complete(system, user, temperature, seed)
+
+    def complete_json_images(
+        self, system: str, user: str, images: list[bytes], *, temperature: float = 0.0, seed: int | None = None
+    ) -> dict:
+        content: list[dict] = [{"type": "text", "text": user}]
+        for img in images:
+            mime = "image/jpeg" if img[:3] == b"\xff\xd8\xff" else "image/png"
+            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img).decode()}"}})
+        return self._complete(system, content, temperature, seed)
+
+    def _complete(self, system: str, user: str | list[dict], temperature: float, seed: int | None) -> dict:
         payload = {
             "model": self.model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],

@@ -78,6 +78,7 @@ def _grade(args: argparse.Namespace) -> int:
             critic=critic,
             advocate=advocate,
             second=second,
+            mode=args.input,
             translator=translator,
             feedback_language=args.feedback_language,
         )
@@ -139,18 +140,24 @@ def _experiment(args: argparse.Namespace) -> int:
     spec = load_spec(args.spec)
     llm = None if args.baseline_only else make_llm(settings)
     critic = make_llm(settings, critic=True) if llm else None
-    sheets = _load_sheets(spec, args.sheets, make_ocr(settings), llm)
+    from autoassess.experiments import read_pages_for_sheets
+    from autoassess.segment import segment
+
+    pages = read_pages_for_sheets(args.sheets, make_ocr(settings), spec.language)
+    sheets = {sid: segment(spec, p, llm) for sid, p in pages.items()}
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     if args.kind == "ablation":
         if not args.human:
             print("ablation needs --human", file=sys.stderr)
             return 2
-        results = run_ablation(spec, sheets, load_human_marks(args.human), llm, critic)
+        has_images = any(pg.image_path for ps in pages.values() for pg in ps)
+        results = run_ablation(spec, sheets, load_human_marks(args.human), llm, critic, pages=pages if has_images else None)
         (out / "ablation.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
         table = ablation_table(results)
     else:
-        cfg = DEFAULT_CONFIGS[-1] if args.baseline_only else DEFAULT_CONFIGS[0]
+        by_name = {c.name: c for c in DEFAULT_CONFIGS}
+        cfg = by_name["lexical_baseline"] if args.baseline_only else by_name["full"]
         report = run_robustness(spec, sheets, make_grade_fn(cfg, llm, critic))
         (out / "robustness.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         table = robustness_table(report)
@@ -220,6 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--advocate", action="store_true", help="let a reviewer raise marks it finds were missed (verified quote needed)")
     p.add_argument("--second-model", help="a second examiner model for the confidence check, e.g. openai/gpt-4.1-mini")
     p.add_argument("--baseline", action="store_true", help="use the lexical baseline, no LLM")
+    p.add_argument("--input", choices=["text", "image", "hybrid"], default="text",
+                   help="grade the OCR text, the page image (vision model), or both")
     p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_grade)

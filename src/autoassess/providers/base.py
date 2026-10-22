@@ -27,6 +27,12 @@ class LLMClient(ABC):
     def complete_json(self, system: str, user: str, *, temperature: float = 0.0, seed: int | None = None) -> dict:
         """Return the model's reply parsed as a JSON object."""
 
+    def complete_json_images(
+        self, system: str, user: str, images: list[bytes], *, temperature: float = 0.0, seed: int | None = None
+    ) -> dict:
+        """Same, with page images (PNG or JPEG bytes) after the text. Vision models only."""
+        raise NotImplementedError(f"{self.name} does not take images")
+
 
 class Translator(ABC):
     name: str = "base"

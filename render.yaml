@@ -1,0 +1,35 @@
+# Render Blueprint: free web service running the Gradio demo (app.py).
+# Render dashboard > New > Blueprint > pick this repo. Then fill in the keys
+# marked sync: false under the service's Environment tab. See docs/deploy.md.
+services:
+  - type: web
+    name: red-ink-grader
+    runtime: python
+    plan: free
+    buildCommand: pip install ".[ingest,demo]"
+    startCommand: python app.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: AUTOASSESS_LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_MODEL
+        value: google/gemini-2.5-flash
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: BODHAN_OCR_API_KEY
+        sync: false
+      - key: BODHAN_TRANSLATE_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Spend guards: the demo stops paid grading at these limits.
+      - key: OPENROUTER_BUDGET_USD
+        value: "18"
+      - key: BODHAN_BUDGET_INR
+        value: "100"
+      - key: AUTOASSESS_DEMO_DAILY_SHEETS
+        value: "40"
+      - key: AUTOASSESS_CACHE_DIR
+        value: /tmp/autoassess-cache

@@ -54,6 +54,10 @@ class Question(BaseModel):
         default_factory=list,
         description="Questions whose answers this one builds on; the grader sees the student's answers to them.",
     )
+    marking: str | None = Field(
+        default=None,
+        description="Marking policy for this question, 'standard' or 'lenient'; defaults to the exam's.",
+    )
 
     @model_validator(mode="after")
     def _criteria_sum_to_max(self) -> Question:
@@ -70,11 +74,29 @@ class Question(BaseModel):
         return self
 
 
+MARKING_POLICIES = ("standard", "lenient")
+
+
 class ExamSpec(BaseModel):
     exam_id: str
     title: str
     language: str = Field(default="en", description="Main language of the paper (ISO 639-1).")
+    marking: str = Field(
+        default="standard",
+        description="'standard': a criterion needs the idea stated. 'lenient': the idea in vague or "
+        "imprecise words, or by clear implication, earns partial credit (a teacher's house style).",
+    )
     questions: list[Question] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _marking_policy(self) -> ExamSpec:
+        for q in [self, *self.questions]:
+            if q.marking not in (None, *MARKING_POLICIES):
+                raise ValueError(f"marking must be one of {MARKING_POLICIES}, not {q.marking!r}")
+        for q in self.questions:
+            if q.marking is None:
+                q.marking = self.marking
+        return self
 
     @model_validator(mode="after")
     def _unique_ids(self) -> ExamSpec:

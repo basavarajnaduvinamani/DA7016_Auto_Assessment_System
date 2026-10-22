@@ -72,3 +72,30 @@ def ingest(source: str | Path, out_dir: str | Path, dpi: int = 200) -> list[Path
     else:
         raise ValueError(f"unsupported input {source}")
     return [clean_page(p, out_dir / f"page_{i:03d}.png") for i, p in enumerate(raw)]
+
+
+# Below this share of dark pixels a page counts as blank and is not sent to OCR
+# (OCR of an empty page costs money and can return garbage). The default only
+# skips truly empty pages. Thin paper scanned double-sided shows the back's
+# writing mirrored through; OCR reads that as garbage that would join the last
+# answer. On such scans set AUTOASSESS_BLANK_INK=0.002: on the real set we
+# measured, show-through was 0% to 0.19% and written pages 0.23% to 5%. A page
+# holding one short line can fall under 0.2%, so that is not the default.
+BLANK_INK_SHARE = 0.0005
+
+
+def ink_share(image_path: str | Path, dark: int = 140) -> float:
+    """Share of pixels darker than `dark` in every channel."""
+    import numpy as np
+    from PIL import Image
+
+    a = np.asarray(Image.open(image_path).convert("RGB")).min(axis=2)
+    return float((a < dark).mean())
+
+
+def is_blank(image_path: str | Path, threshold: float | None = None) -> bool:
+    import os
+
+    if threshold is None:
+        threshold = float(os.getenv("AUTOASSESS_BLANK_INK") or BLANK_INK_SHARE)
+    return ink_share(image_path) < threshold

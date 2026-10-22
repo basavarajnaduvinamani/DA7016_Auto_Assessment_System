@@ -142,8 +142,21 @@ _IMAGE_NOTE = {
 }
 
 
+LENIENT_NOTE = (
+    "MARKING POLICY: lenient (this teacher's house style). Give partial credit on a criterion when the "
+    "answer shows the right idea in vague, imprecise or incomplete words, or by clear implication. "
+    "Give 0 on a criterion only when the answer is off-topic or plainly wrong on that point. "
+    "Evidence quotes are still required."
+)
+
+
+def policy_note(question: Question) -> str:
+    return f"{LENIENT_NOTE}\n\n" if question.marking == "lenient" else ""
+
+
 def build_prompt(question: Question, answer: str, context: str | None = None, mode: str = "text") -> str:
-    rubric = "\n".join(_criterion_line(c) for c in question.criteria)
+    rubric = "\n".join(_criterion_line(c) for c in question.criteria) + "\n\n" + policy_note(question).strip()
+    rubric = rubric.rstrip()
     model = question.model_answer or "(none given)"
     earlier = f"EARLIER ANSWERS (context only, not graded here):\n<earlier_answers>\n{context}\n</earlier_answers>\n\n" if context else ""
     if mode == "image":

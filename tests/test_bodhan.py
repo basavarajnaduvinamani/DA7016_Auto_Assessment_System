@@ -55,12 +55,15 @@ def test_translate_per_paragraph_with_codes(tmp_path):
 
     def post(path, body):
         sent.append((path, body))
-        return {"translation": f"<{body['target_language']}>{body['text']}", "usage": {"output_tokens": 20}, "truncated": False}
+        text = body["messages"][0]["content"]
+        reply = {"content": f"<{body['target_language']}>{text}"}
+        return {"choices": [{"message": reply, "finish_reason": "stop"}], "usage": {"completion_tokens": 20}}
 
     tr.client._post = post
     out = tr.translate("First line.\n\nSecond line.", "Kannada")
     assert out == "<kn>First line.\n\n<kn>Second line."
-    assert [b["text"] for _, b in sent] == ["First line.", "Second line."] and sent[0][0] == "/translate"
+    assert [b["messages"][0]["content"] for _, b in sent] == ["First line.", "Second line."]
+    assert sent[0][0] == "/v1/chat/completions" and sent[0][1]["model"] == "indic-translate"
     tr.translate("First line.", "kn")
     assert len(sent) == 2  # cached
     assert tr.translate("Same", "English") == "Same"

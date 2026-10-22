@@ -186,6 +186,89 @@ def _ocr_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _grade_class(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.classwork import class_report, class_report_html, grade_class
+    from autoassess.config import Settings
+    from autoassess.experiments import read_pages_for_sheets
+    from autoassess.feedback import add_feedback
+    from autoassess.providers import make_llm, make_ocr
+    from autoassess.segment import segment
+    from autoassess.spec_builder import lint_spec, load_spec
+
+    settings = Settings.load()
+    spec = load_spec(args.spec)
+    for w in lint_spec(spec):
+        print(f"  rubric warning: {w}")
+    llm = make_llm(settings)
+    reviewer = make_llm(settings, critic=True)
+    pages = read_pages_for_sheets(args.sheets, make_ocr(settings), spec.language)
+    sheets = {sid: segment(spec, p, llm) for sid, p in pages.items()}
+    images = None
+    if args.input != "text":
+        from autoassess.page_images import answer_crops
+
+        images = lambda sid, seg: answer_crops(seg, pages[sid]) or None  # noqa: E731
+    grades = grade_class(
+        spec, sheets, llm, runs=args.runs, critic=reviewer if args.critic else None,
+        advocate=reviewer if args.advocate else None, images=images, mode=args.input,
+    )  # fmt: skip
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    for g in grades:
+        g = add_feedback(spec, g, {k: v.text for k, v in sheets[g.student_id].items()}, llm)
+        (out / f"{g.student_id}.json").write_text(g.model_dump_json(indent=2), encoding="utf-8")
+        if args.annotate:
+            from autoassess.annotate import annotate_sheet
+
+            annotate_sheet(spec, g, sheets[g.student_id], pages[g.student_id], out / "marked")
+        review = [q.question_id for q in g.questions if q.needs_review]
+        print(f"{g.student_id}: {g.total:g} / {spec.total_marks:g}" + (f"  (? for review: {', '.join(review)})" if review else ""))
+    report = class_report(spec, [type(grades[0]).model_validate_json((out / f"{g.student_id}.json").read_text()) for g in grades])
+    (out / "class_report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "class_report.html").write_text(class_report_html(report, spec.title), encoding="utf-8")
+    print(f"class report: {out / 'class_report.html'}")
+    return 0
+
+
+def _class_report(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.classwork import class_report, class_report_html
+    from autoassess.evaluate import load_grades
+    from autoassess.spec_builder import load_spec
+
+    spec = load_spec(args.spec)
+    report = class_report(spec, load_grades(args.grades))
+    out = Path(args.out or args.grades)
+    (out / "class_report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "class_report.html").write_text(class_report_html(report, spec.title), encoding="utf-8")
+    print(f"class report: {out / 'class_report.html'}")
+    return 0
+
+
+def _regrade(args: argparse.Namespace) -> int:
+    from autoassess.config import Settings
+    from autoassess.pipeline import read_sheet
+    from autoassess.providers import make_llm, make_ocr
+    from autoassess.regrade import regrade
+    from autoassess.schemas import SheetGrade
+    from autoassess.segment import segment
+    from autoassess.spec_builder import load_spec
+
+    settings = Settings.load()
+    spec = load_spec(args.spec)
+    grade = SheetGrade.model_validate_json(Path(args.grade).read_text(encoding="utf-8"))
+    segs = segment(spec, read_sheet(args.sheet, make_ocr(settings), language=spec.language))
+    qid = args.criterion.split(".")[0]
+    new, rec = regrade(spec, grade, segs[qid].text, qid, args.criterion, args.reason, make_llm(settings),
+                       log=Path(args.grade).with_name("regrades.jsonl"))  # fmt: skip
+    Path(args.grade).write_text(new.model_dump_json(indent=2), encoding="utf-8")
+    print(f"{rec.criterion_id}: {rec.old_marks:g} -> {rec.new_marks:g} ({rec.decision}). {rec.response}")
+    return 0
+
+
 def _doctor(args: argparse.Namespace) -> int:
     from autoassess.config import Settings
     from autoassess.doctor import FAIL, report, run_doctor
@@ -236,6 +319,31 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_grade)
+
+    p = sub.add_parser("grade-class", help="grade a class question by question, with a consistency pass and class report")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--runs", type=int, default=3)
+    p.add_argument("--critic", action="store_true")
+    p.add_argument("--advocate", action="store_true")
+    p.add_argument("--input", choices=["text", "image", "hybrid"], default="text")
+    p.add_argument("--annotate", action="store_true")
+    p.add_argument("sheets", nargs="+")
+    p.set_defaults(func=_grade_class)
+
+    p = sub.add_parser("class-report", help="class report from a folder of grades")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--grades", required=True)
+    p.add_argument("--out")
+    p.set_defaults(func=_class_report)
+
+    p = sub.add_parser("regrade", help="regrade one criterion after a student's request")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--grade", required=True, help="the sheet's grade JSON (updated in place; requests logged beside it)")
+    p.add_argument("--sheet", required=True, help="the answer sheet")
+    p.add_argument("--criterion", required=True, help="e.g. Q2.c3")
+    p.add_argument("--reason", required=True, help="the student's reason")
+    p.set_defaults(func=_regrade)
 
     p = sub.add_parser("evaluate", help="compare grades with human marks")
     p.add_argument("--spec", required=True)

@@ -63,3 +63,27 @@ def agreement_report(system: Sequence[float], human: Sequence[float], max_marks:
     if max_marks is not None:
         report["nmae"] = round(sum(abs(s - h) / m for s, h, m in zip(system, human, max_marks, strict=True)) / len(system), 3)
     return report
+
+
+def _edit_distance(a: Sequence, b: Sequence) -> int:
+    prev = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        cur = [i]
+        for j, y in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y)))
+        prev = cur
+    return prev[-1]
+
+
+def _ocr_norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def character_error_rate(hypothesis: str, reference: str) -> float:
+    ref = _ocr_norm(reference)
+    return _edit_distance(_ocr_norm(hypothesis), ref) / max(1, len(ref))
+
+
+def word_error_rate(hypothesis: str, reference: str) -> float:
+    ref = reference.split()
+    return _edit_distance(hypothesis.split(), ref) / max(1, len(ref))

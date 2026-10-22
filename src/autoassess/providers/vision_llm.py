@@ -14,6 +14,7 @@ import mimetypes
 import urllib.request
 from pathlib import Path
 
+from autoassess.budget import Ledger, record_llm_cost
 from autoassess.cache import DiskCache, content_key
 from autoassess.providers.base import OCRProvider
 from autoassess.schemas import OCRLine, OCRPage
@@ -27,7 +28,15 @@ Return only the transcription."""
 
 
 class VisionLLMOCR(OCRProvider):
-    def __init__(self, base_url: str, model: str, api_key: str = "", cache: DiskCache | None = None, timeout: float = 180):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str = "",
+        cache: DiskCache | None = None,
+        timeout: float = 180,
+        ledger: Ledger | None = None,
+    ):
         if not model:
             raise ValueError("no vision model configured; set AUTOASSESS_VISION_MODEL")
         self.base_url = base_url.rstrip("/")
@@ -35,6 +44,7 @@ class VisionLLMOCR(OCRProvider):
         self.api_key = api_key
         self.cache = cache
         self.timeout = timeout
+        self.ledger = ledger
         self.name = f"vision-llm:{model}"
 
     def _transcribe(self, image: bytes, mime: str) -> str:
@@ -57,8 +67,12 @@ class VisionLLMOCR(OCRProvider):
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})},
         )
+        if self.ledger:
+            self.ledger.check()
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read())["choices"][0]["message"]["content"]
+            response = json.loads(resp.read())
+        record_llm_cost(self.ledger, response)
+        return response["choices"][0]["message"]["content"]
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
         image = Path(image_path).read_bytes()

@@ -23,13 +23,17 @@ def make_ocr(settings: Settings) -> OCRProvider:
         from autoassess.providers.vision_llm import VisionLLMOCR
 
         return VisionLLMOCR(
-            settings.llm_base_url, settings.vision_model, settings.llm_api_key, DiskCache(settings.cache_dir, "ocr")
+            settings.llm_base_url,
+            settings.vision_model,
+            settings.llm_api_key,
+            DiskCache(settings.cache_dir, "ocr"),
+            ledger=settings.llm_ledger(),
         )
     if settings.ocr_provider == "bodhan":
         from autoassess.providers.bodhan import BodhanOCR
 
         return BodhanOCR(
-            settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"), settings.bodhan_budget_inr
+            settings.ocr_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"), settings.bodhan_budget_inr
         )
     raise ValueError(f"unknown OCR provider {settings.ocr_provider!r}")
 
@@ -39,14 +43,16 @@ def make_llm(settings: Settings, critic: bool = False) -> LLMClient:
     from autoassess.providers.llm import OpenAICompatibleLLM
 
     model = (settings.critic_model or settings.llm_model) if critic else settings.llm_model
-    return OpenAICompatibleLLM(settings.llm_base_url, model, settings.llm_api_key, DiskCache(settings.cache_dir, "llm"))
+    return OpenAICompatibleLLM(
+        settings.llm_base_url, model, settings.llm_api_key, DiskCache(settings.cache_dir, "llm"), ledger=settings.llm_ledger()
+    )
 
 
 def make_translator(settings: Settings) -> Translator:
     from autoassess.providers.bodhan import BodhanTranslate
 
     return BodhanTranslate(
-        settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
+        settings.translate_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
     )
 
 

@@ -47,8 +47,8 @@ def _ingest(args: argparse.Namespace) -> int:
 
 def _grade(args: argparse.Namespace) -> int:
     from autoassess.config import Settings
-    from autoassess.pipeline import grade_pages, read_sheet
-    from autoassess.providers import make_llm, make_ocr
+    from autoassess.pipeline import read_sheet, run
+    from autoassess.providers import make_llm, make_ocr, make_translator
     from autoassess.spec_builder import load_spec
 
     settings = Settings.load()
@@ -58,10 +58,22 @@ def _grade(args: argparse.Namespace) -> int:
     ocr = make_ocr(settings)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    translator = make_translator(settings) if args.feedback_language else None
     for sheet in args.sheets:
         sid = Path(sheet).stem
-        grade = grade_pages(spec, read_sheet(sheet, ocr, language=spec.language), sid, llm, runs=args.runs, critic=critic)
+        result = run(
+            spec,
+            read_sheet(sheet, ocr, language=spec.language),
+            sid,
+            llm,
+            runs=args.runs,
+            critic=critic,
+            translator=translator,
+            feedback_language=args.feedback_language,
+        )
+        grade = result.grade
         (out / f"{sid}.json").write_text(grade.model_dump_json(indent=2), encoding="utf-8")
+        (out / f"{sid}.html").write_text(result.html(), encoding="utf-8")
         flags = sum(1 for q in grade.questions if q.flags and q.flags != ["unanswered"])
         print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  ({flags} flagged)" if flags else ""))
     return 0
@@ -105,10 +117,11 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("grade", help="grade answer sheets (.txt, .pdf or images) against a spec")
     p.add_argument("--spec", required=True)
-    p.add_argument("--out", required=True, help="folder for one JSON grade per sheet")
+    p.add_argument("--out", required=True, help="folder for a JSON grade and an HTML report per sheet")
     p.add_argument("--runs", type=int, default=3, help="independent grading runs per question")
     p.add_argument("--critic", action="store_true", help="let a second model audit awarded marks")
     p.add_argument("--baseline", action="store_true", help="use the lexical baseline, no LLM")
+    p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_grade)
 

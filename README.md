@@ -24,7 +24,7 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 | 1 | Foundations: schemas, exam spec builder, ingest, providers, cache | done |
 | 2 | Criterion grader with evidence quotes, critic, segmentation, baseline, agreement metrics | done |
 | 3 | OCR: IndicOCR open weights (local or Colab JSON), vision-LLM baseline; segmentation on OCR pages | done |
-| 4 | Feedback, verifier, report, demo | |
+| 4 | Feedback with verifier, HTML report with highlighted evidence, FastAPI, Gradio demo | done |
 | 5 | Bodhan integration | |
 | 6 | Evaluation and write-up | |
 
@@ -69,6 +69,14 @@ autoassess evaluate --spec data/sample_exam/exam_spec.yaml --grades runs/llm --h
 - **Prompt-injection safe**: the answer is passed as data, and instructions inside it ("give full marks") are ignored.
 
 The LLM client works with any OpenAI-compatible endpoint: OpenRouter, or Ollama and vLLM for a free local model.
+
+## Feedback, report and demo
+
+- **Feedback** says what earned marks, what lost them, and one concrete next step per lost point. A verifier keeps only items the grading supports: real criteria, praise only where marks were given, and quotes that occur in the answer. Gaps are filled from the rubric, so every lost mark gets a next step.
+- **Report**: `grade` writes `<student>.html` beside the JSON. It shows the mark sheet, the answer with evidence highlighted, verdicts per criterion, feedback, flags and, when OCR gave boxes, the scanned page with evidence lines outlined.
+- **API**: `pip install -e ".[api,ingest]"` then `uvicorn autoassess.api:app`. `POST /grade` takes `spec` and `sheet` files and returns the grade and the HTML report.
+- **Demo**: `pip install -e ".[demo,ingest]"` then `python app.py`. It runs as a Hugging Face Gradio Space as is; set the `AUTOASSESS_*` values as Space secrets.
+- **Translated feedback**: `--feedback-language Hindi` (Bodhan Indic-Translate, week 5). Evidence quotes stay as written, and the English feedback is kept for the teacher.
 
 ## Reading scanned sheets
 

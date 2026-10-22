@@ -8,3 +8,5 @@ build/
 dist/
 # Student data never goes in git
 data/private/
+runs/
+ocr_json/

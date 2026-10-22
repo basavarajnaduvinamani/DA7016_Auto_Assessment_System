@@ -1,15 +1,30 @@
-"""End-to-end pipeline: answer sheet file -> pages -> segments -> grades."""
+"""End-to-end pipeline: answer sheet -> pages -> segments -> grades -> feedback."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from autoassess.baseline import grade_sheet_lexical
+from autoassess.feedback import add_feedback
 from autoassess.grader import grade_sheet
-from autoassess.providers.base import LLMClient, OCRProvider
+from autoassess.providers.base import LLMClient, OCRProvider, Translator
 from autoassess.providers.text_ocr import PlainTextOCR
-from autoassess.schemas import ExamSpec, OCRPage, SheetGrade
+from autoassess.schemas import AnswerSegment, ExamSpec, OCRPage, SheetGrade
 from autoassess.segment import segment
+
+
+@dataclass
+class GradingRun:
+    spec: ExamSpec
+    grade: SheetGrade
+    segments: dict[str, AnswerSegment]
+    pages: list[OCRPage] = field(default_factory=list)
+
+    def html(self) -> str:
+        from autoassess.report import render_html
+
+        return render_html(self.spec, self.grade, self.segments, self.pages)
 
 
 def read_sheet(path: str | Path, ocr: OCRProvider, work_dir: str | Path | None = None, language: str | None = None) -> list[OCRPage]:
@@ -23,7 +38,7 @@ def read_sheet(path: str | Path, ocr: OCRProvider, work_dir: str | Path | None =
     return [ocr.read_page(p, i, language) for i, p in enumerate(ingest(path, work))]
 
 
-def grade_pages(
+def run(
     spec: ExamSpec,
     pages: list[OCRPage],
     student_id: str,
@@ -31,9 +46,24 @@ def grade_pages(
     *,
     runs: int = 3,
     critic: LLMClient | None = None,
-) -> SheetGrade:
+    feedback: bool = True,
+    translator: Translator | None = None,
+    feedback_language: str | None = None,
+) -> GradingRun:
     """Grade with the LLM grader, or the lexical baseline when llm is None."""
     segments = segment(spec, pages, llm)
     if llm is None:
-        return grade_sheet_lexical(spec, segments, student_id)
-    return grade_sheet(spec, segments, llm, student_id, runs=runs, critic=critic)
+        grade = grade_sheet_lexical(spec, segments, student_id)
+    else:
+        grade = grade_sheet(spec, segments, llm, student_id, runs=runs, critic=critic)
+    if feedback:
+        grade = add_feedback(spec, grade, {k: v.text for k, v in segments.items()}, llm)
+        if translator is not None and feedback_language:
+            from autoassess.translate import translate_feedback
+
+            grade = translate_feedback(grade, translator, feedback_language)
+    return GradingRun(spec, grade, segments, pages)
+
+
+def grade_pages(spec: ExamSpec, pages: list[OCRPage], student_id: str, llm: LLMClient | None, **kwargs) -> SheetGrade:
+    return run(spec, pages, student_id, llm, **kwargs).grade

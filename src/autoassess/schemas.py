@@ -149,12 +149,40 @@ class CriterionResult(BaseModel):
     reason: str
 
 
+class FeedbackItem(BaseModel):
+    criterion_id: str
+    kind: str = Field(description="earned | lost")
+    text: str
+    next_step: str | None = None
+
+
+class QuestionFeedback(BaseModel):
+    question_id: str
+    items: list[FeedbackItem]
+    summary: str = ""
+    flags: list[str] = Field(default_factory=list)
+
+    def render(self) -> str:
+        lines = [self.summary] if self.summary else []
+        earned = [i for i in self.items if i.kind == "earned"]
+        lost = [i for i in self.items if i.kind == "lost"]
+        if earned:
+            lines.append("What earned marks:")
+            lines += [f"- {i.text}" for i in earned]
+        if lost:
+            lines.append("Where marks were lost:")
+            lines += [f"- {i.text} Next time: {i.next_step}" if i.next_step else f"- {i.text}" for i in lost]
+        return "\n".join(lines)
+
+
 class QuestionGrade(BaseModel):
     question_id: str
     marks_awarded: float = Field(ge=0)
     max_marks: float = Field(gt=0)
     criteria: list[CriterionResult]
     feedback: str = ""
+    feedback_items: list[FeedbackItem] = Field(default_factory=list)
+    feedback_en: str = Field(default="", description="English original when feedback was translated.")
     confidence: float = Field(default=1.0, ge=0, le=1)
     flags: list[str] = Field(default_factory=list)
 
@@ -164,6 +192,8 @@ class SheetGrade(BaseModel):
     student_id: str
     questions: list[QuestionGrade]
     summary_feedback: str = ""
+    summary_feedback_en: str = ""
+    feedback_language: str = "en"
 
     @property
     def total(self) -> float:

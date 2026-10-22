@@ -95,6 +95,9 @@ def _page_figure(page: OCRPage, segment: AnswerSegment, quotes: list[str]) -> st
     )
 
 
+REVIEW_BADGE = " <strong class=review title='sent for human review'>?</strong>"
+
+
 def _tags(tags: list[str]) -> str:
     return "".join(f"<span class=tag>{html.escape(t)}</span>" for t in tags)
 
@@ -121,7 +124,7 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
     esc = html.escape
     rows = "".join(
         f'<tr><td><a href="#{esc(q.question_id)}">{esc(q.question_id)}</a></td><td class="num">{q.marks_awarded:g} / {q.max_marks:g}</td>'
-        f'<td class="num">{q.confidence:.0%}{" <strong class=review title=\'sent for human review\'>?</strong>" if q.needs_review else ""}</td><td>{"".join(f"<span class=flag>{esc(f)}</span>" for f in q.flags)}</td></tr>'
+        f'<td class="num">{q.confidence:.0%}{REVIEW_BADGE if q.needs_review else ""}</td><td>{"".join(f"<span class=flag>{esc(f)}</span>" for f in q.flags)}</td></tr>'
         for q in grade.questions
     )
     parts = [

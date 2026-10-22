@@ -26,6 +26,12 @@ class GradingRun:
 
         return render_html(self.spec, self.grade, self.segments, self.pages)
 
+    def annotate(self, out_dir: str | Path):
+        """Write the red-ink marked sheet: a PDF plus one PNG per page."""
+        from autoassess.annotate import annotate_sheet
+
+        return annotate_sheet(self.spec, self.grade, self.segments, self.pages, out_dir)
+
 
 def read_sheet(path: str | Path, ocr: OCRProvider, work_dir: str | Path | None = None, language: str | None = None) -> list[OCRPage]:
     """A .txt sheet is read as text; anything else is ingested and OCR'd page by page."""

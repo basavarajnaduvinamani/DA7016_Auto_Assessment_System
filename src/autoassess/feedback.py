@@ -24,6 +24,7 @@ import re
 from autoassess.grader import evidence_in_answer
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import (
+    ErrorMark,
     FeedbackItem,
     Remark,
     Question,
@@ -45,6 +46,9 @@ You get the rubric and the examiner's verdict per criterion. Write:
   "strength": one thing done well (empty if nothing earned marks),
   "fix": the most important thing that was missing or wrong (empty if full marks),
   "next_step": one concrete thing to do next time; for a strong answer, a stretch question.
+- "errors": up to two statements in the answer that are WRONG (not just missing), each as an
+  exact quote of the wrong words (at most 8 words) and a correction of at most 6 words.
+  Leave it empty if nothing is wrong. Spelling is never an error here.
 Quote the student only with exact words in double quotes. Do not mention marks or criteria ids
 in the sentences. Address the student as "you". Comment on the work, never the person: no
 "smart", "brilliant", "careless" or "lazy". Spelling and grammar are not faults unless a
@@ -53,7 +57,8 @@ criterion asks for them.
 Return ONLY JSON:
 {"earned": [{"criterion_id": str, "text": str}],
  "lost": [{"criterion_id": str, "text": str, "next_step": str}],
- "remark": {"strength": str, "fix": str, "next_step": str}}"""
+ "remark": {"strength": str, "fix": str, "next_step": str},
+ "errors": [{"quote": str, "correction": str}]}"""
 
 _PERSON = re.compile(r"\b(smart|brilliant|genius|clever|intelligent|careless|lazy|stupid|silly|weak student)\b", re.I)
 REMARK_WORDS = 14
@@ -152,6 +157,22 @@ def verify_remark(grade: QuestionGrade, answer: str, raw: dict) -> tuple[Remark 
     return (Remark(**out) if out else None), flags
 
 
+def verify_errors(answer: str, raw: dict) -> tuple[list[ErrorMark], list[str]]:
+    """Keep error marks whose quote really is in the answer and whose correction is short."""
+    out, flags = [], []
+    for e in (raw.get("errors") or [])[:2] if isinstance(raw, dict) else []:
+        if not isinstance(e, dict):
+            continue
+        quote, corr = str(e.get("quote") or "").strip().strip('"'), str(e.get("correction") or "").strip()
+        if not quote or len(quote.split()) > 10 or not evidence_in_answer(quote, answer):
+            flags.append("error_dropped:misquote")
+        elif len(corr.split()) > 8 or _PERSON.search(corr):
+            flags.append("error_dropped:correction")
+        else:
+            out.append(ErrorMark(quote=quote, correction=corr))
+    return out, flags
+
+
 def rubric_remark(question: Question, grade: QuestionGrade) -> Remark:
     """A remark built from the rubric when the LLM gives none."""
     crit = {c.id: c for c in question.criteria}
@@ -163,7 +184,7 @@ def rubric_remark(question: Question, grade: QuestionGrade) -> Remark:
     best = max(earned, key=lambda r: r.marks_awarded, default=None)
     strength = f'"{best.evidence}"' if best and best.evidence and len(best.evidence.split()) <= 8 else ""
     if best and not strength:
-        strength = _short(crit[best.criterion_id].description)
+        strength = _short(crit[best.criterion_id].description, imperative=False)
     fix = _short(crit[lost[0].criterion_id].description) if lost else ""
     if not lost:
         nxt = "Explain why it works, not just what it does."
@@ -172,13 +193,20 @@ def rubric_remark(question: Question, grade: QuestionGrade) -> Remark:
     return Remark(strength=strength, fix=fix, next_step=nxt)
 
 
-def _short(description: str, words: int = REMARK_WORDS - 2) -> str:
-    """'States that queries, keys ...' -> 'state that queries, keys ...' trimmed to a margin note."""
-    w = description.rstrip(".").split()
-    if w and w[0].lower().endswith("s") and w[0][0].isupper():
-        w[0] = w[0][:-1].lower()  # "Mentions" -> "mention"
-    text = " ".join(w[:words])
-    return text + ("…" if len(w) > words else "")
+def _short(description: str, words: int = REMARK_WORDS - 2, imperative: bool = True) -> str:
+    """Rubric wording as a margin note.
+
+    'States that queries ... ' -> 'state that queries ...' (imperative, for a fix)
+    or 'queries ...' (for a strength), trimmed to a few words.
+    """
+    text = description.rstrip(".")
+    if m := re.match(r"^(States|Says|Mentions|Explains|Gives|Defines|Names|Lists|Describes|Compares|Shows|Uses|Notes)\b\s*(that\s+)?(.*)$", text):
+        verb, that, rest = m.groups()
+        base = {"Says": "say", "Gives": "give", "Uses": "use", "Compares": "compare", "Describes": "describe", "Notes": "note"}.get(verb, verb[:-1].lower())
+        text = f"{base} {that or ''}{rest}" if imperative else rest
+    w = text.split()
+    out = " ".join(w[:words])
+    return out + ("…" if len(w) > words else "")
 
 
 def rubric_items(question: Question, grade: QuestionGrade) -> list[FeedbackItem]:
@@ -212,11 +240,13 @@ def question_feedback(question: Question, grade: QuestionGrade, answer: str, llm
     flags: list[str] = []
     items: list[FeedbackItem] = []
     remark = None
+    errors: list[ErrorMark] = []
     if llm is not None:
         raw = llm.complete_json(FEEDBACK_SYSTEM, build_feedback_prompt(question, grade, answer))
         items, flags = verify_items(question, grade, answer, raw)
         remark, remark_flags = verify_remark(grade, answer, raw)
-        flags += remark_flags
+        errors, error_flags = verify_errors(answer, raw)
+        flags += remark_flags + error_flags
     fallback = rubric_remark(question, grade)
     remark = Remark(
         strength=(remark.strength if remark else "") or fallback.strength,
@@ -236,6 +266,7 @@ def question_feedback(question: Question, grade: QuestionGrade, answer: str, llm
         items=items,
         summary=f"{grade.marks_awarded:g} of {grade.max_marks:g} marks.",
         remark=remark,
+        errors=errors,
         flags=flags,
     )
 
@@ -264,7 +295,13 @@ def add_feedback(spec: ExamSpec, grade: SheetGrade, answers: dict[str, str], llm
         fb = question_feedback(spec.question(qg.question_id), qg, answers.get(qg.question_id, ""), llm)
         questions.append(
             qg.model_copy(
-                update={"feedback": fb.render(), "feedback_items": fb.items, "remark": fb.remark, "flags": qg.flags + fb.flags}
+                update={
+                    "feedback": fb.render(),
+                    "feedback_items": fb.items,
+                    "remark": fb.remark,
+                    "errors": fb.errors,
+                    "flags": qg.flags + fb.flags,
+                }
             )
         )
     graded = grade.model_copy(update={"questions": questions})

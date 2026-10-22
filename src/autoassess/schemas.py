@@ -196,11 +196,19 @@ class Remark(BaseModel):
         return out
 
 
+class ErrorMark(BaseModel):
+    """A wrong statement in the answer: wavy-underlined on the sheet, with a short correction."""
+
+    quote: str
+    correction: str = ""
+
+
 class QuestionFeedback(BaseModel):
     question_id: str
     items: list[FeedbackItem]
     summary: str = ""
     remark: Remark | None = None
+    errors: list[ErrorMark] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
 
     def render(self) -> str:
@@ -227,6 +235,7 @@ class QuestionGrade(BaseModel):
     feedback: str = ""
     feedback_items: list[FeedbackItem] = Field(default_factory=list)
     remark: Remark | None = None
+    errors: list[ErrorMark] = Field(default_factory=list)
     feedback_en: str = Field(default="", description="English original when feedback was translated.")
     confidence: float = Field(default=1.0, ge=0, le=1)
     confidence_signals: dict[str, float] = Field(

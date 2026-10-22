@@ -85,6 +85,9 @@ def _grade(args: argparse.Namespace) -> int:
         grade = result.grade
         (out / f"{sid}.json").write_text(grade.model_dump_json(indent=2), encoding="utf-8")
         (out / f"{sid}.html").write_text(result.html(), encoding="utf-8")
+        if args.annotate:
+            marked = result.annotate(out / "marked")
+            print(f"  marked sheet: {marked.pdf}")
         review = [q.question_id for q in grade.questions if q.needs_review]
         print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  (? for review: {', '.join(review)})" if review else ""))
     from autoassess.doctor import spend_summary
@@ -229,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--baseline", action="store_true", help="use the lexical baseline, no LLM")
     p.add_argument("--input", choices=["text", "image", "hybrid"], default="text",
                    help="grade the OCR text, the page image (vision model), or both")
+    p.add_argument("--annotate", action="store_true", help="also write the sheet marked in red ink (PDF + PNGs)")
     p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_grade)

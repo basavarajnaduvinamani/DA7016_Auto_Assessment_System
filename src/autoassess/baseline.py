@@ -52,7 +52,13 @@ def grade_question_lexical(question: Question, segment: AnswerSegment) -> Questi
                 verdict=verdict,
                 marks_awarded=marks,
                 evidence=best if marks > 0 else None,
-                reason=f"{coverage:.0%} of the criterion's key words appear in the answer.",
+                reason=(
+                    "Key words for this point appear in your answer."
+                    if coverage >= 0.6
+                    else "Only some key words for this point appear in your answer."
+                    if coverage > 0
+                    else "Key words for this point were not found in your answer."
+                ),
             )
         )
     total = min(sum(r.marks_awarded for r in results), question.max_marks)

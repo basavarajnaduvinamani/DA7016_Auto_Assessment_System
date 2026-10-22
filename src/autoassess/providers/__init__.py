@@ -40,4 +40,10 @@ def make_llm(settings: Settings, critic: bool = False) -> LLMClient:
     return OpenAICompatibleLLM(settings.llm_base_url, model, settings.llm_api_key, DiskCache(settings.cache_dir, "llm"))
 
 
-__all__ = ["LLMClient", "OCRProvider", "Translator", "make_llm", "make_ocr"]
+def make_translator(settings: Settings) -> Translator:
+    from autoassess.providers.bodhan import BodhanTranslate
+
+    return BodhanTranslate(settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"))
+
+
+__all__ = ["LLMClient", "OCRProvider", "Translator", "make_llm", "make_ocr", "make_translator"]

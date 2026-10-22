@@ -70,7 +70,8 @@ def test_cli_grade_baseline_and_evaluate(sample_spec_path, tmp_path, capsys):
     sheets = [str(SAMPLE / "answer_sheets" / f"S00{i}.txt") for i in (1, 2, 3)]
     out = tmp_path / "grades"
     assert main(["grade", "--spec", str(sample_spec_path), "--out", str(out), "--baseline", *sheets]) == 0
-    assert sorted(p.name for p in out.iterdir()) == ["S001.json", "S002.json", "S003.json"]
+    assert sorted(p.name for p in out.glob("*.json")) == ["S001.json", "S002.json", "S003.json"]
+    assert "<mark" in (out / "S001.html").read_text()
     human = tmp_path / "human.csv"
     rows = ["exam_id,student_id,grader,question_id,criterion_id,marks_awarded,note"]
     for g, bump in (("A", 0), ("B", 0.5)):

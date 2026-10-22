@@ -14,8 +14,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ingest = ["pymupdf>=1.24", "opencv-python-headless>=4.9", "numpy>=1.26"]
-dev = ["pytest>=8"]
+ingest = ["pymupdf>=1.24", "opencv-python-headless>=4.9", "numpy>=1.26", "pillow>=10"]
+api = ["fastapi>=0.110", "python-multipart>=0.0.9", "uvicorn>=0.29"]
+demo = ["gradio>=4.40"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 autoassess = "autoassess.cli:main"

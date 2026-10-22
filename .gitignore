@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.cache/
+*.egg-info/
+build/
+dist/
+# Student data never goes in git
+data/private/

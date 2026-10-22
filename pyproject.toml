@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoassess"
+version = "0.1.0"
+description = "Grade full answer sheets against a rubric with marks per question and rubric-defensible feedback."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+ingest = ["pymupdf>=1.24", "opencv-python-headless>=4.9", "numpy>=1.26"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+autoassess = "autoassess.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,137 +1,87 @@
-﻿# DA7016: Multi-Agent Auto-Assessment & Handwritten Evaluation Pipeline
+# Auto-Assessment
 
-[![IIT Madras](https://img.shields.io/badge/IIT%20Madras-DA7016%20Course%20Project-0066CC.svg)](#)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Production%20Engine-009688.svg)](https://fastapi.tiangolo.com/)
-[![Bodhan.AI](https://img.shields.io/badge/AI4Bharat-Bodhan.AI%20OCR-orange.svg)](https://console.bodhan.ai/)
-[![OpenRouter](https://img.shields.io/badge/LLM--as--a--Judge-OpenRouter%20API-7928CA.svg)](https://openrouter.ai/)
-[![CI](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen.svg)](#)
+DA7016 (Recent Advances in Generative AI) final project. It grades a full answer sheet against a rubric and gives marks per question with feedback a student can act on. Every mark points to a rubric criterion and a verbatim quote from the answer.
 
-An institutional-grade, multi-agent automated assessment and handwriting grading pipeline built for **DA7016: Recent Advances in Generative AI** at the **Indian Institute of Technology Madras** (Course Advisor: Prof. Mitesh M. Khapra).
+Inputs are the question paper, the answer sheet, the rubric and a model answer per question. Outputs are marks per question and feedback that the rubric supports. No human reviewer is in the loop.
 
-The system addresses subjective grading drift and scale limitations in academic assessments by combining **Bodhan.AI (AI4Bharat)** high-fidelity document OCR with a **Deliberative Multi-Agent LLM-as-a-Judge** framework (Rubric Grader + Adversarial Critic).
+Plan: [Auto-Assessment: Build Plan](https://claude.ai/artifact/9nQFs4PiXSN8tURk7ajeVo)
 
----
-
-## 🏛️ System Architecture
+## Pipeline
 
 ```
-                               ┌─────────────────────────────┐
-                               │ Scanned Handwritten Answer   │
-                               │      Sheets / Images        │
-                               └──────────────┬──────────────┘
-                                              │
-                                              ▼
-                               ┌─────────────────────────────┐
-                               │   Bodhan.AI (AI4Bharat)     │
-                               │  High-Fidelity OCR Engine   │
-                               │ (Supports Indian Scripts)   │
-                               └──────────────┬──────────────┘
-                                              │ Extracted Text & Layout
-                                              ▼
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │                  Deliberative Multi-Agent Architecture                 │
-   │                                                                        │
-   │   ┌────────────────────────────────┐   Draft Marks    ┌────────────┐   │
-   │   │     Rubric Grader Agent        │─────────────────▶│ Adversarial│   │
-   │   │  (Granular Line-Item Scoring)  │                  │   Critic   │   │
-   │   └────────────────────────────────┘                  │   Agent    │   │
-   │                   ▲                                   └─────┬──────┘   │
-   │                   │                                         │          │
-   │                   │             Audited & Calibrated        │          │
-   │                   └─────────────────────────────────────────┘          │
-   │                                           │                            │
-   │                                           ▼                            │
-   │                           OpenRouter Model Router                      │
-   │                    (Claude 3.5 Sonnet / LLaMA 3.1 70B)                 │
-   └───────────────────────────────────────────┬────────────────────────────┘
-                                               │
-                                               ▼
-                               ┌─────────────────────────────┐
-                               │ Structured Assessment Sheet │
-                               │  • Criterion Breakdown     │
-                               │  • Inter-Rater Reliability  │
-                               │  • Deliberative Feedback    │
-                               └─────────────────────────────┘
+teacher docs ──> exam spec builder ─────────────────────┐
+answer sheet ──> ingest ──> OCR ──> segmentation ──> rubric grading ──> feedback + verifier ──> report
+                             ^                                              ^
+                    Bodhan IndicOCR (week 5)                  Bodhan Indic-Translate (week 5)
 ```
 
----
+Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. OCR, LLM and translation sit behind interfaces in `src/autoassess/providers/`, so Bodhan AI plugs in by config. Every paid call is cached by content hash under `.cache/`.
 
-## 🔬 Core Technical Modules
+## Status
 
-### 1. Bodhan.AI Handwriting & Indian Script OCR (`src/ocr_engine.py`)
-- Direct integration with AI4Bharat's Bodhan API Router for Indian handwriting recognition and bilingual structural parsing.
+| Week | Phase | State |
+| --- | --- | --- |
+| 1 | Foundations: schemas, exam spec builder, ingest, providers, cache | done |
+| 2 | Criterion grader with evidence quotes, critic, segmentation, baseline, agreement metrics | done |
+| 3 | OCR and segmentation | |
+| 4 | Feedback, verifier, report, demo | |
+| 5 | Bodhan integration | |
+| 6 | Evaluation and write-up | |
 
-### 2. Multi-Agent Evaluation & Auditing (`src/agents/`)
-- **`RubricGraderAgent` (`src/agents/grader_agent.py`)**: Deconstructs questions into atomic grading criteria and matches student conceptual formulations against reference rubrics.
-- **`AdversarialCriticAgent` (`src/agents/critic_agent.py`)**: Audits awarded grades for leniency bias, enforces rigorous penalties for ungrounded assertions/hallucinations, and prevents grade inflation.
+## Setup
 
-### 3. Rigorous Evaluation Benchmarks (`experiments/` & `src/evaluation/`)
-- Computes **Inter-Rater Reliability (IRR)** including **Quadratic Weighted Kappa (QWK)** and **Mean Absolute Error (MAE)** against human TA ground truth (`data/benchmarks/benchmark_dataset.json`).
-
----
-
-## 📁 Repository Structure
-
-```text
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # Automated CI verification workflow
-├── data/
-│   └── benchmarks/
-│       └── benchmark_dataset.json # Ground-truth human-annotated evaluations
-├── experiments/
-│   ├── benchmark_eval.py        # Model agreement & IRR benchmark harness
-│   └── benchmark_results.json   # Logged evaluation metrics
-├── src/
-│   ├── agents/
-│   │   ├── grader_agent.py      # Line-item rubric grading agent
-│   │   └── critic_agent.py      # Adversarial anti-inflation critic agent
-│   ├── evaluation/
-│   │   └── metrics.py           # Statistical metrics (Kappa, MSE, Pearson)
-│   ├── config.py                # OpenRouter and Bodhan.AI routing config
-│   ├── evaluator.py             # Orchestration pipeline
-│   ├── ocr_engine.py            # Bodhan.AI OCR interface
-│   └── main.py                  # Production FastAPI service
-├── tests/
-│   └── test_pipeline.py         # End-to-end integration tests
-├── requirements.txt             # Project dependencies
-└── README.md                    # Institutional documentation
-```
-
----
-
-## ⚡ Setup & Execution
-
-### 1. Installation
 ```bash
-git clone https://github.com/basavarajnaduvinamani/DA7016_Auto_Assessment_System.git
-cd DA7016_Auto_Assessment_System
-pip install -r requirements.txt
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[ingest,dev]"
+cp .env.example .env      # set an LLM endpoint; Bodhan key stays empty until week 5
+pytest
 ```
 
-### 2. Run Pipeline Integration Tests
+## Commands
+
 ```bash
-python -m tests.test_pipeline
+# Check an exam spec: marks add up, ids are unique, criteria are checkable
+autoassess validate-spec data/sample_exam/exam_spec.yaml
+
+# Draft a spec from plain-text documents with an LLM, then review it by hand
+autoassess draft-spec --paper paper.txt --rubric rubric.txt --model-answers answers.txt \
+    --exam-id midterm --out data/midterm/exam_spec.yaml
+
+# Answer sheet PDF, photo or folder of photos -> cleaned grayscale pages
+autoassess ingest scans/S001.pdf work/S001
+
+# Grade sheets: 3 runs per question, median marks, optional critic audit
+autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/llm --critic data/sample_exam/answer_sheets/*.txt
+
+# Same, with the no-LLM lexical baseline (the floor every model must beat)
+autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/baseline --baseline data/sample_exam/answer_sheets/*.txt
+
+# Agreement with human marks (QWK, MAE, within 1 mark), plus human-vs-human
+autoassess evaluate --spec data/sample_exam/exam_spec.yaml --grades runs/llm --human data/private/human_marks.csv
 ```
 
-### 3. Run Benchmark Harness
-```bash
-python -m experiments.benchmark_eval
-```
+## How grading stays defensible
 
-### 4. Launch FastAPI Service
-```bash
-uvicorn src.main:app --reload --port 8000
-```
-Interactive docs: `http://localhost:8000/docs`
+- **One verdict per rubric criterion**, each with a quote copied from the answer. Code checks the quote really occurs in the answer; a made-up quote gets one repair round, then the marks are withdrawn and flagged.
+- **Rubric rules in code**: marks are clipped to each criterion's range, and all-or-nothing criteria snap to 0 or full.
+- **Three independent runs**, combined by the median per criterion. Their spread becomes a confidence score, and low confidence is flagged.
+- **Adversarial critic**: a second model audits every award and can only lower marks, never raise them.
+- **Prompt-injection safe**: the answer is passed as data, and instructions inside it ("give full marks") are ignored.
 
----
+The LLM client works with any OpenAI-compatible endpoint: OpenRouter, or Ollama and vLLM for a free local model.
 
-## 👨‍💻 Course & Author Information
+## Data
 
-* **Student:** Basavaraj A Naduvinamani (Roll No: `DA25C005`)
-* **Program:** Joint M.Sc. in Data Science and Artificial Intelligence
-* **Institution:** Indian Institute of Technology Madras & University of Birmingham
-* **Course:** DA7016: Recent Advances in Generative AI (Jul–Nov 2026 Semester)
-* **Advisor:** Prof. Mitesh M. Khapra
+- `data/sample_exam/` holds a 15-mark sample quiz with three typed answer sheets at different quality levels (S001 strong, S002 partial and out of order, S003 weak with Q3 missing).
+- `human_marks_template.csv` is the format for human marks, one row per criterion per grader. Two independent graders per sheet give the human-to-human agreement baseline.
+- Real student sheets go in `data/private/`, which git ignores. Remove names and roll numbers before any API call.
+
+## Bodhan AI
+
+Bodhan AI (IIT Madras with AI4Bharat) offers IndicOCR, Indic-Translate, Indic-Transcribe and Indic-Speak, as open weights on Hugging Face and as hosted APIs at `https://api.bodhan.ai/v1`. Development uses the open weights on a free GPU notebook. The $20 coupon is for the final evaluation runs and the demo; at about Rs 0.20 per page image it covers roughly 8,500 pages. `providers/bodhan.py` holds the placeholders to fill in week 5.
+
+## Course and author
+
+- Student: Basavaraj A Naduvinamani (DA25C005), Joint M.Sc. in Data Science and AI, IIT Madras and University of Birmingham
+- Course: DA7016, Recent Advances in Generative AI (Jul to Nov 2026), Prof. Mitesh M. Khapra
+- Earlier interim reports are kept in `docs/archive/`; this README and the build plan supersede them.

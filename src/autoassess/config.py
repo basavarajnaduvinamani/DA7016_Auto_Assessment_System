@@ -80,6 +80,11 @@ class Settings:
     # Course credits: Rs 110 on Bodhan and $20 on OpenRouter; the guards stop a little short of both.
     bodhan_budget_inr: float = field(default_factory=lambda: float(_env("BODHAN_BUDGET_INR", "100")))
     openrouter_budget_usd: float = field(default_factory=lambda: float(_env("OPENROUTER_BUDGET_USD", "18")))
+    # Real students' sheets: never send them to a free tier (see privacy.py).
+    real_sheets: bool = field(default_factory=lambda: _env("AUTOASSESS_REAL_SHEETS") in ("1", "true", "yes"))
+    gemini_paid: bool = field(default_factory=lambda: _env("AUTOASSESS_GEMINI_PAID") in ("1", "true", "yes"))
+    # Second examiner for the confidence signal: a different model on the same provider.
+    second_model: str = field(default_factory=lambda: _env("AUTOASSESS_SECOND_MODEL"))
 
     def __post_init__(self) -> None:
         base, model, key = llm_endpoint(self.llm_provider)

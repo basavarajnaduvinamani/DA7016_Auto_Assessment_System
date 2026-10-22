@@ -27,6 +27,10 @@ class RubricCriterion(BaseModel):
     allow_partial: bool = Field(
         default=True, description="Whether part of this criterion's marks can be awarded."
     )
+    follow_through: bool = Field(
+        default=False,
+        description="Credit correct working that starts from the student's own earlier wrong value (ECF).",
+    )
 
     @field_validator("description")
     @classmethod
@@ -45,6 +49,10 @@ class Question(BaseModel):
     aliases: list[str] = Field(
         default_factory=list,
         description="Other labels students may write for this question, e.g. ['1', 'Ans 1'].",
+    )
+    depends_on: list[str] = Field(
+        default_factory=list,
+        description="Questions whose answers this one builds on; the grader sees the student's answers to them.",
     )
 
     @model_validator(mode="after")
@@ -74,6 +82,15 @@ class ExamSpec(BaseModel):
         dupes = {i for i in ids if ids.count(i) > 1}
         if dupes:
             raise ValueError(f"duplicate question ids {sorted(dupes)}")
+        return self
+
+    @model_validator(mode="after")
+    def _known_dependencies(self) -> ExamSpec:
+        ids = {q.id for q in self.questions}
+        for q in self.questions:
+            unknown = [d for d in q.depends_on if d not in ids or d == q.id]
+            if unknown:
+                raise ValueError(f"{q.id}: depends_on names unknown questions {unknown}")
         return self
 
     @property
@@ -147,6 +164,11 @@ class CriterionResult(BaseModel):
         default=None, description="Verbatim quote from the student's answer supporting the verdict."
     )
     reason: str
+    tags: list[str] = Field(
+        default_factory=list,
+        description="How the mark was reached: ecf (follow-through), advocate (raised for missed credit), "
+        "bod (benefit of the doubt), critic (lowered on audit), withdrawn (quote not found), fuzzy_quote.",
+    )
 
 
 class FeedbackItem(BaseModel):
@@ -156,14 +178,34 @@ class FeedbackItem(BaseModel):
     next_step: str | None = None
 
 
+class Remark(BaseModel):
+    """The short margin remark: one strength, one fix, one thing to do next time."""
+
+    strength: str = ""
+    fix: str = ""
+    next_step: str = ""
+
+    def lines(self) -> list[str]:
+        out = []
+        if self.strength:
+            out.append(f"Well done: {self.strength}")
+        if self.fix:
+            out.append(f"Fix: {self.fix}")
+        if self.next_step:
+            out.append(f"Next time: {self.next_step}")
+        return out
+
+
 class QuestionFeedback(BaseModel):
     question_id: str
     items: list[FeedbackItem]
     summary: str = ""
+    remark: Remark | None = None
     flags: list[str] = Field(default_factory=list)
 
     def render(self) -> str:
-        lines = [self.summary] if self.summary else []
+        # Comments before the number: marks next to comments blunt the comments (Butler 1988).
+        lines = self.remark.lines() if self.remark else []
         earned = [i for i in self.items if i.kind == "earned"]
         lost = [i for i in self.items if i.kind == "lost"]
         if earned:
@@ -172,6 +214,8 @@ class QuestionFeedback(BaseModel):
         if lost:
             lines.append("Where marks were lost:")
             lines += [f"- {i.text} Next time: {i.next_step}" if i.next_step else f"- {i.text}" for i in lost]
+        if self.summary:
+            lines.append(self.summary)
         return "\n".join(lines)
 
 
@@ -182,8 +226,13 @@ class QuestionGrade(BaseModel):
     criteria: list[CriterionResult]
     feedback: str = ""
     feedback_items: list[FeedbackItem] = Field(default_factory=list)
+    remark: Remark | None = None
     feedback_en: str = Field(default="", description="English original when feedback was translated.")
     confidence: float = Field(default=1.0, ge=0, le=1)
+    confidence_signals: dict[str, float] = Field(
+        default_factory=dict, description="Each signal in [0, 1]; confidence is the lowest of them."
+    )
+    needs_review: bool = Field(default=False, description="Marked '?' on the sheet and queued for a human.")
     flags: list[str] = Field(default_factory=list)
 
 

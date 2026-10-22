@@ -9,6 +9,11 @@ only items that the grading supports:
 Dropped items are recorded as flags. Without an LLM, or if nothing survives,
 feedback is built directly from the rubric and the grader's reasons, so it is
 always rubric-backed.
+
+Each question also gets a short remark for the margin, shaped the way the
+feedback research recommends: one strength, one fix and one "next time",
+about the work and never the person, quoting the student's own words where
+possible. A strong answer gets a stretch question instead of a fix.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from autoassess.grader import evidence_in_answer
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import (
     FeedbackItem,
+    Remark,
     Question,
     QuestionFeedback,
     QuestionGrade,
@@ -35,12 +41,22 @@ You get the rubric and the examiner's verdict per criterion. Write:
 - "lost": for each criterion that lost marks, one sentence on what was missing or wrong, and a
   "next_step": one concrete thing to write next time (a fact, term, step or example), specific
   enough to act on. Never say only "add more detail" or "be clearer".
+- "remark": the short note an examiner writes in the margin, each part at most 12 words:
+  "strength": one thing done well (empty if nothing earned marks),
+  "fix": the most important thing that was missing or wrong (empty if full marks),
+  "next_step": one concrete thing to do next time; for a strong answer, a stretch question.
 Quote the student only with exact words in double quotes. Do not mention marks or criteria ids
-in the sentences. Address the student as "you".
+in the sentences. Address the student as "you". Comment on the work, never the person: no
+"smart", "brilliant", "careless" or "lazy". Spelling and grammar are not faults unless a
+criterion asks for them.
 
 Return ONLY JSON:
 {"earned": [{"criterion_id": str, "text": str}],
- "lost": [{"criterion_id": str, "text": str, "next_step": str}]}"""
+ "lost": [{"criterion_id": str, "text": str, "next_step": str}],
+ "remark": {"strength": str, "fix": str, "next_step": str}}"""
+
+_PERSON = re.compile(r"\b(smart|brilliant|genius|clever|intelligent|careless|lazy|stupid|silly|weak student)\b", re.I)
+REMARK_WORDS = 14
 
 _QUOTE = re.compile(r'"([^"]{3,})"|“([^”]{3,})”')
 
@@ -107,6 +123,64 @@ def verify_items(question: Question, grade: QuestionGrade, answer: str, raw: dic
     return items, flags
 
 
+def verify_remark(grade: QuestionGrade, answer: str, raw: dict) -> tuple[Remark | None, list[str]]:
+    """Keep each part of the LLM's remark only if it is short, quotes truly and is about the work."""
+    r = raw.get("remark") if isinstance(raw, dict) else None
+    if not isinstance(r, dict):
+        return None, []
+    full = grade.marks_awarded >= grade.max_marks
+    out, flags = {}, []
+    for part in ("strength", "fix", "next_step"):
+        text = str(r.get(part) or "").strip()
+        reason = None
+        if not text:
+            continue
+        if len(text.split()) > REMARK_WORDS:
+            reason = "too_long"
+        elif _PERSON.search(text):
+            reason = "about_the_person"
+        elif not _quotes_ok(text, answer):
+            reason = "misquote"
+        elif part == "strength" and grade.marks_awarded <= 0:
+            reason = "praise_without_marks"
+        elif part == "fix" and full:
+            reason = "fix_without_deduction"
+        if reason:
+            flags.append(f"remark_dropped:{reason}:{part}")
+        else:
+            out[part] = text
+    return (Remark(**out) if out else None), flags
+
+
+def rubric_remark(question: Question, grade: QuestionGrade) -> Remark:
+    """A remark built from the rubric when the LLM gives none."""
+    crit = {c.id: c for c in question.criteria}
+    earned = [r for r in grade.criteria if r.marks_awarded > 0]
+    lost = sorted(
+        (r for r in grade.criteria if r.marks_awarded < crit[r.criterion_id].marks),
+        key=lambda r: r.marks_awarded - crit[r.criterion_id].marks,
+    )
+    best = max(earned, key=lambda r: r.marks_awarded, default=None)
+    strength = f'"{best.evidence}"' if best and best.evidence and len(best.evidence.split()) <= 8 else ""
+    if best and not strength:
+        strength = _short(crit[best.criterion_id].description)
+    fix = _short(crit[lost[0].criterion_id].description) if lost else ""
+    if not lost:
+        nxt = "Explain why it works, not just what it does."
+    else:
+        nxt = "Check every rubric point is covered before moving on." if len(lost) > 1 else ""
+    return Remark(strength=strength, fix=fix, next_step=nxt)
+
+
+def _short(description: str, words: int = REMARK_WORDS - 2) -> str:
+    """'States that queries, keys ...' -> 'state that queries, keys ...' trimmed to a margin note."""
+    w = description.rstrip(".").split()
+    if w and w[0].lower().endswith("s") and w[0][0].isupper():
+        w[0] = w[0][:-1].lower()  # "Mentions" -> "mention"
+    text = " ".join(w[:words])
+    return text + ("…" if len(w) > words else "")
+
+
 def rubric_items(question: Question, grade: QuestionGrade) -> list[FeedbackItem]:
     """Deterministic feedback from the rubric and the grader's reasons."""
     crit = {c.id: c for c in question.criteria}
@@ -137,9 +211,18 @@ def question_feedback(question: Question, grade: QuestionGrade, answer: str, llm
         )
     flags: list[str] = []
     items: list[FeedbackItem] = []
+    remark = None
     if llm is not None:
         raw = llm.complete_json(FEEDBACK_SYSTEM, build_feedback_prompt(question, grade, answer))
         items, flags = verify_items(question, grade, answer, raw)
+        remark, remark_flags = verify_remark(grade, answer, raw)
+        flags += remark_flags
+    fallback = rubric_remark(question, grade)
+    remark = Remark(
+        strength=(remark.strength if remark else "") or fallback.strength,
+        fix=(remark.fix if remark else "") or fallback.fix,
+        next_step=(remark.next_step if remark else "") or fallback.next_step,
+    )
     # Every criterion that lost marks must get a "lost" item; fill gaps from the rubric.
     covered = {(i.kind, i.criterion_id) for i in items}
     fill_earned = not items
@@ -152,6 +235,7 @@ def question_feedback(question: Question, grade: QuestionGrade, answer: str, llm
         question_id=question.id,
         items=items,
         summary=f"{grade.marks_awarded:g} of {grade.max_marks:g} marks.",
+        remark=remark,
         flags=flags,
     )
 
@@ -178,6 +262,10 @@ def add_feedback(spec: ExamSpec, grade: SheetGrade, answers: dict[str, str], llm
     questions = []
     for qg in grade.questions:
         fb = question_feedback(spec.question(qg.question_id), qg, answers.get(qg.question_id, ""), llm)
-        questions.append(qg.model_copy(update={"feedback": fb.render(), "feedback_items": fb.items, "flags": qg.flags + fb.flags}))
+        questions.append(
+            qg.model_copy(
+                update={"feedback": fb.render(), "feedback_items": fb.items, "remark": fb.remark, "flags": qg.flags + fb.flags}
+            )
+        )
     graded = grade.model_copy(update={"questions": questions})
     return graded.model_copy(update={"summary_feedback": sheet_summary(spec, graded)})

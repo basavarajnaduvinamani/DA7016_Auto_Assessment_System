@@ -53,8 +53,16 @@ def _grade(args: argparse.Namespace) -> int:
 
     settings = Settings.load()
     spec = load_spec(args.spec)
+    from autoassess.spec_builder import lint_spec
+
+    for w in lint_spec(spec):
+        print(f"  rubric warning: {w}")
     llm = None if args.baseline else make_llm(settings)
-    critic = make_llm(settings, critic=True) if args.critic and llm else None
+    reviewer = make_llm(settings, critic=True) if llm else None
+    critic = reviewer if args.critic and llm else None
+    advocate = reviewer if args.advocate and llm else None
+    second_model = args.second_model or settings.second_model
+    second = make_llm(settings, model=second_model) if second_model and llm else None
     ocr = make_ocr(settings)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -68,14 +76,16 @@ def _grade(args: argparse.Namespace) -> int:
             llm,
             runs=args.runs,
             critic=critic,
+            advocate=advocate,
+            second=second,
             translator=translator,
             feedback_language=args.feedback_language,
         )
         grade = result.grade
         (out / f"{sid}.json").write_text(grade.model_dump_json(indent=2), encoding="utf-8")
         (out / f"{sid}.html").write_text(result.html(), encoding="utf-8")
-        flags = sum(1 for q in grade.questions if q.flags and q.flags != ["unanswered"])
-        print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  ({flags} flagged)" if flags else ""))
+        review = [q.question_id for q in grade.questions if q.needs_review]
+        print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  (? for review: {', '.join(review)})" if review else ""))
     from autoassess.doctor import spend_summary
 
     print(f"spend so far: {spend_summary(settings)}")
@@ -88,7 +98,13 @@ def _evaluate(args: argparse.Namespace) -> int:
     from autoassess.evaluate import compare, load_grades, load_human_marks, write_report
     from autoassess.spec_builder import load_spec
 
-    report = compare(load_spec(args.spec), load_grades(args.grades), load_human_marks(args.human))
+    from autoassess.evaluate import handwriting_penalty, load_sheet_meta
+
+    meta = load_sheet_meta(args.meta) if args.meta else None
+    grades = load_grades(args.grades)
+    report = compare(load_spec(args.spec), grades, load_human_marks(args.human), meta)
+    if args.transcript_grades:
+        report["handwriting_penalty"] = handwriting_penalty(grades, load_grades(args.transcript_grades), meta)
     if args.out:
         write_report(report, args.out)
     print(json.dumps({k: v for k, v in report.items() if k != "flagged_questions"}, indent=2))
@@ -200,7 +216,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--spec", required=True)
     p.add_argument("--out", required=True, help="folder for a JSON grade and an HTML report per sheet")
     p.add_argument("--runs", type=int, default=3, help="independent grading runs per question")
-    p.add_argument("--critic", action="store_true", help="let a second model audit awarded marks")
+    p.add_argument("--critic", action="store_true", help="let a reviewer lower marks it finds too generous")
+    p.add_argument("--advocate", action="store_true", help="let a reviewer raise marks it finds were missed (verified quote needed)")
+    p.add_argument("--second-model", help="a second examiner model for the confidence check, e.g. openai/gpt-4.1-mini")
     p.add_argument("--baseline", action="store_true", help="use the lexical baseline, no LLM")
     p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
@@ -210,6 +228,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--spec", required=True)
     p.add_argument("--grades", required=True, help="folder written by `grade`")
     p.add_argument("--human", required=True, help="human marks CSV")
+    p.add_argument("--meta", help="sheet metadata CSV: student_id plus columns such as language, handwriting, split")
+    p.add_argument("--transcript-grades", help="folder of grades for the typed transcripts of the same sheets")
     p.add_argument("--out")
     p.set_defaults(func=_evaluate)
 

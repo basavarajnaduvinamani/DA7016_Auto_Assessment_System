@@ -63,9 +63,11 @@ class EchoLLM(FakeLLM):
 
 def test_ablation_runs_every_config_and_tables():
     results = run_ablation(SPEC, _sheets(), HUMAN, EchoLLM(), EchoLLM())
-    assert list(results) == ["full", "no_critic", "single_run", "no_evidence_rule", "no_model_answer", "lexical_baseline"]
+    assert list(results) == [
+        "full", "critic_only", "no_critic", "no_review", "single_run", "no_evidence_rule", "no_model_answer", "lexical_baseline",
+    ]  # fmt: skip
     table = ablation_table(results)
-    assert table.count("\n") == 7 and "| lexical_baseline |" in table
+    assert table.count("\n") == 9 and "| lexical_baseline |" in table and "| Bias |" in table
 
 
 def test_ablation_without_llm_runs_baseline_only():
@@ -78,6 +80,8 @@ def test_robustness_catches_a_gameable_grader():
     s = report["summary"]
     assert s["keyword_stuffing"]["pass_rate"] == 0 and s["restate_question"]["pass_rate"] == 0
     assert s["blank"]["pass_rate"] == 1 and s["injection"]["pass_rate"] == 1
+    assert s["wrong_question"]["pass_rate"] == 0  # full marks for another question's answer
+    assert {"injection_hindi", "injection_kannada", "injection_subtle", "spelling_errors"} <= set(s)
     assert "| padding |" in robustness_table(report)
 
 

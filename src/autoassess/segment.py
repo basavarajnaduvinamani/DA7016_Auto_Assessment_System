@@ -8,6 +8,9 @@ numbers are treated as list items; on a bare-number sheet, a number only
 starts an answer not seen yet. A numbered list inside an answer on a
 bare-number sheet can still mis-split; the LLM fallback is the remedy. An optional LLM fallback handles
 sheets with no recognisable labels.
+
+Crossed-out work is dropped before grading: OCR that reports strikethrough
+writes it as ~~text~~ (Markdown), and vision transcription as [crossed out].
 """
 
 from __future__ import annotations
@@ -40,7 +43,7 @@ def _norm_label(label: str) -> str:
 _LABEL = re.compile(
     r"^\s*(?:(?:q|ques|question|ans|answer)\s*\.?\s*(?:no\.?\s*)?)?"
     r"(\d{1,2}\s*(?:\(?[a-h]\)?|\(?(?:i|ii|iii|iv|v|vi)\)?)?)"
-    r"\s*(?:[.):\-]|\s(?=\S))",
+    r"\s*(?:[.):\-]|\s(?=\S)|$)",
     re.IGNORECASE,
 )
 
@@ -59,6 +62,13 @@ def _find_label(line: str, variants: dict[str, str]) -> tuple[str, int, bool] | 
     return (qid, m.end(), prefixed) if qid else None
 
 
+_STRUCK = re.compile(r"~~[^~]*~~|\[crossed[ -]out[^\]]*\]|<s>.*?</s>|<del>.*?</del>", re.IGNORECASE)
+
+
+def strip_crossed_out(text: str) -> str:
+    return re.sub(r"[ \t]{2,}", " ", _STRUCK.sub("", text)).strip()
+
+
 def segment_pages(spec: ExamSpec, pages: list[OCRPage]) -> dict[str, AnswerSegment]:
     variants = _label_variants(spec)
     parts: dict[str, list[tuple[int, OCRLine, str]]] = {}
@@ -70,13 +80,14 @@ def segment_pages(spec: ExamSpec, pages: list[OCRPage]) -> dict[str, AnswerSegme
     )
     for page in pages:
         for line in page.lines:
-            hit = _find_label(line.text, variants)
-            text = line.text
+            raw = strip_crossed_out(line.text)
+            hit = _find_label(raw, variants)
+            text = raw
             # A bare number ("2.") only starts a new answer on a bare-number
             # sheet, and only for a question not seen yet.
             if hit and (hit[2] or (not prefixed_sheet and hit[0] not in parts)):
                 current, cut, _ = hit
-                text = line.text[cut:].strip()
+                text = raw[cut:].strip()
             if current is None:
                 continue
             parts.setdefault(current, []).append((page.page_index, line, text))
@@ -86,7 +97,7 @@ def segment_pages(spec: ExamSpec, pages: list[OCRPage]) -> dict[str, AnswerSegme
         rows = parts.get(q.id, [])
         segments[q.id] = AnswerSegment(
             question_id=q.id,
-            text="\n".join(t for _, _, t in rows).strip(),
+            text="\n".join(t for _, _, t in rows if t).strip(),
             pages=sorted({p for p, _, _ in rows}),
             lines=[line for _, line, _ in rows],
         )
@@ -101,6 +112,9 @@ Copy the student's words exactly; do not fix spelling or add anything."""
 
 def segment_with_llm(spec: ExamSpec, sheet_text: str, llm: LLMClient) -> dict[str, AnswerSegment]:
     questions = "\n".join(f"{q.id}: {q.text}" for q in spec.questions)
+    from autoassess.privacy import anonymise
+
+    sheet_text = anonymise(strip_crossed_out(sheet_text))
     reply = llm.complete_json(SEGMENT_SYSTEM, f"Questions:\n{questions}\n\n<sheet>\n{sheet_text}\n</sheet>")
     answers = reply.get("answers", {})
     return {
@@ -110,10 +124,12 @@ def segment_with_llm(spec: ExamSpec, sheet_text: str, llm: LLMClient) -> dict[st
 
 def segment(spec: ExamSpec, pages: list[OCRPage], llm: LLMClient | None = None) -> dict[str, AnswerSegment]:
     """Rule-based first; LLM fallback only when no labels were found at all."""
+    from autoassess.privacy import anonymise
+
     segments = segment_pages(spec, pages)
     if llm is not None and not any(s.text for s in segments.values()):
         segments = segment_with_llm(spec, "\n".join(p.text for p in pages), llm)
-    return segments
+    return {k: v.model_copy(update={"text": anonymise(v.text)}) for k, v in segments.items()}
 
 
 def segments_to_json(segments: dict[str, AnswerSegment]) -> str:

@@ -4,7 +4,8 @@ The critic sees the question, rubric, answer and the grader's awards, and for
 each criterion that earned marks either upholds the award or proposes fewer
 marks with a reason. It can only take marks away, never add them, which
 counters the leniency LLM graders are known for. Its reductions are recorded
-so the report can show where the two agents disagreed.
+so the report can show where the two agents disagreed. The advocate
+(advocate.py) is its counterpart, so the review pulls both ways.
 """
 
 from __future__ import annotations
@@ -23,7 +24,8 @@ For each awarded criterion, check:
 - Is partial credit justified by what is actually written?
 
 Uphold awards that are justified. Reduce awards that are too generous. You can only
-lower marks, never raise them.
+lower marks, never raise them. Do not reduce for spelling or grammar, or because the
+evidence quote differs from the answer by a misread character or two.
 
 Return ONLY JSON:
 {"audits": [{"criterion_id": str, "decision": "uphold" | "reduce", "marks": number, "reason": str}]}"""
@@ -91,6 +93,7 @@ def audit(
                     "verdict": verdict,
                     "evidence": r.evidence if new > 0 else None,
                     "reason": f"{r.reason} Critic: {str(a.get('reason', '')).strip()}".strip(),
+                    "tags": [*r.tags, "critic"],
                 }
             )
         )

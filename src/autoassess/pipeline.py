@@ -46,6 +46,8 @@ def run(
     *,
     runs: int = 3,
     critic: LLMClient | None = None,
+    advocate: LLMClient | None = None,
+    second: LLMClient | None = None,
     feedback: bool = True,
     translator: Translator | None = None,
     feedback_language: str | None = None,
@@ -55,7 +57,7 @@ def run(
     if llm is None:
         grade = grade_sheet_lexical(spec, segments, student_id)
     else:
-        grade = grade_sheet(spec, segments, llm, student_id, runs=runs, critic=critic)
+        grade = grade_sheet(spec, segments, llm, student_id, runs=runs, critic=critic, advocate=advocate, second=second)
     if feedback:
         grade = add_feedback(spec, grade, {k: v.text for k, v in segments.items()}, llm)
         if translator is not None and feedback_language:

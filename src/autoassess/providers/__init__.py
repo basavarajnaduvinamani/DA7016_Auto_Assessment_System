@@ -38,11 +38,13 @@ def make_ocr(settings: Settings) -> OCRProvider:
     raise ValueError(f"unknown OCR provider {settings.ocr_provider!r}")
 
 
-def make_llm(settings: Settings, critic: bool = False) -> LLMClient:
-    """The grading model, or the critic model (defaults to the grading model)."""
+def make_llm(settings: Settings, critic: bool = False, model: str | None = None) -> LLMClient:
+    """The grading model, the critic model (defaults to the grading model), or any named model."""
+    from autoassess.privacy import check_provider_for_real_sheets
     from autoassess.providers.llm import OpenAICompatibleLLM
 
-    model = (settings.critic_model or settings.llm_model) if critic else settings.llm_model
+    check_provider_for_real_sheets(settings.llm_base_url, settings.real_sheets, settings.gemini_paid)
+    model = model or ((settings.critic_model or settings.llm_model) if critic else settings.llm_model)
     return OpenAICompatibleLLM(
         settings.llm_base_url, model, settings.llm_api_key, DiskCache(settings.cache_dir, "llm"), ledger=settings.llm_ledger()
     )

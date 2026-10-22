@@ -23,9 +23,15 @@ def translate_feedback(grade: SheetGrade, translator: Translator, language: str)
             )
             for i in q.feedback_items
         ]
+        remark = q.remark
+        if remark is not None:
+            remark = remark.model_copy(
+                update={k: translator.translate(v, language) if v else "" for k, v in remark.model_dump().items()}
+            )
         questions.append(
             q.model_copy(
                 update={
+                    "remark": remark,
                     "feedback_items": items,
                     "feedback": translator.translate(q.feedback, language) if q.feedback else "",
                     "feedback_en": q.feedback,

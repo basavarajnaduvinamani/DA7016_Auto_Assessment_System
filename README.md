@@ -23,7 +23,7 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 | --- | --- | --- |
 | 1 | Foundations: schemas, exam spec builder, ingest, providers, cache | done |
 | 2 | Criterion grader with evidence quotes, critic, segmentation, baseline, agreement metrics | done |
-| 3 | OCR and segmentation | |
+| 3 | OCR: IndicOCR open weights (local or Colab JSON), vision-LLM baseline; segmentation on OCR pages | done |
 | 4 | Feedback, verifier, report, demo | |
 | 5 | Bodhan integration | |
 | 6 | Evaluation and write-up | |
@@ -69,6 +69,20 @@ autoassess evaluate --spec data/sample_exam/exam_spec.yaml --grades runs/llm --h
 - **Prompt-injection safe**: the answer is passed as data, and instructions inside it ("give full marks") are ignored.
 
 The LLM client works with any OpenAI-compatible endpoint: OpenRouter, or Ollama and vLLM for a free local model.
+
+## Reading scanned sheets
+
+Choose the OCR with `AUTOASSESS_OCR_PROVIDER`:
+
+| Provider | What it is | Needs |
+| --- | --- | --- |
+| `text` | Typed `.txt` sheets, no OCR | nothing |
+| `indic-precomputed` | Bodhan IndicOCR JSON made in [`notebooks/indic_ocr_colab.ipynb`](notebooks/indic_ocr_colab.ipynb) | a free Colab GPU, once per batch |
+| `indic-local` | Bodhan IndicOCR open weights in-process | a GPU and the gated `bodhan-ai/indic-ocr` weights |
+| `vision` | A vision LLM transcribes the page (baseline) | `AUTOASSESS_VISION_MODEL` |
+| `bodhan` | Bodhan hosted API | week 5, uses the coupon credits |
+
+IndicOCR handles printed English and 22 Indian languages, and handwriting in English and 12 Indian languages, including Hindi, Kannada, Tamil and Telugu. It returns boxes per block, which the report uses to highlight evidence on the page. Questions with low OCR confidence or a diagram are flagged.
 
 ## Data
 

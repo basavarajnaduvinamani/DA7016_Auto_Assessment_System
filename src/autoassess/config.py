@@ -31,9 +31,8 @@ class Settings:
     critic_model: str = field(default_factory=lambda: os.getenv("AUTOASSESS_CRITIC_MODEL", ""))
     llm_api_key: str = field(default_factory=lambda: os.getenv("AUTOASSESS_LLM_API_KEY", ""))
     bodhan_api_key: str = field(default_factory=lambda: os.getenv("BODHAN_API_KEY", ""))
-    bodhan_base_url: str = field(
-        default_factory=lambda: os.getenv("BODHAN_BASE_URL", "https://api.bodhan.ai/v1")
-    )
+    bodhan_base_url: str = field(default_factory=lambda: os.getenv("BODHAN_BASE_URL", "https://api.bodhan.ai"))
+    bodhan_budget_inr: float = field(default_factory=lambda: float(os.getenv("BODHAN_BUDGET_INR", "1500")))
 
     @classmethod
     def load(cls) -> Settings:

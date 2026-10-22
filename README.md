@@ -25,7 +25,7 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 | 2 | Criterion grader with evidence quotes, critic, segmentation, baseline, agreement metrics | done |
 | 3 | OCR: IndicOCR open weights (local or Colab JSON), vision-LLM baseline; segmentation on OCR pages | done |
 | 4 | Feedback with verifier, HTML report with highlighted evidence, FastAPI, Gradio demo | done |
-| 5 | Bodhan integration | |
+| 5 | Bodhan hosted IndicOCR and Indic-Translate, with cache and budget guard | done |
 | 6 | Evaluation and write-up | |
 
 ## Setup
@@ -100,7 +100,12 @@ IndicOCR handles printed English and 22 Indian languages, and handwriting in Eng
 
 ## Bodhan AI
 
-Bodhan AI (IIT Madras with AI4Bharat) offers IndicOCR, Indic-Translate, Indic-Transcribe and Indic-Speak, as open weights on Hugging Face and as hosted APIs at `https://api.bodhan.ai/v1`. Development uses the open weights on a free GPU notebook. The $20 coupon is for the final evaluation runs and the demo; at about Rs 0.20 per page image it covers roughly 8,500 pages. `providers/bodhan.py` holds the placeholders to fill in week 5.
+Bodhan AI (IIT Madras with AI4Bharat) serves IndicOCR and Indic-Translate as hosted APIs, and as open weights on Hugging Face.
+
+- **Hosted OCR**: set `AUTOASSESS_OCR_PROVIDER=bodhan` and `BODHAN_API_KEY`. Each page goes to `POST https://api.bodhan.ai/v1/chat/completions` with model `indic-ocr`; layout blocks come back with boxes, as with the open weights.
+- **Translated feedback**: `autoassess grade ... --feedback-language Kannada` sends feedback to `POST /translate`, paragraph by paragraph.
+- **Credits**: every call is cached by content, so re-running costs nothing. A ledger in `.cache/bodhan_ledger.json` estimates spend (about Rs 0.20 per page) and stops paid calls at `BODHAN_BUDGET_INR` (default Rs 1,500, under the $20 coupon).
+- **Free route**: the open weights run on a Colab GPU through `notebooks/indic_ocr_colab.ipynb`, which gives the same output format at no cost.
 
 ## Course and author
 

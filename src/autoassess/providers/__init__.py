@@ -28,7 +28,9 @@ def make_ocr(settings: Settings) -> OCRProvider:
     if settings.ocr_provider == "bodhan":
         from autoassess.providers.bodhan import BodhanOCR
 
-        return BodhanOCR(settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"))
+        return BodhanOCR(
+            settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"), settings.bodhan_budget_inr
+        )
     raise ValueError(f"unknown OCR provider {settings.ocr_provider!r}")
 
 
@@ -43,7 +45,9 @@ def make_llm(settings: Settings, critic: bool = False) -> LLMClient:
 def make_translator(settings: Settings) -> Translator:
     from autoassess.providers.bodhan import BodhanTranslate
 
-    return BodhanTranslate(settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"))
+    return BodhanTranslate(
+        settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
+    )
 
 
 __all__ = ["LLMClient", "OCRProvider", "Translator", "make_llm", "make_ocr", "make_translator"]

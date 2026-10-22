@@ -29,7 +29,7 @@ def make_ocr(settings: Settings) -> OCRProvider:
         from autoassess.providers.bodhan import BodhanOCR
 
         return BodhanOCR(
-            settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"), settings.bodhan_budget_inr
+            settings.ocr_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "ocr"), settings.bodhan_budget_inr
         )
     raise ValueError(f"unknown OCR provider {settings.ocr_provider!r}")
 
@@ -46,7 +46,7 @@ def make_translator(settings: Settings) -> Translator:
     from autoassess.providers.bodhan import BodhanTranslate
 
     return BodhanTranslate(
-        settings.bodhan_api_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
+        settings.translate_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
     )
 
 

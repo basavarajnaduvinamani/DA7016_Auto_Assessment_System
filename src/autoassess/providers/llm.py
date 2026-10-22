@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.error
 import urllib.request
 
 from autoassess.cache import DiskCache, content_key
@@ -25,6 +26,12 @@ def parse_json_reply(text: str) -> dict:
     return json.loads(cleaned[start : end + 1])
 
 
+class LLMError(RuntimeError):
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
 class OpenAICompatibleLLM(LLMClient):
     def __init__(self, base_url: str, model: str, api_key: str = "", cache: DiskCache | None = None, timeout: float = 120):
         if not model:
@@ -35,6 +42,8 @@ class OpenAICompatibleLLM(LLMClient):
         self.cache = cache
         self.timeout = timeout
         self.name = f"openai-compatible:{model}"
+        # Gemini's OpenAI-compatible endpoint rejects "seed" with a 400.
+        self.sends_seed = "generativelanguage.googleapis.com" not in self.base_url
 
     def _post(self, payload: dict) -> dict:
         req = urllib.request.Request(
@@ -42,8 +51,17 @@ class OpenAICompatibleLLM(LLMClient):
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})},
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as err:
+            body = err.read().decode(errors="replace")
+            try:
+                detail = json.loads(body)
+                detail = (detail[0] if isinstance(detail, list) else detail)["error"]["message"]
+            except (ValueError, KeyError, TypeError, IndexError):
+                detail = body[:300] or err.reason
+            raise LLMError(f"{err.code} from {self.base_url}: {detail}", err.code) from err
 
     def complete_json(self, system: str, user: str, *, temperature: float = 0.0, seed: int | None = None) -> dict:
         payload = {
@@ -56,7 +74,9 @@ class OpenAICompatibleLLM(LLMClient):
             payload["seed"] = seed
 
         def call() -> str:
-            return self._post(payload)["choices"][0]["message"]["content"]
+            # The seed stays in the cache key either way, so repeated runs are cached separately.
+            sent = payload if self.sends_seed else {k: v for k, v in payload.items() if k != "seed"}
+            return self._post(sent)["choices"][0]["message"]["content"]
 
         if self.cache is None:
             return parse_json_reply(call())

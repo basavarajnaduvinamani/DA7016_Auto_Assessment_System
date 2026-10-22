@@ -157,9 +157,23 @@ def _ocr_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _doctor(args: argparse.Namespace) -> int:
+    from autoassess.config import Settings
+    from autoassess.doctor import FAIL, report, run_doctor
+
+    settings = Settings.load()
+    checks = run_doctor(settings, paid=not args.free)
+    print(report(settings, checks))
+    return 1 if any(c.status == FAIL for c in checks) else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="autoassess")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("doctor", help="check each configured key with one tiny live request")
+    p.add_argument("--free", action="store_true", help="skip the Bodhan checks (they cost about Rs 0.20)")
+    p.set_defaults(func=_doctor)
 
     p = sub.add_parser("validate-spec", help="check an exam spec and warn about vague criteria")
     p.add_argument("spec")

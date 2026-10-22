@@ -33,7 +33,8 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[ingest,dev]"
-cp .env.example .env      # set an LLM endpoint; Bodhan key stays empty until week 5
+cp .env.example .env      # add your Gemini and Bodhan keys
+autoassess doctor         # one tiny live call per key; --free skips the Bodhan calls (~Rs 0.20)
 pytest
 ```
 

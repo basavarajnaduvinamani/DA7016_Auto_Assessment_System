@@ -40,6 +40,41 @@ def within(a: Sequence[float], b: Sequence[float], tolerance: float = 1.0) -> fl
     return sum(abs(x - y) <= tolerance + 1e-9 for x, y in zip(a, b, strict=True)) / len(a)
 
 
+def signed_bias(system: Sequence[float], human: Sequence[float]) -> float:
+    """Mean of system - human: negative means the system under-marks."""
+    return sum(s - h for s, h in zip(system, human, strict=True)) / len(system)
+
+
+def bootstrap_ci(
+    system: Sequence[float],
+    human: Sequence[float],
+    metric,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    seed: int = 0,
+) -> tuple[float, float]:
+    """Percentile bootstrap interval for metric(system, human), resampling items with replacement."""
+    import random
+
+    rng = random.Random(seed)
+    n = len(system)
+    stats = []
+    for _ in range(n_boot):
+        idx = [rng.randrange(n) for _ in range(n)]
+        try:
+            v = metric([system[i] for i in idx], [human[i] for i in idx])
+        except (ValueError, ZeroDivisionError):
+            continue
+        if v == v:  # skip NaN
+            stats.append(v)
+    if not stats:
+        return float("nan"), float("nan")
+    stats.sort()
+    lo = stats[int(alpha / 2 * (len(stats) - 1))]
+    hi = stats[int((1 - alpha / 2) * (len(stats) - 1))]
+    return round(lo, 3), round(hi, 3)
+
+
 def pearson(a: Sequence[float], b: Sequence[float]) -> float:
     n = len(a)
     ma, mb = sum(a) / n, sum(b) / n
@@ -49,7 +84,9 @@ def pearson(a: Sequence[float], b: Sequence[float]) -> float:
     return cov / (va * vb) if va and vb else float("nan")
 
 
-def agreement_report(system: Sequence[float], human: Sequence[float], max_marks: Sequence[float] | None = None) -> dict:
+def agreement_report(
+    system: Sequence[float], human: Sequence[float], max_marks: Sequence[float] | None = None, ci: bool = False
+) -> dict:
     report = {
         "n": len(system),
         "qwk": round(quadratic_weighted_kappa(system, human), 3),
@@ -59,9 +96,16 @@ def agreement_report(system: Sequence[float], human: Sequence[float], max_marks:
         "pearson": round(pearson(system, human), 3),
         "mean_system": round(sum(system) / len(system), 3),
         "mean_human": round(sum(human) / len(human), 3),
+        "bias": round(signed_bias(system, human), 3),
     }
     if max_marks is not None:
         report["nmae"] = round(sum(abs(s - h) / m for s, h, m in zip(system, human, max_marks, strict=True)) / len(system), 3)
+    if ci and len(system) >= 5:
+        report["ci95"] = {
+            "qwk": bootstrap_ci(system, human, quadratic_weighted_kappa),
+            "mae": bootstrap_ci(system, human, mean_absolute_error),
+            "bias": bootstrap_ci(system, human, signed_bias),
+        }
     return report
 
 

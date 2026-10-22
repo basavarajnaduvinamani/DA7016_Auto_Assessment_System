@@ -55,6 +55,8 @@ def explain(err: BaseException, host: str) -> str:
         if isinstance(err.reason, socket.gaierror):
             return f"cannot resolve {host}; check the base URL and the network"
         return f"cannot reach {host}: {reason}"
+    if "request blocked" in text or "no rule allows host" in text:
+        return f"the network blocked {host}; add it to the environment's allowed domains"
     if isinstance(err, TimeoutError | socket.timeout):
         return f"{host} timed out; try again, or raise the timeout"
     if status in (401, 403) or "api key" in text.lower() or "unauthor" in text.lower():

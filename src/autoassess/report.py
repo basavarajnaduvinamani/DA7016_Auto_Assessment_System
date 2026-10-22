@@ -95,6 +95,13 @@ def _page_figure(page: OCRPage, segment: AnswerSegment, quotes: list[str]) -> st
     )
 
 
+REVIEW_BADGE = " <strong class=review title='sent for human review'>?</strong>"
+
+
+def _tags(tags: list[str]) -> str:
+    return "".join(f"<span class=tag>{html.escape(t)}</span>" for t in tags)
+
+
 CSS = """
 :root{--ink:#1d1d1f;--quiet:#5f6368;--line:#dadce0;--bg:#fff;--card:#f8f9fa;--good:#1e8e3e;--part:#b06000;--bad:#c5221f;--mark:#fff3b0}
 @media (prefers-color-scheme:dark){:root{--ink:#e8eaed;--quiet:#9aa0a6;--line:#3c4043;--bg:#121212;--card:#1e1f21;--good:#81c995;--part:#fdd663;--bad:#f28b82;--mark:#5c4a00}}
@@ -105,6 +112,7 @@ th{font-weight:600}.num{text-align:right;white-space:nowrap}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0}
 .met,.partial,.not_met{white-space:nowrap}.met{color:var(--good)}.partial{color:var(--part)}.not_met{color:var(--bad)}
 mark{background:var(--mark);color:inherit;padding:0 2px;border-radius:2px}
+.review{color:var(--bad);font-size:18px}.tag{font-size:11px;color:var(--quiet);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:4px}
 .flag{display:inline-block;border:1px solid var(--part);color:var(--part);border-radius:12px;padding:0 8px;margin:2px 4px 2px 0;font-size:12px}
 svg.page{width:100%;height:auto;border:1px solid var(--line)}.ev rect{fill:none;stroke:#f9ab00;stroke-width:4}
 ul{margin:4px 0 4px 20px;padding:0}
@@ -116,7 +124,7 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
     esc = html.escape
     rows = "".join(
         f'<tr><td><a href="#{esc(q.question_id)}">{esc(q.question_id)}</a></td><td class="num">{q.marks_awarded:g} / {q.max_marks:g}</td>'
-        f'<td class="num">{q.confidence:.0%}</td><td>{"".join(f"<span class=flag>{esc(f)}</span>" for f in q.flags)}</td></tr>'
+        f'<td class="num">{q.confidence:.0%}{REVIEW_BADGE if q.needs_review else ""}</td><td>{"".join(f"<span class=flag>{esc(f)}</span>" for f in q.flags)}</td></tr>'
         for q in grade.questions
     )
     parts = [
@@ -133,11 +141,14 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
         quotes = [(r.evidence or "", r.criterion_id) for r in q.criteria if r.marks_awarded > 0]
         parts.append(f'<h2 id="{esc(q.question_id)}">{esc(q.question_id)} &middot; {q.marks_awarded:g} / {q.max_marks:g}</h2>')
         parts.append(f"<p class=quiet>{esc(question.text)}</p>")
+        if q.remark and q.remark.lines():
+            # The remark comes before the marks table: comments first, numbers second.
+            parts.append("<div class=card>" + "<br>".join(esc(line) for line in q.remark.lines()) + "</div>")
         answer_html = _highlight(seg.text, quotes) if seg.text else "<em>No answer found.</em>"
         parts.append(f"<div class=card>{answer_html}</div>")
         crit_rows = "".join(
             f'<tr><td>{esc(r.criterion_id)}</td><td>{esc(crit[r.criterion_id].description)}</td>'
-            f'<td class="{r.verdict.value}">{r.verdict.value.replace("_", " ")}</td><td class=num>{r.marks_awarded:g} / {crit[r.criterion_id].marks:g}</td>'
+            f'<td class="{r.verdict.value}">{r.verdict.value.replace("_", " ")}</td><td class=num>{r.marks_awarded:g} / {crit[r.criterion_id].marks:g}{_tags(r.tags)}</td>'
             f'<td>{("&ldquo;" + esc(r.evidence) + "&rdquo; ") if r.evidence else ""}<span class=quiet>{esc(r.reason)}</span></td></tr>'
             for r in q.criteria
         )

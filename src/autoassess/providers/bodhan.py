@@ -5,8 +5,10 @@ Request shapes follow Bodhan's cookbook (github.com/Bodhan-AI/Bodhan-AI-Cookbook
   base64 data URL. The response carries Markdown in choices[0].message.content
   and layout `blocks` (order, label, type, bbox_xyxy, conf, text), the same
   block format as the open weights, so blocks_to_page converts it.
-- Translate: POST {base}/translate with text and target_language (a code such
-  as "hi" or "kn"); the source language is detected. Billed on output tokens.
+- Translate: POST {base}/v1/chat/completions, model "indic-translate", the text
+  as the user message and target_language (a code such as "hi" or "kn") in the
+  body; the source language is detected. The cookbook's POST /translate returns
+  404 on the live API (checked 2026-10-22). Billed on output tokens.
 Errors come back as {"error": {"message", "code", "request_id"}}.
 
 Every call is cached by content, so no page or sentence is paid for twice, and
@@ -128,12 +130,14 @@ class BodhanTranslate(Translator):
         # Cost is billed on output tokens; assume output about as long as the input.
         estimate = TRANSLATE_INR_PER_10K_OUTPUT_TOKENS * max(1, len(text) // 3) / 10_000
         self.client.ledger.check(estimate)
-        out = self.client._post("/translate", {"text": text, "target_language": code})
-        tokens = (out.get("usage") or {}).get("output_tokens")
+        body = {"model": "indic-translate", "messages": [{"role": "user", "content": text}], "target_language": code}
+        out = self.client._post("/v1/chat/completions", body)
+        tokens = (out.get("usage") or {}).get("completion_tokens")
         self.client.ledger.add(TRANSLATE_INR_PER_10K_OUTPUT_TOKENS * tokens / 10_000 if tokens else estimate)
-        if out.get("truncated"):
+        choice = out["choices"][0]
+        if choice.get("finish_reason") == "length":
             raise BodhanError("translation was truncated; split the text into shorter parts")
-        return out["translation"]
+        return choice["message"]["content"].strip()
 
     def translate(self, text: str, target_language: str, source_language: str = "English") -> str:
         code = language_code(target_language)

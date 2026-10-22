@@ -5,7 +5,11 @@ Two routes:
 - draft_spec: ask an LLM to structure the question paper, rubric and model
   answers, validate the result, and feed validation errors back once.
 
-lint_spec flags rubric criteria too vague for a grader to check.
+lint_spec flags rubric problems before any grading: vague or very short
+criteria, several things bundled into one criterion, large all-or-nothing
+criteria, missing model answers, duplicate criteria, and follow-through
+criteria on a question that builds on nothing. Rubric quality decides marks
+more than model choice does, so a teacher should clear these first.
 """
 
 from __future__ import annotations
@@ -84,6 +88,9 @@ _VAGUE = re.compile(
 )
 
 
+_BUNDLE = re.compile(r"\b(and|also|as well as|along with)\b|;", re.I)
+
+
 def lint_spec(spec: ExamSpec) -> list[str]:
     """Warnings for criteria a grader cannot check reliably."""
     warnings: list[str] = []
@@ -98,4 +105,11 @@ def lint_spec(spec: ExamSpec) -> list[str]:
                 warnings.append(f"{c.id}: vague wording with no checkable condition: {c.description!r}")
             if not c.allow_partial and c.marks > 2:
                 warnings.append(f"{c.id}: {c.marks:g} marks all-or-nothing; consider splitting it")
+            if len(_BUNDLE.findall(c.description)) >= 3:
+                warnings.append(f"{c.id}: bundles several checks into one criterion; split it so each can be marked")
+            if c.follow_through and not q.depends_on:
+                warnings.append(f"{c.id}: follow-through but {q.id} has no depends_on, so there is nothing to follow")
+        descs = [c.description.lower().strip(" .") for c in q.criteria]
+        for d in {d for d in descs if descs.count(d) > 1}:
+            warnings.append(f"{q.id}: duplicate criterion {d!r}")
     return warnings

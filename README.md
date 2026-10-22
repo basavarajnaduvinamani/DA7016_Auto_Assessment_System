@@ -26,7 +26,7 @@ Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. O
 | 3 | OCR: IndicOCR open weights (local or Colab JSON), vision-LLM baseline; segmentation on OCR pages | done |
 | 4 | Feedback with verifier, HTML report with highlighted evidence, FastAPI, Gradio demo | done |
 | 5 | Bodhan hosted IndicOCR and Indic-Translate, with cache and budget guard | done |
-| 6 | Evaluation and write-up | |
+| 6 | Evaluation harness: ablations, robustness suite, OCR error rates ([protocol](docs/evaluation.md)) | done; needs real sheets and human marks |
 
 ## Setup
 
@@ -58,6 +58,11 @@ autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/baseline --ba
 
 # Agreement with human marks (QWK, MAE, within 1 mark), plus human-vs-human
 autoassess evaluate --spec data/sample_exam/exam_spec.yaml --grades runs/llm --human data/private/human_marks.csv
+
+# Experiments: ablations, robustness, OCR accuracy (see docs/evaluation.md)
+autoassess experiment ablation --spec ... --human ... --out runs/ablation sheets...
+autoassess experiment robustness --spec ... --out runs/robustness sheets...
+autoassess ocr-eval --reference transcripts/ sheets...
 ```
 
 ## How grading stays defensible

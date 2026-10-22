@@ -93,6 +93,70 @@ def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_sheets(spec, sheets, ocr, llm):
+    from autoassess.experiments import read_pages_for_sheets
+    from autoassess.segment import segment
+
+    return {sid: segment(spec, pages, llm) for sid, pages in read_pages_for_sheets(sheets, ocr, spec.language).items()}
+
+
+def _experiment(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.config import Settings
+    from autoassess.evaluate import load_human_marks
+    from autoassess.experiments import (
+        DEFAULT_CONFIGS,
+        ablation_table,
+        make_grade_fn,
+        robustness_table,
+        run_ablation,
+        run_robustness,
+    )
+    from autoassess.providers import make_llm, make_ocr
+    from autoassess.spec_builder import load_spec
+
+    settings = Settings.load()
+    spec = load_spec(args.spec)
+    llm = None if args.baseline_only else make_llm(settings)
+    critic = make_llm(settings, critic=True) if llm else None
+    sheets = _load_sheets(spec, args.sheets, make_ocr(settings), llm)
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    if args.kind == "ablation":
+        if not args.human:
+            print("ablation needs --human", file=sys.stderr)
+            return 2
+        results = run_ablation(spec, sheets, load_human_marks(args.human), llm, critic)
+        (out / "ablation.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+        table = ablation_table(results)
+    else:
+        cfg = DEFAULT_CONFIGS[-1] if args.baseline_only else DEFAULT_CONFIGS[0]
+        report = run_robustness(spec, sheets, make_grade_fn(cfg, llm, critic))
+        (out / "robustness.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        table = robustness_table(report)
+    (out / f"{args.kind}.md").write_text(table + "\n", encoding="utf-8")
+    print(table)
+    return 0
+
+
+def _ocr_eval(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.config import Settings
+    from autoassess.experiments import ocr_accuracy, read_pages_for_sheets
+    from autoassess.providers import make_ocr
+
+    refs = {p.stem: p.read_text(encoding="utf-8") for p in Path(args.reference).glob("*.txt")}
+    settings = Settings.load()
+    result = ocr_accuracy(read_pages_for_sheets(args.sheets, make_ocr(settings), args.language), refs)
+    result = {"provider": settings.ocr_provider, "sheets": result}
+    if args.out:
+        Path(args.out).write_text(json.dumps(result, indent=2), encoding="utf-8")
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="autoassess")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -131,6 +195,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--human", required=True, help="human marks CSV")
     p.add_argument("--out")
     p.set_defaults(func=_evaluate)
+
+    p = sub.add_parser("experiment", help="ablation or robustness experiment")
+    p.add_argument("kind", choices=["ablation", "robustness"])
+    p.add_argument("--spec", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--human", help="human marks CSV (ablation)")
+    p.add_argument("--baseline-only", action="store_true", help="no LLM: run the lexical baseline only")
+    p.add_argument("sheets", nargs="+")
+    p.set_defaults(func=_experiment)
+
+    p = sub.add_parser("ocr-eval", help="CER/WER of the configured OCR against typed transcripts")
+    p.add_argument("--reference", required=True, help="folder of <sheet>.txt transcripts")
+    p.add_argument("--language")
+    p.add_argument("--out")
+    p.add_argument("sheets", nargs="+")
+    p.set_defaults(func=_ocr_eval)
 
     args = parser.parse_args(argv)
     return args.func(args)

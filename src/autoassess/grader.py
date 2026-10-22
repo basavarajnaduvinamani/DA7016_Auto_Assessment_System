@@ -102,7 +102,7 @@ class _Check:
     problems: list[str]
 
 
-def _enforce(question: Question, raw: dict, answer: str) -> _Check:
+def _enforce(question: Question, raw: dict, answer: str, require_evidence: bool = True) -> _Check:
     """Turn one raw LLM reply into rubric-consistent results, listing problems."""
     by_id = {}
     for item in raw.get("criteria", []) if isinstance(raw, dict) else []:
@@ -126,7 +126,7 @@ def _enforce(question: Question, raw: dict, answer: str) -> _Check:
         verdict = Verdict.MET if marks >= c.marks else Verdict.PARTIAL if marks > 0 else Verdict.NOT_MET
         evidence = item.get("evidence") or None
         reason = str(item.get("reason") or "").strip()
-        if marks > 0 and not evidence_in_answer(evidence, answer):
+        if require_evidence and marks > 0 and not evidence_in_answer(evidence, answer):
             problems.append(
                 f"{c.id}: awarded {marks:g} marks but the evidence {evidence!r} is not an exact quote from the answer"
             )
@@ -160,17 +160,27 @@ def _withdraw_unsupported(results: list[CriterionResult], answer: str) -> tuple[
     return out, flags
 
 
-def grade_once(question: Question, answer: str, llm: LLMClient, *, seed: int | None = None, temperature: float = 0.0) -> tuple[list[CriterionResult], list[str]]:
+def grade_once(
+    question: Question,
+    answer: str,
+    llm: LLMClient,
+    *,
+    seed: int | None = None,
+    temperature: float = 0.0,
+    require_evidence: bool = True,
+) -> tuple[list[CriterionResult], list[str]]:
     user = build_prompt(question, answer)
     raw = llm.complete_json(GRADER_SYSTEM, user, temperature=temperature, seed=seed)
-    check = _enforce(question, raw, answer)
+    check = _enforce(question, raw, answer, require_evidence)
     if check.problems:
         repair = (
             f"{user}\n\nYour previous grading:\n{json.dumps(raw, ensure_ascii=False)}\n\n"
             "Fix these problems and return the full JSON again:\n- " + "\n- ".join(check.problems)
         )
         raw = llm.complete_json(GRADER_SYSTEM, repair, temperature=temperature, seed=seed)
-        check = _enforce(question, raw, answer)
+        check = _enforce(question, raw, answer, require_evidence)
+    if not require_evidence:
+        return check.results, []
     return _withdraw_unsupported(check.results, answer)
 
 
@@ -199,6 +209,7 @@ def grade_question(
     low_confidence: float = 0.8,
     low_ocr_confidence: float = 0.7,
     critic: LLMClient | None = None,
+    require_evidence: bool = True,
 ) -> QuestionGrade:
     answer = segment.text.strip()
     if not answer:
@@ -222,7 +233,7 @@ def grade_question(
         flags.append("contains_diagram")
     for k in range(runs):
         results, run_flags = grade_once(
-            question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0
+            question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0, require_evidence=require_evidence
         )
         all_runs.append(results)
         flags.extend(f for f in run_flags if f not in flags)

@@ -29,8 +29,9 @@ class BodhanOCR(OCRProvider):
         self.cache = cache
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
-        # TODO(week 5): send the page image, map blocks to OCRLine with bbox and
-        # confidence, and cache on content_key("bodhan-ocr", image bytes).
+        # TODO(week 5): send the page image and cache on content_key("bodhan-ocr",
+        # image bytes). If the response uses the same block format as the open
+        # model's parse(), providers.indic_ocr.blocks_to_page converts it.
         raise NotImplementedError("Bodhan IndicOCR integration lands in week 5")
 
 

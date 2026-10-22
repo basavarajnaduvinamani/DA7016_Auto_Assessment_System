@@ -21,6 +21,9 @@ def _load_dotenv(path: Path = Path(".env")) -> None:
 class Settings:
     cache_dir: Path = field(default_factory=lambda: Path(os.getenv("AUTOASSESS_CACHE_DIR", ".cache")))
     ocr_provider: str = field(default_factory=lambda: os.getenv("AUTOASSESS_OCR_PROVIDER", "text"))
+    ocr_json_dir: Path = field(default_factory=lambda: Path(os.getenv("AUTOASSESS_OCR_JSON_DIR", "ocr_json")))
+    indic_ocr_repo: str = field(default_factory=lambda: os.getenv("AUTOASSESS_INDIC_OCR_REPO", ""))
+    vision_model: str = field(default_factory=lambda: os.getenv("AUTOASSESS_VISION_MODEL", ""))
     llm_base_url: str = field(
         default_factory=lambda: os.getenv("AUTOASSESS_LLM_BASE_URL", "http://localhost:11434/v1")
     )

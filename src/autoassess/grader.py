@@ -197,6 +197,7 @@ def grade_question(
     runs: int = 3,
     temperature: float = 0.3,
     low_confidence: float = 0.8,
+    low_ocr_confidence: float = 0.7,
     critic: LLMClient | None = None,
 ) -> QuestionGrade:
     answer = segment.text.strip()
@@ -214,6 +215,11 @@ def grade_question(
         )
 
     all_runs, flags = [], []
+    ocr_conf = [line.confidence for line in segment.lines if line.confidence is not None]
+    if ocr_conf and sum(ocr_conf) / len(ocr_conf) < low_ocr_confidence:
+        flags.append("low_ocr_confidence")
+    if any(line.kind == "diagram" for line in segment.lines):
+        flags.append("contains_diagram")
     for k in range(runs):
         results, run_flags = grade_once(
             question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0

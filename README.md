@@ -75,6 +75,10 @@ autoassess ocr-eval --reference transcripts/ sheets...
 
 The LLM client works with any OpenAI-compatible endpoint: OpenRouter, or Ollama and vLLM for a free local model.
 
+## Try it
+
+**Web demo (no key needed):** https://claude.ai/artifact/L2FPAup8f9jBFYfi8UVpxC runs the offline pipeline in the browser: segmentation, the lexical baseline and rubric feedback, on the sample quiz or your own spec and typed sheets. Its engine (`web/engine.js`) is a port of the Python baseline, and `tests/test_web_parity.py` checks both give identical marks and feedback. The LLM grader, critic, OCR and translation run in the Python app once keys are set.
+
 ## Feedback, report and demo
 
 - **Feedback** says what earned marks, what lost them, and one concrete next step per lost point. A verifier keeps only items the grading supports: real criteria, praise only where marks were given, and quotes that occur in the answer. Gaps are filled from the rubric, so every lost mark gets a next step.

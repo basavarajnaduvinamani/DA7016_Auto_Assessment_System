@@ -1,0 +1,287 @@
+<title>Auto-Assessment Grader</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an examiner's desk. Inputs on the left (paper, rubric, sheet), the marked script on the right; one column on phones. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #17202e;
+  --muted: #586274;
+  --line: #dde2ea;
+  --pen: #c42f27;        /* the examiner's red pen: marks only */
+  --pen-soft: #fbeceb;
+  --hl: #fff0a3;
+  --good: #1d7a4b;
+  --warn: #9a5c06;
+  --focus: #2f5bd3;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131a; --surface: #161d27; --ink: #e5e9ef; --muted: #9aa5b4; --line: #283242;
+    --pen: #ff7366; --pen-soft: #3a1f1f; --hl: #5b4b0e; --good: #5fd39a; --warn: #f0b552; --focus: #8aa8ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131a; --surface: #161d27; --ink: #e5e9ef; --muted: #9aa5b4; --line: #283242;
+  --pen: #ff7366; --pen-soft: #3a1f1f; --hl: #5b4b0e; --good: #5fd39a; --warn: #f0b552; --focus: #8aa8ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.wrap > *, .grid > *, .report > *, .q > *, .panel > * { min-width: 0; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 { font-size: 24px; line-height: 1.2; margin: 0; font-weight: 600; text-wrap: balance; }
+.tag { font: 500 12px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.grid { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { font-size: 15px; margin: 0; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.inputs { display: grid; gap: 16px; }
+textarea { width: 100%; min-height: 150px; resize: vertical; font: 13px/1.5 var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+textarea:focus-visible, button:focus-visible, input:focus-visible + label, .seg input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, .filebtn { font: 500 13px/1 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+button:hover, .filebtn:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { border-color: var(--ink); background: var(--bg); }
+.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 600; padding: 10px 16px; }
+.primary:hover { opacity: .9; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.filebtn { position: relative; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.msg { font-size: 13px; margin: 0; padding: 8px 10px; border-radius: 6px; }
+.msg.ok { color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.msg.err { color: var(--pen); background: var(--pen-soft); }
+.msg ul { margin: 4px 0 0 18px; padding: 0; }
+.seg { display: grid; gap: 8px; }
+.seg label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; border: 1px solid var(--line); border-radius: 6px; padding: 10px; cursor: pointer; }
+.seg label.off { cursor: not-allowed; opacity: .65; }
+.seg input { margin-top: 3px; }
+.seg strong { font-weight: 600; font-size: 14px; }
+.seg small { grid-column: 2; color: var(--muted); font-size: 12.5px; }
+.pill { font: 600 11px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; border-radius: 999px; padding: 3px 7px; margin-left: 6px; }
+
+/* the marked script */
+.report { display: grid; gap: 16px; min-width: 0; }
+.scorecard { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; }
+.total { font: 600 40px/1 var(--font-mono); color: var(--pen); font-variant-numeric: tabular-nums; }
+.total small { font-size: 18px; color: var(--muted); font-weight: 400; }
+.summary { margin: 0; max-width: 70ch; }
+.qtable-wrap, .ctable-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.num { text-align: right; white-space: nowrap; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; min-width: 80px; }
+.bar i { display: block; height: 100%; background: var(--pen); }
+.q { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.q h3 { margin: 0; font-size: 17px; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.q h3 .num { color: var(--pen); font-size: 16px; }
+.qtext { color: var(--muted); margin: 0; }
+.answer { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; }
+.answer em { color: var(--muted); }
+mark { background: var(--hl); color: inherit; border-radius: 2px; padding: 0 2px; }
+mark sup { font: 600 10px/1 var(--font-mono); color: var(--pen); margin-left: 2px; }
+.v { white-space: nowrap; font-weight: 500; }
+.v.met { color: var(--good); } .v.partial { color: var(--warn); } .v.not_met { color: var(--pen); }
+.ev { font-style: italic; }
+.reason { color: var(--muted); }
+.fb { display: grid; gap: 6px; }
+.fb h4 { margin: 4px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.fb ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.next { display: block; margin-top: 2px; }
+.next b { color: var(--pen); font-weight: 600; }
+.flag { font: 500 12px/1 var(--font-mono); color: var(--warn); border: 1px solid currentColor; border-radius: 999px; padding: 3px 8px; }
+footer { color: var(--muted); font-size: 13px; max-width: 80ch; overflow-wrap: anywhere; }
+footer code { font-family: var(--font-mono); font-size: 12.5px; }
+@media (prefers-reduced-motion: no-preference) { .report { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="tag">DA7016 · Auto-Assessment</div>
+      <h1>Grade an answer sheet against its rubric</h1>
+      <p class="lede">Load an exam spec and an answer sheet, then grade. Every mark points to a rubric criterion and the student's own words, and each lost mark comes with a next step.</p>
+    </div>
+    <span class="status" id="status"><span class="dot"></span>Offline mode · no API key connected</span>
+  </header>
+
+  <div class="grid">
+    <section class="inputs" aria-label="Inputs">
+      <div class="panel">
+        <h2>1 · Exam spec <span class="tag" id="specMeta"></span></h2>
+        <p class="note">Questions, max marks, rubric criteria and model answers, as YAML or JSON. The sample quiz is loaded.</p>
+        <textarea id="spec" spellcheck="false" aria-label="Exam spec YAML"></textarea>
+        <div class="row">
+          <label class="filebtn">Upload spec<input id="specFile" type="file" accept=".yaml,.yml,.json"></label>
+          <button id="specSample" type="button">Reset to sample</button>
+        </div>
+        <div id="specMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>2 · Answer sheet</h2>
+        <div class="row" role="group" aria-label="Sample sheets">
+          <button type="button" data-sample="S001">S001 · strong</button>
+          <button type="button" data-sample="S002">S002 · partial</button>
+          <button type="button" data-sample="S003">S003 · weak</button>
+        </div>
+        <textarea id="sheet" spellcheck="false" aria-label="Answer sheet text"></textarea>
+        <div class="row">
+          <label class="filebtn">Upload .txt sheet<input id="sheetFile" type="file" accept=".txt,.pdf,.png,.jpg,.jpeg"></label>
+          <label for="sid" class="note">Student ID</label>
+          <input id="sid" value="S002" style="font:13px var(--font-mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:9em">
+        </div>
+        <p class="note" id="sheetNote">Label answers as the student wrote them, for example "Q1", "Ans 2" or "3.". Scanned PDFs and photos need OCR, which turns on with IndicOCR or a Bodhan key.</p>
+      </div>
+
+      <div class="panel">
+        <h2>3 · Grader</h2>
+        <div class="seg" role="radiogroup" aria-label="Grader">
+          <label><input type="radio" name="mode" id="modeBaseline" value="baseline" checked><span><strong>Lexical baseline</strong></span><small>Runs here, no key needed. Matches rubric key words; the floor an LLM grader must beat.</small></label>
+          <label class="off"><input type="radio" name="mode" id="modeLlm" value="llm" disabled><span><strong>LLM grader + critic</strong><span class="pill">Needs key</span></span><small>Per-criterion verdicts with verified quotes, 3 runs, critic audit. Turns on when an LLM key is connected.</small></label>
+        </div>
+        <button class="primary" id="grade" type="button">Grade sheet</button>
+      </div>
+    </section>
+
+    <section class="panel report" id="report" aria-live="polite" aria-label="Marked script"></section>
+  </div>
+
+  <footer>
+    This page runs the project's offline pipeline in your browser: question segmentation, the lexical baseline grader and rubric-based feedback, ported from <code>src/autoassess</code> and checked to give identical marks. The LLM grader, critic, Bodhan OCR and translated feedback run in the Python app (<code>python app.py</code> or <code>autoassess grade</code>) once keys are set. Source: github.com/basavarajnaduvinamani/DA7016_Auto_Assessment_System
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script src="samples.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  "use strict";
+  const E = window.AutoAssess, S = window.AA_SAMPLES;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let spec = null;
+
+  function parseSpec() {
+    const box = $("specMsg");
+    let raw;
+    try { raw = jsyaml.load($("spec").value); }
+    catch (e) { spec = null; box.innerHTML = `<p class="msg err">The spec is not valid YAML or JSON: ${esc(e.message.split("\n")[0])}</p>`; $("specMeta").textContent = ""; return false; }
+    const r = E.validateSpec(raw);
+    if (r.errors.length) {
+      spec = null;
+      box.innerHTML = `<div class="msg err">Fix the spec before grading:<ul>${r.errors.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      $("specMeta").textContent = "";
+      return false;
+    }
+    spec = r.spec;
+    const warn = E.lintSpec(spec);
+    $("specMeta").textContent = `${spec.questions.length} questions · ${E.fmt(spec.total_marks)} marks`;
+    box.innerHTML = warn.length
+      ? `<div class="msg err" style="color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)">Valid, with warnings:<ul>${warn.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`
+      : `<p class="msg ok">Valid: criteria marks add up for every question.</p>`;
+    return true;
+  }
+
+  function highlight(answer, quotes) {
+    const spans = [];
+    quotes.forEach(([q, label]) => { const s = q && E.findSpan(q, answer); if (s) spans.push([s[0], s[1], label]); });
+    spans.sort((a, b) => a[0] - b[0]);
+    let out = "", pos = 0;
+    for (const [a, b, label] of spans) {
+      if (a < pos) continue;
+      out += esc(answer.slice(pos, a)) + `<mark title="${esc(label)}">${esc(answer.slice(a, b))}<sup>${esc(label.split(".").pop())}</sup></mark>`;
+      pos = b;
+    }
+    return out + esc(answer.slice(pos));
+  }
+
+  function render(g) {
+    const crit = {};
+    spec.questions.forEach((q) => q.criteria.forEach((c) => (crit[c.id] = c)));
+    const rows = g.questions.map((q) => `<tr><td><a href="#q-${esc(q.question_id)}">${esc(q.question_id)}</a></td>
+      <td class="num">${E.fmt(q.marks_awarded)} / ${E.fmt(q.max_marks)}</td>
+      <td style="width:40%"><div class="bar" aria-hidden="true"><i style="width:${(100 * q.marks_awarded / q.max_marks).toFixed(1)}%"></i></div></td>
+      <td>${q.flags.map((f) => `<span class="flag">${esc(f)}</span>`).join(" ")}</td></tr>`).join("");
+    let html = `<div class="scorecard"><div class="total">${E.fmt(g.total)}<small> / ${E.fmt(spec.total_marks)}</small></div>
+      <div><div class="tag">${esc(spec.title)} · Student ${esc(g.student_id)}</div><p class="summary">${esc(g.summary_feedback)}</p></div></div>
+      <div class="qtable-wrap"><table><thead><tr><th>Question</th><th class="num">Marks</th><th>Share</th><th>Flags</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    g.questions.forEach((qg, i) => {
+      const q = spec.questions[i], ans = g.answers[q.id] || "";
+      const quotes = qg.criteria.filter((r) => r.marks_awarded > 0 && r.evidence).map((r) => [r.evidence, r.criterion_id]);
+      const crow = qg.criteria.map((r) => `<tr><td class="num" style="text-align:left">${esc(r.criterion_id.split(".").pop())}</td><td>${esc(crit[r.criterion_id].description)}</td>
+        <td><span class="v ${r.verdict}">${r.verdict.replace("_", " ")}</span></td><td class="num">${E.fmt(r.marks_awarded)} / ${E.fmt(crit[r.criterion_id].marks)}</td>
+        <td>${r.evidence ? `<span class="ev">“${esc(r.evidence)}”</span><br>` : ""}<span class="reason">${esc(r.reason)}</span></td></tr>`).join("");
+      const earned = qg.feedback_items.filter((x) => x.kind === "earned"), lost = qg.feedback_items.filter((x) => x.kind === "lost");
+      html += `<article class="q" id="q-${esc(q.id)}"><h3><span>${esc(q.id)}</span><span class="num">${E.fmt(qg.marks_awarded)} / ${E.fmt(q.max_marks)}</span></h3>
+        <p class="qtext">${esc(q.text)}</p>
+        <div class="answer">${ans ? highlight(ans, quotes) : "<em>No answer found for this question.</em>"}</div>
+        <div class="ctable-wrap"><table><thead><tr><th>Criterion</th><th>Rubric</th><th>Verdict</th><th class="num">Marks</th><th>Evidence and reason</th></tr></thead><tbody>${crow}</tbody></table></div>
+        <div class="fb">${!ans ? `<p class="summary">${esc(qg.feedback_summary)}</p>` : ""}
+          ${earned.length ? `<h4>What earned marks</h4><ul>${earned.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul>` : ""}
+          ${lost.length ? `<h4>Where marks were lost</h4><ul>${lost.map((x) => `<li>${esc(x.text)}<span class="next"><b>Next time:</b> ${esc(x.next_step)}</span></li>`).join("")}</ul>` : ""}
+        </div></article>`;
+    });
+    $("report").innerHTML = html;
+  }
+
+  function grade() {
+    if (!parseSpec()) { $("report").innerHTML = `<p class="msg err">Fix the exam spec on the left, then grade again.</p>`; return; }
+    const text = $("sheet").value;
+    if (!text.trim()) { $("report").innerHTML = `<p class="msg err">The answer sheet is empty. Paste the student's answers or pick a sample sheet.</p>`; return; }
+    render(E.gradeSheet(spec, text, $("sid").value.trim() || "student"));
+  }
+
+  function loadSample(id) {
+    $("sheet").value = S.sheets[id];
+    $("sid").value = id;
+    document.querySelectorAll("[data-sample]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sample === id)));
+    grade();
+  }
+
+  function readFile(input, onText) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    if (!/\.(txt|ya?ml|json)$/i.test(f.name)) {
+      $("sheetNote").innerHTML = `<span style="color:var(--pen)">${esc(f.name)} needs OCR, which is not connected yet. Upload a typed .txt sheet, or run the Python app with IndicOCR or a Bodhan key.</span>`;
+      input.value = "";
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => onText(String(r.result), f.name);
+    r.readAsText(f);
+    input.value = "";
+  }
+
+  $("spec").value = S.spec;
+  $("spec").addEventListener("input", () => parseSpec());
+  $("specSample").addEventListener("click", () => { $("spec").value = S.spec; grade(); });
+  $("specFile").addEventListener("change", (e) => readFile(e.target, (t) => { $("spec").value = t; grade(); }));
+  $("sheetFile").addEventListener("change", (e) => readFile(e.target, (t, name) => {
+    $("sheet").value = t; $("sid").value = name.replace(/\.[^.]+$/, "");
+    document.querySelectorAll("[data-sample]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+    grade();
+  }));
+  document.querySelectorAll("[data-sample]").forEach((b) => b.addEventListener("click", () => loadSample(b.dataset.sample)));
+  $("grade").addEventListener("click", grade);
+  loadSample("S002");
+})();
+</script>

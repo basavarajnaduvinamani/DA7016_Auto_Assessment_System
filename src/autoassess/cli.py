@@ -76,6 +76,9 @@ def _grade(args: argparse.Namespace) -> int:
         (out / f"{sid}.html").write_text(result.html(), encoding="utf-8")
         flags = sum(1 for q in grade.questions if q.flags and q.flags != ["unanswered"])
         print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  ({flags} flagged)" if flags else ""))
+    from autoassess.doctor import spend_summary
+
+    print(f"spend so far: {spend_summary(settings)}")
     return 0
 
 

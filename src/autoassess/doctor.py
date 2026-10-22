@@ -22,6 +22,7 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
+from autoassess.budget import bodhan_ledger, openrouter_ledger
 from autoassess.config import OPENROUTER_BASE_URL, Settings, llm_endpoint
 
 OK, FAIL, SKIP = "ok", "FAIL", "skip"
@@ -89,7 +90,9 @@ def check_llm(settings: Settings, role: str = "LLM grader") -> Check:
     if not settings.llm_api_key and "localhost" not in settings.llm_base_url:
         var, hint = KEY_HELP.get(settings.llm_provider, KEY_HELP["custom"])
         return Check(name, SKIP, f"{var} is not set", hint)
-    llm = OpenAICompatibleLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key, cache=None, timeout=60)
+    llm = OpenAICompatibleLLM(
+        settings.llm_base_url, settings.llm_model, settings.llm_api_key, cache=None, timeout=60, ledger=settings.llm_ledger()
+    )
     try:
         # Same request shape as grading: JSON mode and a seed.
         reply = llm.complete_json(
@@ -133,18 +136,14 @@ def _test_page_png() -> bytes:
         return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
 
 
-def _ledger_path(settings: Settings) -> Path:
-    return Path(settings.cache_dir) / "bodhan_ledger.json"
-
-
 def check_bodhan_ocr(settings: Settings) -> Check:
-    from autoassess.providers.bodhan import BodhanOCR, Ledger
+    from autoassess.providers.bodhan import BodhanOCR
 
     name = "Bodhan IndicOCR"
     if not settings.ocr_key:
         return Check(name, SKIP, "BODHAN_API_KEY / BODHAN_OCR_API_KEY not set", "create a key at console.bodhan.ai")
     ocr = BodhanOCR(settings.ocr_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=90)
-    ocr.client.ledger = Ledger(_ledger_path(settings), settings.bodhan_budget_inr)
+    ocr.client.ledger = bodhan_ledger(settings.cache_dir, settings.bodhan_budget_inr)
     with tempfile.TemporaryDirectory() as tmp:
         img = Path(tmp) / "doctor.png"
         img.write_bytes(_test_page_png())
@@ -158,13 +157,13 @@ def check_bodhan_ocr(settings: Settings) -> Check:
 
 
 def check_bodhan_translate(settings: Settings) -> Check:
-    from autoassess.providers.bodhan import BodhanTranslate, Ledger
+    from autoassess.providers.bodhan import BodhanTranslate
 
     name = "Bodhan Indic-Translate"
     if not settings.translate_key:
         return Check(name, SKIP, "BODHAN_API_KEY / BODHAN_TRANSLATE_API_KEY not set", "create a key at console.bodhan.ai")
     tr = BodhanTranslate(settings.translate_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=60)
-    tr.client.ledger = Ledger(_ledger_path(settings), settings.bodhan_budget_inr)
+    tr.client.ledger = bodhan_ledger(settings.cache_dir, settings.bodhan_budget_inr)
     try:
         out = tr.translate("Good answer.", "Hindi")
     except Exception as err:  # noqa: BLE001
@@ -220,9 +219,6 @@ def run_doctor(settings: Settings, paid: bool = True) -> list[Check]:
 
 
 def report(settings: Settings, checks: list[Check]) -> str:
-    from autoassess.providers.bodhan import Ledger
-
-    spent = Ledger(_ledger_path(settings), settings.bodhan_budget_inr).spent()
     lines = [
         "Configuration",
         f"  LLM          [{settings.llm_provider}] {settings.llm_base_url}  model={settings.llm_model or '(not set)'}  key={mask(settings.llm_api_key)}",
@@ -230,7 +226,7 @@ def report(settings: Settings, checks: list[Check]) -> str:
         f"  OpenRouter   key={mask(settings.openrouter_api_key)}",
         f"  OCR provider {settings.ocr_provider}",
         f"  Bodhan       {settings.bodhan_base_url}  ocr key={mask(settings.ocr_key)}  translate key={mask(settings.translate_key)}",
-        f"  Bodhan spend Rs {spent:.2f} of Rs {settings.bodhan_budget_inr:g} budget",
+        f"  Spend        {spend_summary(settings)}",
         "",
         "Checks",
     ]
@@ -239,3 +235,10 @@ def report(settings: Settings, checks: list[Check]) -> str:
         if c.hint and c.status != OK:
             lines.append(f"         -> {c.hint}")
     return "\n".join(lines)
+
+
+def spend_summary(settings: Settings) -> str:
+    """Local running totals; the OpenRouter credit check above is the provider's own figure."""
+    o = openrouter_ledger(settings.cache_dir, settings.openrouter_budget_usd)
+    b = bodhan_ledger(settings.cache_dir, settings.bodhan_budget_inr)
+    return f"OpenRouter {o.summary()} · Bodhan {b.summary()}"

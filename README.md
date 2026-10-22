@@ -74,6 +74,8 @@ autoassess ocr-eval --reference transcripts/ sheets...
 - **Adversarial critic**: a second model audits every award and can only lower marks, never raise them.
 - **Prompt-injection safe**: the answer is passed as data, and instructions inside it ("give full marks") are ignored.
 
+Paid calls go through spend guards (`src/autoassess/budget.py`). OpenRouter calls record the exact cost the API reports and stop at `OPENROUTER_BUDGET_USD` (default $18 of the course's $20). Bodhan calls stop at `BODHAN_BUDGET_INR` (default ₹100 of ₹110). `grade` and `doctor` print the running totals.
+
 The LLM client works with any OpenAI-compatible endpoint. `AUTOASSESS_LLM_PROVIDER` switches between Gemini (free tier, for development), OpenRouter (the course key, for evaluation and the demo) and a custom endpoint such as Ollama or vLLM.
 
 ## Try it

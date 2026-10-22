@@ -77,13 +77,23 @@ class Settings:
     bodhan_ocr_api_key: str = field(default_factory=lambda: os.getenv("BODHAN_OCR_API_KEY", ""))
     bodhan_translate_api_key: str = field(default_factory=lambda: os.getenv("BODHAN_TRANSLATE_API_KEY", ""))
     bodhan_base_url: str = field(default_factory=lambda: os.getenv("BODHAN_BASE_URL", "https://api.bodhan.ai"))
-    bodhan_budget_inr: float = field(default_factory=lambda: float(os.getenv("BODHAN_BUDGET_INR", "1500")))
+    # Course credits: Rs 110 on Bodhan and $20 on OpenRouter; the guards stop a little short of both.
+    bodhan_budget_inr: float = field(default_factory=lambda: float(_env("BODHAN_BUDGET_INR", "100")))
+    openrouter_budget_usd: float = field(default_factory=lambda: float(_env("OPENROUTER_BUDGET_USD", "18")))
 
     def __post_init__(self) -> None:
         base, model, key = llm_endpoint(self.llm_provider)
         self.llm_base_url = base if self.llm_base_url is None else self.llm_base_url
         self.llm_model = model if self.llm_model is None else self.llm_model
         self.llm_api_key = key if self.llm_api_key is None else self.llm_api_key
+
+    def llm_ledger(self):
+        """Spend guard for the LLM: only OpenRouter costs money (Gemini free tier, local models)."""
+        from autoassess.budget import openrouter_ledger
+
+        if self.llm_base_url and self.llm_base_url.startswith(OPENROUTER_BASE_URL):
+            return openrouter_ledger(self.cache_dir, self.openrouter_budget_usd)
+        return None
 
     @property
     def ocr_key(self) -> str:

@@ -11,6 +11,7 @@ import re
 import urllib.error
 import urllib.request
 
+from autoassess.budget import Ledger, record_llm_cost
 from autoassess.cache import DiskCache, content_key
 from autoassess.providers.base import LLMClient
 
@@ -33,7 +34,15 @@ class LLMError(RuntimeError):
 
 
 class OpenAICompatibleLLM(LLMClient):
-    def __init__(self, base_url: str, model: str, api_key: str = "", cache: DiskCache | None = None, timeout: float = 120):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str = "",
+        cache: DiskCache | None = None,
+        timeout: float = 120,
+        ledger: Ledger | None = None,
+    ):
         if not model:
             raise ValueError("no LLM model configured; set AUTOASSESS_LLM_MODEL")
         self.base_url = base_url.rstrip("/")
@@ -41,6 +50,7 @@ class OpenAICompatibleLLM(LLMClient):
         self.api_key = api_key
         self.cache = cache
         self.timeout = timeout
+        self.ledger = ledger
         self.name = f"openai-compatible:{model}"
         # Gemini's OpenAI-compatible endpoint rejects "seed" with a 400.
         self.sends_seed = "generativelanguage.googleapis.com" not in self.base_url
@@ -76,7 +86,11 @@ class OpenAICompatibleLLM(LLMClient):
         def call() -> str:
             # The seed stays in the cache key either way, so repeated runs are cached separately.
             sent = payload if self.sends_seed else {k: v for k, v in payload.items() if k != "seed"}
-            return self._post(sent)["choices"][0]["message"]["content"]
+            if self.ledger:
+                self.ledger.check()
+            response = self._post(sent)
+            record_llm_cost(self.ledger, response)
+            return response["choices"][0]["message"]["content"]
 
         if self.cache is None:
             return parse_json_reply(call())

@@ -1,6 +1,6 @@
 # 04: Demo hardening for Render
 
-Status: in review
+Status: done
 Depends on: 01 (uses the `fake` provider)
 
 ## Goal

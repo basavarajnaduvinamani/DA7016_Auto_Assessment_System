@@ -41,6 +41,8 @@ autoassess doctor         # one tiny live call per key, plus OpenRouter credit l
 pytest
 ```
 
+For an offline text-only dry run with no key or network, set `AUTOASSESS_LLM_PROVIDER=fake` (scripted word overlap, not semantic grading).
+
 ## Commands
 
 ```bash

@@ -6,9 +6,9 @@ services:
     name: red-ink-grader
     runtime: python
     plan: free
-    buildCommand: pip install ".[ingest,demo]"
+    buildCommand: pip install ".[ingest,api,demo]"
     startCommand: python app.py
-    healthCheckPath: /
+    healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
@@ -29,6 +29,12 @@ services:
         value: "18"
       - key: BODHAN_BUDGET_INR
         value: "100"
+      - key: AUTOASSESS_DEMO_DRY_RUN
+        value: "0"
+      - key: AUTOASSESS_MAX_UPLOAD_MB
+        value: "10"
+      - key: AUTOASSESS_MAX_PAGES
+        value: "8"
       - key: AUTOASSESS_DEMO_DAILY_SHEETS
         value: "40"
       - key: AUTOASSESS_CACHE_DIR

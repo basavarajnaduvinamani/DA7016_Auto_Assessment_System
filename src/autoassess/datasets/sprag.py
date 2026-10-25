@@ -150,7 +150,9 @@ def import_sprag(
         aliases = [source_id] + ([label] if label != qid else [])
         questions.append(Question(
             id=qid, text=row["QuestionText"], model_answer=row["Reference Answer"], max_marks=5, aliases=aliases,
-            criteria=[RubricCriterion(id=f"{qid}.c1", description=HOLISTIC, marks=5, allow_partial=True)],
+            # The reference answer goes into the criterion so the lexical baseline has content words to match.
+            criteria=[RubricCriterion(id=f"{qid}.c1", description=f"{HOLISTIC} Key points: {row['Reference Answer'].strip()}",
+                                      marks=5, allow_partial=True)],
         ))
         labels[source_id] = (qid, label)
     spec = ExamSpec(exam_id=f"sprag-{subject}", title=f"SPRAG ({subject})", language="en", questions=questions)

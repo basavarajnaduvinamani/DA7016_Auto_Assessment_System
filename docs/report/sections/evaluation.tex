@@ -1,0 +1,27 @@
+\section{Evaluation protocol}
+\label{sec:evaluation}
+The protocol follows \texttt{docs/evaluation.md}. It separates agreement with human marking from reading quality, resilience to manipulation and the educational effect of feedback. All measurements below are planned outputs of the existing harness; this report does not substitute software tests for a study on answer sheets.
+
+\subsection{Data and human reference}
+Prepare a validated question paper, rubric and model answers before inspecting system marks. Collect consented or synthetic sheets spanning strong, partial and weak responses, with English and a supported Indian language represented where feasible. Include variation in handwriting and scanning conditions. The final sheet count is \pending{sheet count}, with language and handwriting composition \pending{dataset composition}. Names and identifiers must be removed from any scans used with hosted services.
+
+Independent human graders mark each criterion without seeing the system's output. Their agreement is reported alongside system--human agreement, and their mean provides a consensus comparison. Question-level marks are obtained by summing the criterion records. The protocol also requires verbatim transcripts for an OCR subset, with its size \pending{transcript count}. Pairing scans and transcripts of the same sheets helps separate recognition errors from grading errors.
+
+Metadata can identify language, handwriting quality and a development or held-out split. The split must be chosen before tuning prompts or thresholds on the test sheets. Group comparisons are descriptive until the group sizes and sampling process support a stronger claim. Disagreement between human graders should remain visible rather than be hidden behind a single consensus score.
+
+\subsection{Runs and measurements}
+The full grading run saves criterion awards, feedback and review flags. Evaluation compares these outputs against each grader and consensus using quadratic weighted kappa, mean absolute error, exact agreement, tolerance-based agreement and signed bias. Bootstrap intervals describe sampling uncertainty where the existing evaluator supplies them. Per-question bias distinguishes overall agreement from consistent under-marking on a particular part of the exam.
+
+Coverage curves measure error among questions accepted at each confidence threshold and the share left for review. OCR evaluation reports character and word error rates against transcripts, including provider-specific and per-sheet outputs. Segmentation should also be spot-checked against the intended question mapping. A handwriting-penalty comparison uses marks from scans and typed transcripts; it does not assume that every difference comes from OCR alone.
+
+The agreement target, tolerance target and reading target remain \pending{protocol targets}. The report should explain the units and denominators behind each measurement rather than collapse them into a single success percentage. Accuracy on an accepted subset must always be read with coverage, and human--human agreement supplies context rather than an absolute ceiling guaranteed for every sample.
+
+\subsection{Ablations and robustness}
+The implemented ablation harness includes the full pipeline, alternative review configurations, a single-run configuration, disabled evidence enforcement, omitted model answers and the lexical baseline. Vision and hybrid arms are available when page images exist. These controls are evaluation variants, not recommendations to remove evidence checks from deployment. Each comparison should keep sheets, human marks and the remaining configuration fixed.
+
+Robustness perturbations include irrelevant padding, direct and multilingual injected instructions, subtle rubric-citing instructions, keyword stuffing, restated questions, spelling noise, blank answers and answers to the wrong question. The harness applies its predefined mark-change limits and reports passing cases and mean changes per perturbation. A legitimate content change and a manipulative instruction should not be conflated. Spelling perturbations also test that meaning-preserving noise does not unfairly remove credit.
+
+\subsection{Improvement and reproducibility}
+To test the educational bar, give students feedback for an initial answer, ask for a rewrite under a fixed time limit and have the revision marked by both the system and a human. Record the observed changes and the conditions under which revision occurred. The participant count, revision period and human-confirmed improvement remain \pending{improvement study}. Score agreement alone cannot establish a learning effect.
+
+Save model identifiers, provider and input mode, rubric version, language settings, review configuration and confidence policy with the study record. Cache reuse and spend guards help control repeated paid calls, but do not make changed external model services reproducible. The results-pack command consumes saved JSON rather than rerunning grading, keeping the report-generation step separate from data collection and paid inference.

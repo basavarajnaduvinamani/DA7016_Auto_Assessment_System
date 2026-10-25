@@ -14,7 +14,7 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_DEFAULT_MODEL = "google/gemini-2.5-flash"
-LLM_PROVIDERS = ("gemini", "openrouter", "custom")
+LLM_PROVIDERS = ("gemini", "openrouter", "custom", "fake")
 
 
 def _env(name: str, default: str = "") -> str:
@@ -39,6 +39,8 @@ def llm_provider_from_env() -> str:
 
 def llm_endpoint(provider: str) -> tuple[str, str, str]:
     """(base URL, model, key) for a provider. AUTOASSESS_LLM_MODEL overrides the model for any provider."""
+    if provider == "fake":
+        return "", "fake", ""
     model = _env("AUTOASSESS_LLM_MODEL")
     if provider == "gemini":
         key = _env("GEMINI_API_KEY") or _env("AUTOASSESS_LLM_API_KEY")

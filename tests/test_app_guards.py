@@ -277,3 +277,14 @@ def test_concurrent_daily_reservations_do_not_exceed_cap(tmp_path):
         results = list(pool.map(lambda _: demo.DailyCap(tmp_path, 3).take(), range(12)))
     assert sum(results) == 3
     assert cap.remaining() == 0
+
+
+def test_keyless_custom_endpoint_counts_as_available(monkeypatch):
+    import dataclasses
+
+    from autoassess.config import Settings
+    from autoassess.demo import llm_available
+
+    base = Settings.load()
+    assert llm_available(dataclasses.replace(base, llm_provider="custom", llm_base_url="http://localhost:11434/v1", llm_api_key=""))
+    assert not llm_available(dataclasses.replace(base, llm_provider="openrouter", llm_api_key=""))

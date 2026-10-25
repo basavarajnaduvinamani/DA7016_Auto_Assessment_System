@@ -1,0 +1,11 @@
+QuestionID,StudentAnswer,Score1,Score2
+PythonQ010,"Six: two plus four, ignoring the negative entry.",5.0,5
+PythonQ010,Five because every entry is added.,1,1
+PythonQ010,The positive values are added.,3,2
+PythonQ010,-,0,0
+PythonQ020,A list extends in place but a frozen set is immutable.,5,5
+PythonQ020,The list can change.,3,4
+PythonQ020,Both are the same mutable object.,0,0
+PythonQ030,The first waypoint has index zero.,5,5
+PythonQ030,The first waypoint has index one.,0,1
+PythonQ030,An index points to a list entry.,2,1

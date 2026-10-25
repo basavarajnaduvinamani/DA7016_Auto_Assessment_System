@@ -98,6 +98,22 @@ def test_grader_exact_words_determinism_and_zero_credit(question):
     assert all(r["marks_awarded"] == 0 for r in empty["criteria"])
 
 
+@pytest.mark.parametrize(("description", "answer", "expected_marks"), [
+    ("Attention with that this from which their when what into each does have been more than also such used uses",
+     "WITH THAT THIS FROM WHICH THEIR WHEN WHAT INTO EACH DOES HAVE BEEN MORE THAN ALSO SUCH USED USES", 0),
+    ("Attention to the key", "The key to it", 0),
+    ("Names each head", "HEAD", 1),
+])
+def test_grader_matches_only_content_words(description, answer, expected_marks):
+    question = Question(id="Q1", text="Explain attention", max_marks=1, criteria=[
+        {"id": "Q1.c1", "description": description, "marks": 1},
+    ])
+    results, flags = grade_once(question, answer, ScriptedLLM())
+    assert not flags
+    assert results[0].marks_awarded == expected_marks
+    assert results[0].evidence == (answer if expected_marks else None)
+
+
 def test_reviews_and_feedback_pass_verifiers(question):
     llm = ScriptedLLM()
     answer = "Attention combines values."

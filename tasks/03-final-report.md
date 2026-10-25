@@ -1,6 +1,6 @@
 # 03: Final report skeleton (LaTeX)
 
-Status: todo
+Status: in review
 Depends on: 02 (uses its `tables/*.tex` and `figures/*.png` names)
 
 ## Goal

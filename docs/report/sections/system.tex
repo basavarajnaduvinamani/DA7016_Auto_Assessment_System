@@ -1,0 +1,71 @@
+\section{System}
+\label{sec:system}
+The package separates provider interfaces from grading logic. A teacher-authored exam specification is validated before use, and typed data contracts connect the stages. Figure~\ref{fig:pipeline} shows the principal processing order. The same grading pipeline supports the command line and HTTP API; the interactive demonstration adds file upload and marked-booklet presentation.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  stage/.style={draw,rounded corners,align=center,minimum width=28mm,minimum height=9mm,font=\small},
+  flow/.style={-{Latex},thick},node distance=7mm and 7mm]
+\node[stage] (ingest) {Ingest};
+\node[stage,right=of ingest] (ocr) {OCR};
+\node[stage,right=of ocr] (segment) {Segmentation};
+\node[stage,below=of segment] (grade) {Criterion grading};
+\node[stage,left=of grade] (advocate) {Advocate};
+\node[stage,left=of advocate] (critic) {Critic};
+\node[stage,below=of critic] (confidence) {Confidence};
+\node[stage,right=of confidence] (feedback) {Feedback};
+\node[stage,right=of feedback] (ink) {Red ink};
+\draw[flow] (ingest)--(ocr);
+\draw[flow] (ocr)--(segment);
+\draw[flow] (segment)--(grade);
+\draw[flow] (grade)--(advocate);
+\draw[flow] (advocate)--(critic);
+\draw[flow] (critic)--(confidence);
+\draw[flow] (confidence)--(feedback);
+\draw[flow] (feedback)--(ink);
+\node[above=4mm of segment,align=center,font=\footnotesize] (spec) {Validated exam spec};
+\draw[flow] (spec.east) -- ++(7mm,0) |- (grade.east);
+\end{tikzpicture}
+\caption{Processing order. The exam specification supplies questions and rubric criteria; OCR boxes and evidence links remain available to the report and annotation stages.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Ingest}
+Typed sheets bypass image OCR and enter the pipeline as text pages. PDF pages are rasterised, and photos or folders of photos are read in a stable order. Image preprocessing converts to grayscale, corrects small skew and adjusts local contrast. A configurable ink-share check skips pages that appear blank, reducing unnecessary OCR work. This is a reading heuristic: a faint short answer may resemble an empty page, so scanning conditions and the blank-page setting belong in the experiment record.
+
+\subsection{OCR}
+An OCR provider returns text lines with optional boxes, confidence and block kind. The available routes include plain text, local IndicOCR, precomputed IndicOCR JSON, hosted Bodhan OCR and a vision-language-model transcription baseline. The common interface permits the grader to consume the same contracts regardless of where transcription ran. Layout boxes are retained for locating evidence on the page; missing boxes limit placement precision rather than creating a new source of grading evidence.
+
+A diagram block can trigger review without pretending that a text transcript describes its content. Image and hybrid grading modes can send page crops to a vision-capable model. In image-only mode, the pipeline cannot verify quotes against absent OCR text and explicitly relaxes that check. Claims of text-grounded evidence must therefore name the input mode rather than generalise across all modes. The scripted provider supports text-only dry runs.
+
+\subsection{Segmentation}
+The initial segmenter recognises question identifiers and aliases, including common answer labels. It preserves sheet order when a question continues later and distinguishes numbered list items from question boundaries where possible. Crossed-out text is removed before grading. If labels are missing or a question remains empty, an optional language-model fallback proposes a re-split.
+
+Fallback text is grounded back to the sheet's OCR lines, retaining their boxes and discarding text not found on the sheet. The pipeline keeps the fallback only when it does not reduce question coverage or discard too much already placed material. This controls invented segmentation content but cannot correct a transcription error already present in the OCR. Incorrect question assignment remains a separate evaluation concern.
+
+\subsection{Criterion grading}
+The grading prompt treats the student's answer as data and the rubric as authority. Each criterion receives a verdict, a proposed award, an evidence quote and a reason. Code clips awards to their allowed range and enforces all-or-nothing criteria. The model answer is a reference, not the only acceptable formulation. Follow-through criteria can see dependent earlier answers, so correct working from a previous wrong value need not automatically lose all subsequent credit.
+
+For text-grounded grading, a quote must match the answer after the implemented normalisation, with a fuzzy option for small OCR differences. Unsupported quotes receive a repair opportunity; if still unsupported, the associated award is withdrawn and flagged. Matching is deliberately tolerant of transcription noise, so a verified quote proves textual support rather than mathematical or conceptual correctness. Repeated grading runs are combined by a criterion-level median, keeping a corresponding evidence-bearing result.
+
+\subsection{Advocate}
+The advocate examines criteria below full credit for a missed valid idea or alternative method. It may propose a higher mark only with evidence from the answer. Code checks that evidence and bounds the increase before accepting it. This pass counteracts the tendency of strict evidence rules and lower-only review to remove credit. It is optional, and a raise is recorded rather than silently replacing the marking history.
+
+\subsection{Critic}
+The critic audits awarded marks after the advocate. It can uphold or reduce an award but cannot raise it. The review asks whether quoted evidence satisfies the criterion, whether a statement is correct and whether partial credit is justified. Keeping the advocate before the critic lets the latter inspect newly proposed credit as well as the original award. Neither role is assumed independent merely because the prompt differs; both may share the same underlying model.
+
+\subsection{Confidence}
+Confidence combines available signals for run spread, disagreement with a second examiner, review changes, OCR confidence and withdrawn evidence. The weakest signal determines the combined value. Low confidence leads to a question mark on the sheet and referral for teacher review; diagram and reading concerns also remain visible as flags. Missing signals do not constitute successful checks, and a stable set of model outputs can still be consistently wrong.
+
+The threshold is configurable, and its empirical operating point remains \pending{confidence threshold performance}. Coverage reports must pair the share automatically accepted with accuracy on that subset. The class-marking path additionally flags similar answers with substantially different marks, supporting consistency checks across a pile of scripts.
+
+\subsection{Feedback}
+Feedback links earned and lost points to known criteria and supplies a concrete next step for each deduction. Verification rejects unknown criteria, praise without an award, loss claims without a deduction and unsupported quotations. A short remark separates a strength, a fix and a next-time suggestion; comments about the person are rejected. Missing feedback is filled from the rubric, ensuring that a deduction does not disappear simply because the model omitted it.
+
+Optional translation preserves the evidence quote as written and retains English feedback for the teacher. Translation is another provider-mediated operation, with its own cost and semantic risks. The report displays both evidence and reasoning so a teacher can inspect a correction before a learner acts on it.
+
+\subsection{Red-ink annotation}
+The annotator locates evidence on page lines and plans ticks, fractional awards, missing-point carets, corrections, margin marks and review symbols. Typed sheets are laid out on ruled pages before annotation. The booklet includes a cover grid, a circled total, a feedback page and an explicit AI-marked stamp. The visual style aims to make the feedback familiar while keeping its automated origin visible.
+
+The HTML view complements the marked page with criterion verdicts and highlighted evidence. Where page geometry is unavailable or a quote cannot be placed precisely, the detailed report remains important. A rendered tick is a presentation of a grading decision, not additional proof that the decision is correct.

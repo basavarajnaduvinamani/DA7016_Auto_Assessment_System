@@ -1,0 +1,34 @@
+name: final report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/report/**'
+      - '.github/workflows/report.yml'
+  pull_request:
+    paths:
+      - 'docs/report/**'
+      - '.github/workflows/report.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: xu-cheng/latex-action@v3
+        with:
+          root_file: main.tex
+          working_directory: docs/report
+          args: -pdf -file-line-error -interaction=nonstopmode -halt-on-error
+      - name: Check references and citations
+        run: make -C docs/report check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-report
+          path: docs/report/main.pdf
+          if-no-files-found: error

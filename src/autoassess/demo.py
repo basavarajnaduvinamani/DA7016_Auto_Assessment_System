@@ -43,7 +43,10 @@ def demo_settings(settings: Settings | None = None) -> Settings:
 
 
 def llm_available(settings: Settings) -> bool:
-    return settings.llm_provider == "fake" or bool(settings.llm_api_key)
+    """A key, the scripted provider, or a keyless local endpoint (Ollama, vLLM)."""
+    if settings.llm_provider in ("fake", "custom") and (settings.llm_provider == "fake" or settings.llm_base_url):
+        return True
+    return bool(settings.llm_api_key)
 
 
 def health_payload(settings: Settings | None = None) -> dict:

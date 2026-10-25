@@ -33,7 +33,7 @@ Settings are loaded from process variables and an optional local `.env` (existin
 | `AUTOASSESS_LLM_PROVIDER` | auto-select | First configured Gemini key, then OpenRouter; otherwise Gemini. Explicit choices: `gemini`, `openrouter`, `custom`, `fake`. Blueprint `openrouter`. |
 | `GEMINI_API_KEY` | empty | Gemini credential, with shared LLM key fallback. |
 | `OPENROUTER_API_KEY` | empty | OpenRouter credential. |
-| `AUTOASSESS_LLM_API_KEY` | empty | Custom endpoint key, also the fallback Gemini key. A non-fake provider without a key is disabled in this demo, including a keyless local endpoint. |
+| `AUTOASSESS_LLM_API_KEY` | empty | Custom endpoint key, also the fallback Gemini key. Gemini and OpenRouter without a key are disabled in this demo; a `custom` endpoint (for example local Ollama) works without one. |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Default Gemini model. |
 | `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | Default OpenRouter model, also used in the blueprint. |
 | `AUTOASSESS_LLM_MODEL` | provider default | Overrides the model except in fake mode; empty for custom providers unless configured. |

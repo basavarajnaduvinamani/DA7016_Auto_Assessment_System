@@ -40,6 +40,11 @@ def make_ocr(settings: Settings) -> OCRProvider:
 
 def make_llm(settings: Settings, critic: bool = False, model: str | None = None) -> LLMClient:
     """The grading model, the critic model (defaults to the grading model), or any named model."""
+    if settings.llm_provider == "fake":
+        from autoassess.providers.scripted import ScriptedLLM
+
+        return ScriptedLLM()
+
     from autoassess.privacy import check_provider_for_real_sheets
     from autoassess.providers.llm import OpenAICompatibleLLM
 

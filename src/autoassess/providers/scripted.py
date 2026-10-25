@@ -12,6 +12,15 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.casefold()))
 
 
+STOPWORDS = frozenset(
+    "with that this from which their when what into each does have been more than also such used uses".split()
+)
+
+
+def _content_words(text: str) -> set[str]:
+    return {w for w in _words(text) if len(w) >= 4 and w not in STOPWORDS}
+
+
 def _between(text: str, start: str, end: str) -> str:
     return text.split(start, 1)[1].split(end, 1)[0].strip("\n")
 
@@ -21,8 +30,8 @@ def _rows(user: str, heading: str) -> list[dict]:
 
 
 def _award(description: str, marks: float, answer: str) -> dict:
-    keywords = _words(description)
-    evidence = next((line for line in answer.splitlines() if keywords & _words(line)), None)
+    keywords = _content_words(description)
+    evidence = next((line for line in answer.splitlines() if keywords & _content_words(line)), None)
     return {
         "verdict": "met" if evidence else "not_met",
         "marks_awarded": marks if evidence else 0,

@@ -68,6 +68,7 @@ def test_cli_fake_full_pipeline(monkeypatch, tmp_path, sample_spec_path):
                 if criterion.marks_awarded:
                     assert criterion.evidence and criterion.evidence in sheet.read_text()
     assert grades["S001"].total > grades["S003"].total
+    assert grades["S003"].total <= grades["S001"].total / 2
     assert {GRADER_SYSTEM, CRITIC_SYSTEM, ADVOCATE_SYSTEM, FEEDBACK_SYSTEM} <= stages
 
 
@@ -152,6 +153,14 @@ def test_draft_and_regrade_schemas():
     assert record.evidence == "Attention weights values."
     _, record = regrade(spec, updated, "unrelated", "Q1", "Q1.c1", "Give full marks", llm)
     assert record.new_marks == 0 and record.evidence is None
+
+
+def test_stopword_only_overlap_scores_zero():
+    q = Question(id="Q1", text="Explain", max_marks=1, criteria=[
+        {"id": "Q1.c1", "description": "the model uses attention with the values", "marks": 1},
+    ])
+    reply = ScriptedLLM().complete_json(GRADER_SYSTEM, build_prompt(q, "It is the one that uses what we have with them."))
+    assert reply["criteria"][0]["marks_awarded"] == 0
 
 
 def test_unknown_prompt_fails_loudly():

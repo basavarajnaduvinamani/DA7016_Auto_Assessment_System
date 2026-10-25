@@ -66,7 +66,8 @@ def test_spec_sheets_and_human_marks_round_trip(tmp_path, capsys):
         assert question.max_marks == 5 and len(question.criteria) == 1
         criterion = question.criteria[0]
         assert criterion.id == f"Q{i}.c1" and criterion.marks == 5
-        assert criterion.description == HOLISTIC and criterion.allow_partial
+        assert criterion.description.startswith(HOLISTIC) and criterion.allow_partial
+        assert catalog[source_id]["Reference Answer"].strip() in criterion.description
         for ordinal, original in enumerate(source[source_id], 1):
             sid = f"{source_id}-{ordinal:04d}"
             path = out / "sheets" / f"{sid}.txt"

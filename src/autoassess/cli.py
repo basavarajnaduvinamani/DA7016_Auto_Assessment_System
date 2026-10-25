@@ -283,6 +283,21 @@ def _results(args: argparse.Namespace) -> int:
     return 0
 
 
+def _import_sprag(args: argparse.Namespace) -> int:
+    import csv
+
+    from autoassess.datasets.sprag import import_sprag
+
+    try:
+        summary = import_sprag(args.src, args.out, subject=args.subject, per_question=args.per_question,
+                               dev_share=args.dev_share, seed=args.seed)
+    except (ValueError, OSError, csv.Error) as err:
+        print(f"Cannot import SPRAG: {err}", file=sys.stderr)
+        return 2
+    print(summary)
+    return 0
+
+
 def _doctor(args: argparse.Namespace) -> int:
     from autoassess.config import Settings
     from autoassess.doctor import FAIL, report, run_doctor
@@ -391,6 +406,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ocr", nargs="+")
     p.add_argument("--out", required=True)
     p.set_defaults(func=_results)
+
+    p = sub.add_parser("import-sprag", help="convert local SPRAG CSVs into evaluation inputs")
+    p.add_argument("--src", required=True, help="SPRAG checkout's Data directory")
+    p.add_argument("--out", required=True, help="new or empty output directory (keep real data under data/private)")
+    p.add_argument("--subject", choices=["ml", "python", "all"], default="all")
+    p.add_argument("--per-question", type=int, default=5, help="answers per question; 0 selects all")
+    p.add_argument("--dev-share", type=float, default=0.2, help="share of questions reserved for development")
+    p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(func=_import_sprag)
 
     args = parser.parse_args(argv)
     return args.func(args)

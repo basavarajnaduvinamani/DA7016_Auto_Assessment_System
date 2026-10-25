@@ -1,6 +1,6 @@
 """Web demo: upload an answer sheet, get it back marked in red ink.
 
-Run locally:  pip install -e ".[demo,ingest]" && python app.py
+Run locally:  pip install -e ".[demo,api,ingest]" && python app.py
 On Render:    render.yaml deploys this as a free web service; set the keys as
               environment variables in the Render dashboard (see docs/deploy.md).
 """
@@ -11,9 +11,12 @@ import os
 from pathlib import Path
 
 import gradio as gr
+from fastapi import FastAPI
 
-from autoassess.config import Settings
-from autoassess.demo import LANGUAGES, SAMPLE, Options, mark_class, mark_sheet
+from autoassess.demo import (
+    LANGUAGES, SAMPLE, UPLOAD_EXTENSIONS, Options, demo_settings, health_payload,
+    llm_available, mark_class, mark_sheet, status_markdown,
+)
 from autoassess.spec_builder import lint_spec, load_spec
 
 INPUTS = {"OCR text": "text", "Page image": "image", "Both (hybrid)": "hybrid"}
@@ -27,12 +30,17 @@ def _spec(spec_file):
 def do_mark(spec_file, sheet_file, grader, input_mode, two_sided, language):
     if sheet_file is None:
         raise gr.Error("Upload an answer sheet: a PDF, a photo, or a .txt file.")
-    spec = _spec(spec_file)
+    try:
+        spec = _spec(spec_file)
+    except Exception:
+        raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
     opts = Options(use_llm=grader == "LLM grader", input_mode=INPUTS[input_mode], two_sided=two_sided, language=language)
     try:
         r = mark_sheet(spec, sheet_file, opts)
     except ValueError as err:
-        raise gr.Error(str(err)) from err
+        raise gr.Error(str(err)) from None
+    except Exception:
+        raise gr.Error("The sheet could not be marked. Try the sample sheet or a valid typed .txt file.") from None
     STATE["last"] = (spec, r, sheet_file)
     notes = "\n".join(f"> {n}" for n in r.notes + [f"Rubric check: {w}" for w in lint_spec(spec)])
     choices = [f"{q.question_id} / {c.criterion_id} ({c.marks_awarded:g})" for q in r.grade.questions for c in q.criteria]
@@ -42,6 +50,7 @@ def do_mark(spec_file, sheet_file, grader, input_mode, two_sided, language):
         str(r.pdf_path) if r.pdf_path else None,
         r.html_path.read_text(encoding="utf-8"),
         gr.update(choices=choices, value=choices[0] if choices else None),
+        status_markdown(),
     )
 
 
@@ -54,12 +63,15 @@ def do_regrade(choice, reason):
     if not reason or not reason.strip():
         raise gr.Error("Say why the mark should change.")
     spec, r, _ = STATE["last"]
-    settings = Settings.load()
-    if not settings.llm_api_key:
+    settings = demo_settings()
+    if not llm_available(settings):
         raise gr.Error("Regrade requests need the LLM grader (no key is set).")
     qid, cid = choice.split(" / ")[0], choice.split(" / ")[1].split(" ")[0]
     answer = r.run.segments[qid].text
-    new, rec = regrade(spec, r.grade, answer, qid, cid, reason, make_llm(settings), log=Path(settings.cache_dir) / "regrades.jsonl")
+    try:
+        new, rec = regrade(spec, r.grade, answer, qid, cid, reason, make_llm(settings), log=Path(settings.cache_dir) / "regrades.jsonl")
+    except Exception:
+        return "Regrade service unavailable. The original mark is unchanged; ask a teacher to review it."
     r.grade = new
     return f"**{cid}: {rec.old_marks:g} → {rec.new_marks:g}** ({rec.decision})\n\n{rec.response or rec.reason}"
 
@@ -67,8 +79,22 @@ def do_regrade(choice, reason):
 def do_class(spec_file, files, grader, two_sided):
     if not files:
         raise gr.Error("Upload two or more answer sheets.")
-    rpath, zpath, notes = mark_class(_spec(spec_file), files, Options(use_llm=grader == "LLM grader", two_sided=two_sided))
-    return rpath.read_text(encoding="utf-8"), str(zpath), "\n".join(f"> {n}" for n in notes)
+    try:
+        spec = _spec(spec_file)
+    except Exception:
+        raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
+    try:
+        rpath, zpath, notes = mark_class(spec, files, Options(use_llm=grader == "LLM grader", two_sided=two_sided))
+    except ValueError as err:
+        raise gr.Error(str(err)) from None
+    except Exception:
+        raise gr.Error("The class could not be marked. Check the uploads or try the sample sheet.") from None
+    return rpath.read_text(encoding="utf-8"), str(zpath), "\n".join(f"> {n}" for n in notes), status_markdown()
+
+
+def do_sample():
+    grader = "LLM grader" if llm_available(demo_settings()) else "Lexical baseline"
+    return do_mark(None, str(SAMPLE / "answer_sheets" / "S002.txt"), grader, "OCR text", True, "English")
 
 
 ABOUT = """
@@ -82,18 +108,24 @@ ABOUT = """
 Every sheet carries an **AI-marked** stamp. The handwriting is so students read it like teacher feedback, not to hide where it came from.
 """
 
-with gr.Blocks(title="Red-Ink Grader") as demo:
+settings = demo_settings()
+llm_enabled = llm_available(settings)
+grader_choices = ["LLM grader", "Lexical baseline"] if llm_enabled else ["Lexical baseline"]
+
+with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
     gr.Markdown("# Red-Ink Grader\nUpload an answer sheet and get it back marked, with marks a student can check and feedback they can act on.")
+    status = gr.Markdown(status_markdown())
     with gr.Tab("Mark a sheet"):
         with gr.Row():
-            sheet_in = gr.File(label="Answer sheet (PDF, photo or .txt)", type="filepath")
+            sheet_in = gr.File(label="Answer sheet (PDF, photo or .txt)", type="filepath", file_types=list(UPLOAD_EXTENSIONS))
             spec_in = gr.File(label="Exam spec (YAML/JSON). Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath")
         with gr.Row():
-            grader_in = gr.Radio(["LLM grader", "Lexical baseline"], value="LLM grader", label="Grader")
+            grader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
             input_in = gr.Radio(list(INPUTS), value="OCR text", label="What the grader reads")
             two_in = gr.Checkbox(value=True, label="Two-sided review (critic + advocate)")
             lang_in = gr.Dropdown(LANGUAGES, value="English", label="Feedback language")
         go = gr.Button("Mark it", variant="primary")
+        sample = gr.Button("Try the sample sheet")
         gallery = gr.Gallery(label="Marked sheet", columns=2, height=720, object_fit="contain")
         with gr.Row():
             summary = gr.Markdown()
@@ -106,24 +138,40 @@ with gr.Blocks(title="Red-Ink Grader") as demo:
             rg = gr.Button("Request regrade")
             rg_out = gr.Markdown()
         gr.Examples([[str(SAMPLE / "answer_sheets" / f"S00{i}.txt")] for i in (1, 2, 3)], inputs=[sheet_in], label="Sample sheets")
-        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, two_in, lang_in], [gallery, summary, pdf, report, crit_in])
+        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, two_in, lang_in], [gallery, summary, pdf, report, crit_in, status])
+        sample.click(do_sample, outputs=[gallery, summary, pdf, report, crit_in, status])
         rg.click(do_regrade, [crit_in, reason_in], [rg_out])
     with gr.Tab("Mark a class"):
         with gr.Row():
-            files_in = gr.File(label="Answer sheets", file_count="multiple", type="filepath")
+            files_in = gr.File(label="Answer sheets", file_count="multiple", type="filepath", file_types=list(UPLOAD_EXTENSIONS))
             cspec_in = gr.File(label="Exam spec. Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath")
         with gr.Row():
-            cgrader_in = gr.Radio(["LLM grader", "Lexical baseline"], value="LLM grader", label="Grader")
+            cgrader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
             ctwo_in = gr.Checkbox(value=True, label="Two-sided review")
         cgo = gr.Button("Mark the class", variant="primary")
         cnotes = gr.Markdown()
         czip = gr.File(label="Marked sheets, grades and report (zip)")
         creport = gr.HTML()
-        cgo.click(do_class, [cspec_in, files_in, cgrader_in, ctwo_in], [creport, czip, cnotes])
+        cgo.click(do_class, [cspec_in, files_in, cgrader_in, ctwo_in], [creport, czip, cnotes, status])
     with gr.Tab("How it works"):
         gr.Markdown(ABOUT)
 
+    demo.load(status_markdown, outputs=status)
+
+app = FastAPI()
+
+
+@app.get("/healthz")
+def healthz():
+    return health_payload()
+
+
+app = gr.mount_gradio_app(
+    app, demo.queue(default_concurrency_limit=2), path="/", show_error=False,
+    max_file_size=int(float(os.getenv("AUTOASSESS_MAX_UPLOAD_MB", "10")) * 1024 * 1024),
+)
+
 if __name__ == "__main__":
-    demo.queue(default_concurrency_limit=2).launch(
-        server_name=os.getenv("HOST", "0.0.0.0"), server_port=int(os.getenv("PORT", "7860")), show_error=True
-    )
+    import uvicorn
+
+    uvicorn.run(app, host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "7860")))

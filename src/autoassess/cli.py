@@ -269,6 +269,20 @@ def _regrade(args: argparse.Namespace) -> int:
     return 0
 
 
+def _results(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.results import build_results
+
+    read = lambda path: json.loads(Path(path).read_text(encoding="utf-8"))  # noqa: E731
+    build_results(read(args.agreement), args.out,
+                  ablation=read(args.ablation) if args.ablation else None,
+                  robustness=read(args.robustness) if args.robustness else None,
+                  ocr=[read(path) for path in args.ocr] if args.ocr else None)
+    print(f"results pack: {args.out}")
+    return 0
+
+
 def _doctor(args: argparse.Namespace) -> int:
     from autoassess.config import Settings
     from autoassess.doctor import FAIL, report, run_doctor
@@ -369,6 +383,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_ocr_eval)
+
+    p = sub.add_parser("results", help="tables and optional figures from existing evaluation JSON")
+    p.add_argument("--agreement", required=True)
+    p.add_argument("--ablation")
+    p.add_argument("--robustness")
+    p.add_argument("--ocr", nargs="+")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=_results)
 
     args = parser.parse_args(argv)
     return args.func(args)

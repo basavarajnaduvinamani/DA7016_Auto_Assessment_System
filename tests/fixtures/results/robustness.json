@@ -1,0 +1,43 @@
+{
+  "summary": {
+    "padding": {
+      "n": 2,
+      "pass_rate": 0.5,
+      "mean_delta": 0.25
+    },
+    "injection_%&": {
+      "n": 1,
+      "pass_rate": 1.0,
+      "mean_delta": 0.0
+    }
+  },
+  "rows": [
+    {
+      "student_id": "S001",
+      "question_id": "Q1",
+      "perturbation": "padding",
+      "original": 2,
+      "perturbed": 2,
+      "delta": 0,
+      "passed": true
+    },
+    {
+      "student_id": "S002",
+      "question_id": "Q1",
+      "perturbation": "padding",
+      "original": 1,
+      "perturbed": 1.5,
+      "delta": 0.5,
+      "passed": false
+    },
+    {
+      "student_id": "S001",
+      "question_id": "Q1",
+      "perturbation": "injection_%&",
+      "original": 2,
+      "perturbed": 2,
+      "delta": 0,
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,296 @@
+{
+  "full": {
+    "per_grader": {
+      "A": {
+        "n": 6,
+        "qwk": 0.712,
+        "mae": 0.375,
+        "within_1": 0.833,
+        "exact": 0.5,
+        "pearson": 0.801,
+        "mean_system": 2.5,
+        "mean_human": 2.75,
+        "bias": -0.25,
+        "nmae": 0.075,
+        "ci95": {
+          "qwk": [
+            0.65,
+            0.77
+          ],
+          "mae": [
+            0.2,
+            0.6
+          ],
+          "bias": [
+            -0.5,
+            -0.1
+          ]
+        }
+      }
+    },
+    "human_vs_human": {
+      "n": 6,
+      "qwk": 0.94,
+      "mae": 0.375,
+      "within_1": 0.833,
+      "exact": 0.5,
+      "pearson": 0.801,
+      "mean_system": 2.5,
+      "mean_human": 2.75,
+      "bias": -0.25,
+      "nmae": 0.075,
+      "ci95": {
+        "qwk": [
+          0.9,
+          0.99
+        ],
+        "mae": [
+          0.2,
+          0.6
+        ],
+        "bias": [
+          -0.5,
+          -0.1
+        ]
+      },
+      "graders": [
+        "A",
+        "B"
+      ]
+    },
+    "vs_consensus": {
+      "n": 6,
+      "qwk": 0.712,
+      "mae": 0.375,
+      "within_1": 0.833,
+      "exact": 0.5,
+      "pearson": 0.801,
+      "mean_system": 2.5,
+      "mean_human": 2.75,
+      "bias": -0.25,
+      "nmae": 0.075,
+      "ci95": {
+        "qwk": [
+          0.65,
+          0.77
+        ],
+        "mae": [
+          0.2,
+          0.6
+        ],
+        "bias": [
+          -0.5,
+          -0.1
+        ]
+      }
+    },
+    "coverage_curve": [
+      {
+        "threshold": 0.0,
+        "coverage": 1.0,
+        "n": 6,
+        "mae": 0.375,
+        "bias": -0.25,
+        "nmae": 0.075,
+        "within_tolerance": 0.667
+      },
+      {
+        "threshold": 0.8,
+        "coverage": 0.667,
+        "n": 4,
+        "mae": 0.125,
+        "bias": -0.125,
+        "nmae": 0.025,
+        "within_tolerance": 1.0
+      },
+      {
+        "threshold": 0.95,
+        "coverage": 0.0,
+        "n": 0
+      }
+    ],
+    "auto_accepted_share": 0.667,
+    "bias_per_question": {
+      "Q_1": -0.5,
+      "Q2": 0.0
+    },
+    "per_group": {
+      "language_%": {
+        "English & Hindi": {
+          "n": 6,
+          "qwk": 0.712,
+          "mae": 0.375,
+          "within_1": 0.833,
+          "exact": 0.5,
+          "pearson": 0.801,
+          "mean_system": 2.5,
+          "mean_human": 2.75,
+          "bias": -0.25,
+          "nmae": 0.075,
+          "ci95": {
+            "qwk": [
+              0.65,
+              0.77
+            ],
+            "mae": [
+              0.2,
+              0.6
+            ],
+            "bias": [
+              -0.5,
+              -0.1
+            ]
+          }
+        }
+      }
+    },
+    "flagged_questions": []
+  },
+  "no_review": {
+    "per_grader": {
+      "A": {
+        "n": 6,
+        "qwk": 0.712,
+        "mae": 0.375,
+        "within_1": 0.833,
+        "exact": 0.5,
+        "pearson": 0.801,
+        "mean_system": 2.5,
+        "mean_human": 2.75,
+        "bias": -0.25,
+        "nmae": 0.075,
+        "ci95": {
+          "qwk": [
+            0.65,
+            0.77
+          ],
+          "mae": [
+            0.2,
+            0.6
+          ],
+          "bias": [
+            -0.5,
+            -0.1
+          ]
+        }
+      }
+    },
+    "human_vs_human": {
+      "n": 6,
+      "qwk": 0.94,
+      "mae": 0.375,
+      "within_1": 0.833,
+      "exact": 0.5,
+      "pearson": 0.801,
+      "mean_system": 2.5,
+      "mean_human": 2.75,
+      "bias": -0.25,
+      "nmae": 0.075,
+      "ci95": {
+        "qwk": [
+          0.9,
+          0.99
+        ],
+        "mae": [
+          0.2,
+          0.6
+        ],
+        "bias": [
+          -0.5,
+          -0.1
+        ]
+      },
+      "graders": [
+        "A",
+        "B"
+      ]
+    },
+    "vs_consensus": {
+      "n": 6,
+      "qwk": 0.61,
+      "mae": 0.375,
+      "within_1": 0.833,
+      "exact": 0.5,
+      "pearson": 0.801,
+      "mean_system": 2.5,
+      "mean_human": 2.75,
+      "bias": -0.25,
+      "nmae": 0.075,
+      "ci95": {
+        "qwk": [
+          0.55,
+          0.7
+        ],
+        "mae": [
+          0.2,
+          0.6
+        ],
+        "bias": [
+          -0.5,
+          -0.1
+        ]
+      }
+    },
+    "coverage_curve": [
+      {
+        "threshold": 0.0,
+        "coverage": 1.0,
+        "n": 6,
+        "mae": 0.375,
+        "bias": -0.25,
+        "nmae": 0.075,
+        "within_tolerance": 0.667
+      },
+      {
+        "threshold": 0.8,
+        "coverage": 0.667,
+        "n": 4,
+        "mae": 0.125,
+        "bias": -0.125,
+        "nmae": 0.025,
+        "within_tolerance": 1.0
+      },
+      {
+        "threshold": 0.95,
+        "coverage": 0.0,
+        "n": 0
+      }
+    ],
+    "auto_accepted_share": 0.667,
+    "bias_per_question": {
+      "Q_1": -0.5,
+      "Q2": 0.0
+    },
+    "per_group": {
+      "language_%": {
+        "English & Hindi": {
+          "n": 6,
+          "qwk": 0.712,
+          "mae": 0.375,
+          "within_1": 0.833,
+          "exact": 0.5,
+          "pearson": 0.801,
+          "mean_system": 2.5,
+          "mean_human": 2.75,
+          "bias": -0.25,
+          "nmae": 0.075,
+          "ci95": {
+            "qwk": [
+              0.65,
+              0.77
+            ],
+            "mae": [
+              0.2,
+              0.6
+            ],
+            "bias": [
+              -0.5,
+              -0.1
+            ]
+          }
+        }
+      }
+    },
+    "flagged_questions": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "provider": "text",
+  "sheets": {
+    "S_1": {
+      "cer": 0.0,
+      "wer": 0.0
+    },
+    "mean": {
+      "cer": 0.0,
+      "wer": 0.0
+    }
+  }
+}

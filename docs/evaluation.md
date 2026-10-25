@@ -74,3 +74,21 @@ This checks the slide's bar directly: is the feedback specific enough for a stud
 5. Report the mark change, per student and on average, by both the system and the human.
 
 A rise confirmed by the human grader is direct evidence that the feedback works.
+
+## 7. Results pack
+
+Turn saved evaluation outputs into Markdown tables, `booktabs` LaTeX tables and optional PNG figures without rerunning any experiment:
+
+```bash
+pip install -e ".[report]"  # optional: enables figures
+autoassess results --agreement runs/full/agreement.json \
+    --ablation runs/ablation/ablation.json \
+    --robustness runs/robustness/robustness.json \
+    --ocr runs/ocr_bodhan.json runs/ocr_vision.json --out runs/results
+```
+
+Only `--agreement` and `--out` are required. Omit optional inputs to omit their sections. `results.md` contains captioned tables; `tables/{agreement,ablation,robustness,ocr,groups}.tex` contains plain `tabular` environments for `\input{...}` with `\usepackage{booktabs}` in the report preamble. Group tables appear only when agreement has per-group results. Table numbers and supplied 95% bootstrap confidence intervals use three decimals; missing values appear as dashes.
+
+`figures/coverage.png` plots accuracy within 0.5 marks against the share auto-accepted, excluding thresholds with no accepted items. `bias.png` shows signed bias per question when supplied; current `evaluate` outputs have no per-question CIs, so no intervals are invented. If an upstream report supplies each bias as `{"bias": value, "ci95": {"bias": [lower, upper]}}`, those intervals appear as error bars. `ablation.png` compares arm QWK with the human-human QWK line when available. Matplotlib is imported only while rendering figures; without it, tables and summary still work and the command prints one figures-skipped line.
+
+`summary.json` is a flat dictionary with `qwk`, `human_qwk`, `mae`, `within_1`, `bias`, `coverage_at_0_8` and `robustness_pass_rate`. System and ablation metrics use `vs_consensus`, falling back to the alphabetically first human grader for older reports. Coverage is copied from threshold 0.8, not from `auto_accepted_share`. Robustness pass rate is the share of passing rows across all cases (or the case-weighted pass rate from summaries when rows are unavailable). Unavailable headline values are `null`; table rounding does not alter the summary values. Reruns refresh the known table and figure filenames, removing stale optional sections while preserving unrelated files in the output directory.

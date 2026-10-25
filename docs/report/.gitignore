@@ -1,0 +1,10 @@
+# Generated TeX outputs; the report PDF is an artifact, not source.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+main.pdf

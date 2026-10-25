@@ -1,0 +1,70 @@
+\section{Results}
+\label{sec:results}
+Every result slot in this skeleton is pending. Tables are inputs copied from the results pack, not manually transcribed numbers. The pending images are layout placeholders and must not be interpreted as plots of observations. Replacing these assets updates the report's displays; numerical prose remains marked with \verb|\pending{}| until the study supports a final interpretation.
+
+\subsection{Agreement and ablations}
+System agreement with consensus is \pending{system QWK}, compared with human--human agreement of \pending{human QWK}. The mean absolute error, tolerance-based agreement and signed bias are \pending{agreement metrics}. Table~\ref{tab:agreement} is the authoritative source for these quantities and supplied confidence intervals. These pending values do not establish whether the protocol targets were met.
+
+\begin{table}[htbp]
+\centering
+\caption{Agreement with human marks. Missing study outputs remain pending.}
+\label{tab:agreement}
+\resulttable{agreement}
+\end{table}
+\begin{table}[htbp]
+\centering
+\caption{Ablation arms evaluated on the same reference set.}
+\label{tab:ablation}
+\resulttable{ablation}
+\end{table}
+
+Table~\ref{tab:ablation} and Figure~\ref{fig:ablation} compare component variants. The effect of review, repeated grading, evidence enforcement and the model answer is \pending{ablation interpretation}. An apparent gain should be considered alongside its uncertainty and inference cost; a difference in point estimates alone does not demonstrate that a component is consistently beneficial.
+
+\subsection{Robustness, reading and groups}
+Robustness pass rate is \pending{robustness pass rate}. The case-weighted headline should be read with the per-perturbation results in Table~\ref{tab:robustness}, since a favourable average can hide a failure to resist a specific attack. Changes under spelling noise require separate attention to unfair deductions as well as inflated marks.
+
+\begin{table}[htbp]
+\centering
+\caption{Robustness by perturbation, with passing shares and mark changes.}
+\label{tab:robustness}
+\resulttable{robustness}
+\end{table}
+\begin{table}[htbp]
+\centering
+\caption{OCR character and word error rates from paired transcripts.}
+\label{tab:ocr}
+\resulttable{ocr}
+\end{table}
+\begin{table}[htbp]
+\centering
+\caption{Agreement within metadata groups, where group results are available.}
+\label{tab:groups}
+\resulttable{groups}
+\end{table}
+
+OCR error rates are \pending{OCR results}, and scan--transcript marking differences are \pending{handwriting penalty}. Table~\ref{tab:ocr} identifies the provider and sheet context for reading measurements. Table~\ref{tab:groups} reports available group comparisons; variation across languages or handwriting categories is \pending{group analysis}. Small or missing groups must be reported as limitations, rather than taken as evidence of parity.
+
+\subsection{Coverage and signed bias}
+At the selected confidence threshold, the automatically accepted share is \pending{coverage at operating point}. Figure~\ref{fig:coverage} shows how accuracy changes with that share. Figure~\ref{fig:bias} shows the direction of per-question error. The current evaluator supplies scalar per-question bias; intervals are shown only when the source report supplies them. Neither the placeholder images nor overall bootstrap intervals imply per-question uncertainty estimates.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.47\linewidth}
+\centering
+\includegraphics[width=\linewidth]{results/figures/coverage.png}
+\caption{Accuracy against the share automatically accepted.}
+\label{fig:coverage}
+\end{minipage}\hfill
+\begin{minipage}{0.47\linewidth}
+\centering
+\includegraphics[width=\linewidth]{results/figures/bias.png}
+\caption{Signed bias per question, with intervals only if supplied.}
+\label{fig:bias}
+\end{minipage}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.65\linewidth]{results/figures/ablation.png}
+\caption{Ablation QWK with the human--human reference when available.}
+\label{fig:ablation}
+\end{figure}

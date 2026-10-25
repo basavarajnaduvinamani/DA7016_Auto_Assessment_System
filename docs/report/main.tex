@@ -1,0 +1,39 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=25mm]{geometry}
+\usepackage{lmodern,microtype}
+\usepackage{graphicx,booktabs,adjustbox}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage[section]{placeins}
+\setlist{nosep}
+\setlength{\emergencystretch}{2em}
+\newcommand{\pending}[1]{\textcolor{BrickRed}{\textbf{[pending]}}}
+\newcommand{\resulttable}[1]{\begin{adjustbox}{max width=\linewidth}\input{results/#1}\end{adjustbox}}
+\title{Auto-Assessment: Rubric-Grounded Grading of Handwritten Answer Sheets with Red-Ink Feedback}
+\author{Basavaraj A Naduvinamani (DA25C005)\\DA7016, IIT Madras}
+\date{}
+\begin{document}
+\maketitle
+\begin{abstract}
+Auto-Assessment is an implemented pipeline for grading complete answer sheets against a teacher's rubric. It accepts typed answers, scanned documents or photographs, and produces criterion-level marks, evidence-linked feedback, an HTML report and a red-ink annotated booklet. A mark must survive a quote check against the answer text; an advocate and a critic review the award in opposite directions. Confidence signals identify answers that need teacher review. The central educational question is whether feedback is specific enough for a student to improve, rather than whether an automated score merely resembles a human score. This report describes the implementation, the evaluation protocol and the mechanisms for assembling reproducible results. Empirical results and the example marked page remain explicitly pending; the report makes no claim of measured grading accuracy, learning gains or deployment readiness.
+\end{abstract}
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/system}
+\input{sections/evaluation}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/ethics}
+\input{sections/conclusion}
+\bibliographystyle{plainnat}
+\bibliography{references}
+\clearpage
+\appendix
+\input{sections/appendix}
+\end{document}

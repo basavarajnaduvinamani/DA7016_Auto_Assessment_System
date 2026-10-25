@@ -1,6 +1,6 @@
 # 01: Offline "fake" LLM provider and end-to-end smoke test
 
-Status: in review
+Status: done
 
 ## Goal
 

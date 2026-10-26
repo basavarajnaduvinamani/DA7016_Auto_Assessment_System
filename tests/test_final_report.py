@@ -87,7 +87,7 @@ def test_report_has_no_unrecorded_numeric_literals_or_stale_placeholders():
         text = re.sub(r'\{[lrp0-9.\\]+\}', '', text)
         assert set(numeric(text)) <= allowed, (path, set(numeric(text)) - allowed)
         pending = re.findall(r'\\pending\{([^}]+)\}', text)
-        assert pending == (['example red-ink image'] if path.name == 'appendix.tex' else [])
+        assert pending == []
     results = (REPORT / 'sections/results.tex').read_text()
     assert all(f'\\resulttable{{{name}}}' in results for name in ('agreement', 'ablation', 'models', 'handwritten', 'injection'))
     assert not re.search(r'fig:(coverage|bias|ablation)|tab:(ocr|groups|robustness)', results)

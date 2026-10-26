@@ -79,6 +79,10 @@ Reading: the teacher was generous to short or vague answers that the rubric-boun
 
 A Hindi (Devanagari) answer to SPRAG Q1 ("What is machine learning?") was graded 5/5 with the evidence quote taken from the Hindi text, and the feedback returned in Hindi via Bodhan Indic-Translate. This is a single worked example, not an evaluation.
 
+## Red-ink example (report appendix)
+
+Synthetic sample sheet S002 from the bundled sample quiz, graded by the final configuration (gemini-2.5-flash, advocate review): 5.75 of 15. Page 1 of the marked PDF, cropped, is `results/figures/example_redink.png`.
+
 ## Cost
 
 OpenRouter total across all experiments $7.72 (about $0.006 per answer for the full pipeline on SPRAG). Bodhan: about Rs 6 (OCR at Rs 0.20 per page plus translation).

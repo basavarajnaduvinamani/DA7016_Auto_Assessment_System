@@ -12,7 +12,7 @@ This builds `main.pdf` and checks the final log for undefined references, citati
 
 The bibliography uses verified primary pages or records. Burrows et al.'s bibliographic metadata was also verified in Haller et al.'s survey (arXiv:2204.03503). The SPRAG citation is the Zenodo release, whose creator is recorded as “Sridevi B”, rather than an inferred dataset-paper citation. IndicOCR is cited as a model card without asserting an unknown publication year.
 
-Only the red-ink example remains pending. The appendix expects `results/figures/example_redink.png`; replace this placeholder with a reviewed anonymised or synthetic page when available. No real student answers, names or scans are committed. The aggregate handwritten results do not include private source material. OCR CER/WER, paired scan/transcript experiments and educational feedback studies were not measured and appear only as limitations/future work.
+The appendix shows `results/figures/example_redink.png`, a page marked for the synthetic sample sheet S002. No real student answers, names or scans are committed. The aggregate handwritten results do not include private source material. OCR CER/WER, paired scan/transcript experiments and educational feedback studies were not measured and appear only as limitations/future work.
 
 To remove build outputs without changing result assets:
 

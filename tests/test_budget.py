@@ -38,3 +38,26 @@ def test_budget_defaults_match_course_credits(monkeypatch):
     monkeypatch.delenv("OPENROUTER_BUDGET_USD", raising=False)
     s = Settings()
     assert s.bodhan_budget_inr < 110 and s.openrouter_budget_usd < 20
+
+
+def _add_many(path):
+    from autoassess.budget import Ledger
+
+    ledger = Ledger(path, None)
+    for _ in range(50):
+        ledger.add(0.01)
+
+
+def test_ledger_survives_concurrent_processes(tmp_path):
+    import multiprocessing
+
+    from autoassess.budget import Ledger
+
+    path = tmp_path / "ledger.json"
+    procs = [multiprocessing.Process(target=_add_many, args=(path,)) for _ in range(4)]
+    for p in procs:
+        p.start()
+    for p in procs:
+        p.join()
+    assert all(p.exitcode == 0 for p in procs)
+    assert Ledger(path, None).calls() == 200

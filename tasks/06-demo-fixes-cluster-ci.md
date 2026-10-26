@@ -1,6 +1,6 @@
 # 06: Demo fixes and question-clustered confidence intervals
 
-Status: in review
+Status: done
 
 ## Goal
 

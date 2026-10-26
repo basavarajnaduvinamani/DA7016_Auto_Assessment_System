@@ -154,7 +154,12 @@ def _experiment(args: argparse.Namespace) -> int:
         if not args.human:
             print("ablation needs --human", file=sys.stderr)
             return 2
-        has_images = any(pg.image_path for ps in pages.values() for pg in ps)
+        # Typed sheets keep their .txt path in image_path, so check for real image files.
+        has_images = any(
+            pg.image_path and Path(pg.image_path).suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp"}
+            for ps in pages.values()
+            for pg in ps
+        )
         results = run_ablation(spec, sheets, load_human_marks(args.human), llm, critic, pages=pages if has_images else None)
         (out / "ablation.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
         table = ablation_table(results)

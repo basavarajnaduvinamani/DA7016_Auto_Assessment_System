@@ -56,14 +56,14 @@ autoassess draft-spec --paper paper.txt --rubric rubric.txt --model-answers answ
 # Answer sheet PDF, photo or folder of photos -> cleaned grayscale pages
 autoassess ingest scans/S001.pdf work/S001
 
-# Grade sheets: 3 runs per question, median marks, two-sided review, red-ink PDF
-autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/llm --critic --advocate --annotate \
+# Grade sheets: 3 runs per question, median marks, advocate review, red-ink PDF
+autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/llm --advocate --annotate \
     data/sample_exam/answer_sheets/*.txt
 #   --second-model openai/gpt-4.1-mini   a second examiner for the confidence check
 #   --input image|hybrid                 grade from the page image (vision model), or image + OCR text
 
 # A whole class, question by question, with a consistency pass and a class report
-autoassess grade-class --spec ... --out runs/class --critic --advocate --annotate sheets...
+autoassess grade-class --spec ... --out runs/class --advocate --annotate sheets...
 autoassess class-report --spec ... --grades runs/class
 
 # A student's regrade request for one criterion (logged beside the grade)
@@ -88,7 +88,7 @@ autoassess ocr-eval --reference transcripts/ sheets...
 - **One verdict per rubric criterion**, each with a quote copied from the answer. Code checks the quote really occurs in the answer; a made-up quote gets one repair round, then the marks are withdrawn and flagged.
 - **Rubric rules in code**: marks are clipped to each criterion's range, and all-or-nothing criteria snap to 0 or full.
 - **Three independent runs**, combined by the median per criterion.
-- **Two-sided review**: an advocate looks for missed credit (another valid method, a correct idea in other words) and can raise a mark only with a verified quote; then a critic audits every award, the advocate's included, and can lower it. The strict-only design this replaced pushed marks down, and LLM graders already under-mark, so the evaluation reports **signed bias**, not just error size.
+- **Advocate review by default in the demo**: an advocate looks for missed credit (another valid method, a correct idea in other words) and can raise a mark only with a verified quote; an optional strict critic audits every award, the advocate's included, and can lower it. The SPRAG dev ablation chose advocate-only review for its lowest MAE and near-zero bias; the critic increased under-marking. CLI review flags remain opt-in. Evaluation reports **signed bias**, not just error size.
 - **Knows when to defer**: confidence is the weakest of several signals: spread across runs, disagreement with a second examiner model, how much the reviewers changed, OCR confidence and withdrawn quotes. Below 0.8 the mark gets a **?** and goes to a teacher. `evaluate` reports the coverage curve: accuracy on the share accepted automatically at each threshold.
 - **Quotes matched loosely enough** that one misread OCR character doesn't cost a criterion, and **spelling is never penalised** unless a criterion asks for it.
 - **Follow-through (ECF)**: a criterion with `follow_through: true` on a question with `depends_on` sees the student's earlier answers and can credit correct working from a wrong earlier value. **Crossed-out work** (`~~text~~`, `[crossed out]`) is ignored.

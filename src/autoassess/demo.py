@@ -130,7 +130,8 @@ def _read_demo_sheet(sheet: Path, settings: Settings, out: Path, spec: ExamSpec,
 class Options:
     use_llm: bool = True
     input_mode: str = "text"  # text | image | hybrid
-    two_sided: bool = True  # critic + advocate
+    advocate_review: bool = True
+    strict_critic: bool = False
     runs: int = 3
     language: str = "English"
     annotate: bool = True
@@ -220,12 +221,13 @@ def mark_sheet(spec: ExamSpec, sheet: str | Path, opts: Options, settings: Setti
     pages, readable = _read_demo_sheet(sheet, settings, out, spec, notes)
     try:
         llm = _demo_llm(settings, opts, notes) if readable else None
-        reviewer = make_llm(settings, critic=True) if llm and opts.two_sided else None
+        reviewer = make_llm(settings, critic=True) if llm and (opts.advocate_review or opts.strict_critic) else None
         translator = make_translator(settings) if readable and opts.language != "English" and settings.translate_key else None
         if opts.language != "English" and translator is None:
             notes.append("Feedback stays in English: no Bodhan translate key is set.")
         result = run(
-            spec, pages, sheet.stem, llm, runs=opts.runs if llm else 1, critic=reviewer, advocate=reviewer,
+            spec, pages, sheet.stem, llm, runs=opts.runs if llm else 1,
+            critic=reviewer if opts.strict_critic else None, advocate=reviewer if opts.advocate_review else None,
             mode=opts.input_mode if llm else "text", translator=translator,
             feedback_language=opts.language if translator else None,
         )
@@ -265,8 +267,10 @@ def mark_class(spec: ExamSpec, sheets: list[str | Path], opts: Options, settings
     def grade_batch(llm):
         segs = {sid: segment(spec, ps, llm) for sid, ps in pages.items()}
         if llm is not None:
-            reviewer = make_llm(settings, critic=True) if opts.two_sided else None
-            grades = grade_class(spec, segs, llm, runs=opts.runs, critic=reviewer, advocate=reviewer)
+            reviewer = make_llm(settings, critic=True) if opts.advocate_review or opts.strict_critic else None
+            grades = grade_class(
+                spec, segs, llm, runs=opts.runs,
+                critic=reviewer if opts.strict_critic else None, advocate=reviewer if opts.advocate_review else None)
         else:
             from autoassess.baseline import grade_sheet_lexical
             from autoassess.classwork import consistency_pass

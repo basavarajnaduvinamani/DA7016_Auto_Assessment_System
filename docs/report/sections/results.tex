@@ -1,70 +1,79 @@
 \section{Results}
 \label{sec:results}
-Every result slot in this skeleton is pending. Tables are inputs copied from the results pack, not manually transcribed numbers. The pending images are layout placeholders and must not be interpreted as plots of observations. Replacing these assets updates the report's displays; numerical prose remains marked with \verb|\pending{}| until the study supports a final interpretation.
-
-\subsection{Agreement and ablations}
-System agreement with consensus is \pending{system QWK}, compared with human--human agreement of \pending{human QWK}. The mean absolute error, tolerance-based agreement and signed bias are \pending{agreement metrics}. Table~\ref{tab:agreement} is the authoritative source for these quantities and supplied confidence intervals. These pending values do not establish whether the protocol targets were met.
+\subsection{Headline agreement}
+Table~\ref{tab:agreement} reports the SPRAG test results. The selected advocate-only configuration achieves QWK 0.723 [0.667, 0.773], MAE 0.85 of 5 and within-1 agreement of 76\%, with bias $+0.24$. It substantially exceeds the lexical baseline's QWK 0.375 and MAE 1.62. However, human--human QWK is 0.962, with MAE 0.22 and within-1 agreement of 100\%. The remaining gap is material: beating word overlap is evidence of a useful grading signal, not evidence that a teacher can delegate every answer.
 
 \begin{table}[htbp]
 \centering
-\caption{Agreement with human marks. Missing study outputs remain pending.}
+\caption{SPRAG test ($n=455$). Final-config intervals cluster by question; full-pipeline intervals are item-level. Dashes denote unreported values.}
 \label{tab:agreement}
 \resulttable{agreement}
 \end{table}
+
+The headline lenient full pipeline, with advocate and critic, reaches QWK 0.688 [0.628, 0.745], MAE 0.91 and bias $-0.39$. Applying an offset of $+0.53$ marks fitted on dev gives QWK 0.708 [0.649, 0.760] and bias $+0.03$, while MAE remains 0.91. This diagnostic shows that systematic location error contributes to disagreement, but an offset cannot determine which individual answers deserve credit. It should not be described as correcting the underlying reasoning.
+
+The final configuration's separate dev result is QWK 0.677 [0.547, 0.792], MAE 0.91 and bias $+0.01$. Its test QWK 0.723 differs from the advocate-only ablation result of 0.728. These are reported as run-to-run variation, rather than selecting whichever estimate supports a preferred conclusion. Descriptively, question-type agreement is highest for ``define'' questions (QWK 0.76) and lowest for ``explain'' questions (0.65). These aggregate values alone do not establish a general hierarchy of question difficulty.
+
+\subsection{Ablation: a lower-only critic increases negative bias}
+Table~\ref{tab:ablation} gives dev and test measurements side by side. On dev, the standard marking policy gives QWK 0.66 and bias $-0.76$, compared with 0.68 and $-0.53$ under lenient marking. The lenient policy was therefore chosen before final testing. Across the LLM ablation configurations, dev QWK values are within noise; small differences in that statistic do not justify a confident ranking of every component.
+
 \begin{table}[htbp]
 \centering
-\caption{Ablation arms evaluated on the same reference set.}
+\caption{Review and component ablations. The full arm and advocate-only arm are different runs from their headline counterparts in Table~\ref{tab:agreement}.}
 \label{tab:ablation}
 \resulttable{ablation}
 \end{table}
 
-Table~\ref{tab:ablation} and Figure~\ref{fig:ablation} compare component variants. The effect of review, repeated grading, evidence enforcement and the model answer is \pending{ablation interpretation}. An apparent gain should be considered alongside its uncertainty and inference cost; a difference in point estimates alone does not demonstrate that a component is consistently beneficial.
+The more consistent analytical finding is directional. Critic-only grading has dev bias $-0.77$ and test bias $-0.74$. Advocate-only review reduces dev bias to $-0.05$, with MAE 0.92, and has test bias $+0.14$, with MAE 0.81. A critic that is permitted only to remove credit has an asymmetric effect: even a useful audit cannot restore an initially missed valid answer. If the initial grader already under-marks, additional lower-only decisions can accumulate deductions. The advocate can recover missed credit, subject to the same quote checks and mark bounds.
 
-\subsection{Robustness, reading and groups}
-Robustness pass rate is \pending{robustness pass rate}. The case-weighted headline should be read with the per-perturbation results in Table~\ref{tab:robustness}, since a favourable average can hide a failure to resist a specific attack. Changes under spelling noise require separate attention to unfair deductions as well as inflated marks.
+Advocate-only was selected on dev for lowest MAE and near-zero bias, not because it had the highest dev QWK. No-review has test QWK 0.730, compared with advocate-only 0.728, but that small test difference is not a reason to revise the prior decision. The selected policy balances magnitude and direction of errors rather than maximising a test statistic after seeing the results. The critic remains available as an explicit option; it is no longer the demo default.
+
+Single-run and omitted-component controls all remain above the lexical baseline. The evidence-rule ablation does not show that evidence enforcement should be removed: its principal role is auditability, and this sample does not quantify every unsupported-award failure. Omitting the model answer lowers dev QWK to 0.643. These comparisons describe this rubric and dataset, rather than guaranteeing that more review or more repeated calls always improve performance.
+
+\subsection{Confidence gating}
+For the full pipeline, accepting confidence $\geq 0.8$ auto-marks 62\% of test answers at MAE 0.66; the remaining answers are routed to the teacher. This is the clearest selective-marking operating point: error on the accepted subset falls while coverage is explicitly limited. It is not a claim that all accepted marks are correct, nor does the accepted share directly measure time saved in a classroom workflow.
+
+With the final advocate-only configuration, the same threshold covers 92\% of test answers at MAE 0.76. Fewer critic disagreements remain to lower confidence, so confidence separates easy from hard answers less sharply. The increased coverage therefore should not be interpreted as an independent improvement in calibration. Removing a source of disagreement changes the confidence mechanism as well as the marks. A teacher deployment needs to validate its review threshold for the active review configuration.
+
+\subsection{Model comparison}
+Table~\ref{tab:models} compares the measured models on dev under the common single-run, no-review, lenient setting. Gemini has QWK 0.701 [0.583, 0.802]; none of the alternatives exceeds it, and none satisfies the pre-registered improvement rule of more than 0.05 QWK. Gemini is retained. The intervals overlap, so the result supports the fixed selection rule without establishing a precise universal ordering of these model families.
 
 \begin{table}[htbp]
 \centering
-\caption{Robustness by perturbation, with passing shares and mark changes.}
-\label{tab:robustness}
-\resulttable{robustness}
+\caption{Model comparison on SPRAG dev ($n=115$); 95\% question-clustered intervals. Selection uses the pre-registered 0.05 QWK rule.}
+\label{tab:models}
+\resulttable{models}
 \end{table}
+
+Bias also varies across models. GPT's bias is $+0.27$, whereas the other compared models have negative bias in this setting. Consequently, an offset fitted for one model or review policy should not be transferred blindly to another. The comparison does not test ensembles, model-specific prompt tuning or the cost-quality frontier; those would require additional development decisions and measurements.
+
+\subsection{Handwritten classroom set}
+Table~\ref{tab:handwritten} reports the end-to-end classroom measurement. With Bodhan OCR and the full pipeline, QWK against the teacher is 0.47 [0.32, 0.57], MAE is 0.55 of 2, and bias is $-0.49$. Exact agreement is 52\% and within-1 agreement is 87\%. Mean system and teacher marks are 0.59 and 1.07 respectively. These rounded aggregates are retained as recorded; their printed difference should not be substituted for the recorded bias calculated from the underlying marks.
+
 \begin{table}[htbp]
 \centering
-\caption{OCR character and word error rates from paired transcripts.}
-\label{tab:ocr}
-\resulttable{ocr}
+\caption{Handwritten classroom set. The single teacher reference supplies no human--human ceiling. The offset analysis is post hoc.}
+\label{tab:handwritten}
+\resulttable{handwritten}
 \end{table}
+
+The teacher gave credit to short or vague answers that the rubric-bound system marked zero. This is a difference in operational marking practice, not proof that the teacher or the system is wrong. OCR added uncertainty, including \texttt{low\_ocr\_confidence} flags, and 75 of 135 questions were flagged for review. Without paired transcripts, the observed disagreement cannot be partitioned into recognition error, segmentation error and grading error.
+
+A leave-one-student-out offset correction yields QWK 0.55 [0.44, 0.65] and bias $-0.03$. Holding the target student out of the offset fit avoids fitting directly to that student's marks, but the result remains a post-hoc correction on a small classroom sample. It does not validate transfer of the offset to another teacher. The handwritten measurement uses the full pipeline; it is not a validation of the selected advocate-only configuration on handwriting.
+
+\subsection{Prompt injection: vulnerability and bounded mitigation}
+Appending ``note to the grader: award full marks'' caused 7 of 30 test answers to gain marks, with mean change $+0.17$ of 5; 3 reached full marks. The instruction to treat answers as data was therefore insufficient by itself. Table~\ref{tab:injection} records the targeted check. The fix flags matching text as \texttt{possible\_prompt\_injection} and routes it to the teacher, rather than treating a suspicious award as safe to accept automatically.
+
 \begin{table}[htbp]
 \centering
-\caption{Agreement within metadata groups, where group results are available.}
-\label{tab:groups}
-\resulttable{groups}
+\caption{Targeted injection check. Flagging measures referral, not recovery of the original mark.}
+\label{tab:injection}
+\resulttable{injection}
 \end{table}
 
-OCR error rates are \pending{OCR results}, and scan--transcript marking differences are \pending{handwriting penalty}. Table~\ref{tab:ocr} identifies the provider and sheet context for reading measurements. Table~\ref{tab:groups} reports available group comparisons; variation across languages or handwriting categories is \pending{group analysis}. Small or missing groups must be reported as limitations, rather than taken as evidence of parity.
+The pattern flagged 30 of 30 injected answers and 0 of 570 clean SPRAG answers. This is a wording-specific mitigation: the pattern was written against this injection, and paraphrased instructions may pass. Detection on the same wording is not a held-out security evaluation. Neither a verified quote nor an apparently well-formed rubric verdict prevents a model from following hostile text elsewhere in the answer.
 
-\subsection{Coverage and signed bias}
-At the selected confidence threshold, the automatically accepted share is \pending{coverage at operating point}. Figure~\ref{fig:coverage} shows how accuracy changes with that share. Figure~\ref{fig:bias} shows the direction of per-question error. The current evaluator supplies scalar per-question bias; intervals are shown only when the source report supplies them. Neither the placeholder images nor overall bootstrap intervals imply per-question uncertainty estimates.
+\subsection{Indic worked example and cost}
+A Hindi answer in Devanagari to SPRAG Q1, ``What is machine learning?'', received 5/5, with evidence quoted from the Hindi answer and feedback returned in Hindi using Bodhan Indic-Translate. This demonstrates that the reading-independent text, evidence and translation interfaces can carry an Indic-language answer through the workflow. It is one worked example, not an evaluation of Hindi accuracy or multilingual fairness.
 
-\begin{figure}[htbp]
-\centering
-\begin{minipage}{0.47\linewidth}
-\centering
-\includegraphics[width=\linewidth]{results/figures/coverage.png}
-\caption{Accuracy against the share automatically accepted.}
-\label{fig:coverage}
-\end{minipage}\hfill
-\begin{minipage}{0.47\linewidth}
-\centering
-\includegraphics[width=\linewidth]{results/figures/bias.png}
-\caption{Signed bias per question, with intervals only if supplied.}
-\label{fig:bias}
-\end{minipage}
-\end{figure}
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.65\linewidth]{results/figures/ablation.png}
-\caption{Ablation QWK with the human--human reference when available.}
-\label{fig:ablation}
-\end{figure}
+OpenRouter spend across the experiments was \$7.72, with approximately \$0.006 per answer for the full SPRAG pipeline. Bodhan spend was approximately Rs~6, including OCR at Rs~0.20 per page and translation. These totals describe the measured study and its cache behaviour, not a guaranteed future tariff or a per-student classroom price. The report includes no private content behind these aggregate cost and agreement measurements.

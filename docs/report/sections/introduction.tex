@@ -1,16 +1,8 @@
 \section{Introduction}
-Marking an exam booklet requires more than assigning a total. A teacher has to recognise which answer belongs to which question, judge it against the relevant rubric, explain deductions and decide which uncertain cases merit another look. Handwriting, mixed languages, diagrams and answers written out of order complicate this work. A fluent explanation of a mark is not sufficient if it cannot be traced to something the student actually wrote.
+Marking an exam booklet requires more than assigning a total. A teacher must associate each response with a question, recognise partial understanding, justify deductions and decide when an uncertain answer needs another look. Handwriting and multilingual text add recognition and interpretation errors before a marking decision is made. A fluent explanation is insufficient if it cannot be traced to the student's work or the teacher's rubric.
 
-Auto-Assessment addresses this problem by treating the teacher's rubric as an explicit contract. Inputs are an exam specification containing questions, criterion descriptions and model answers, together with complete answer sheets. Outputs preserve the link between an awarded criterion and evidence from the answer. The intended role is to support a teacher's marking and feedback workflow; the system does not establish an independent authority over the rubric or the final grade.
+Auto-Assessment treats the rubric as an explicit contract. It accepts an exam specification containing questions, criterion descriptions and model answers, together with typed sheets, scans or photographs. It returns criterion marks, verbatim evidence, actionable feedback, an HTML report and a red-ink annotated booklet. The intended role is selective auto-marking with teacher review, preserving an inspectable basis for both credit and referral.
 
-The project's educational bar is \emph{feedback specific enough for a student to improve}. Agreement with human marks is a necessary check on the grading process, but it cannot demonstrate that a correction helps a learner. The evaluation therefore separates score agreement, robustness, reading errors and the effect of feedback on a subsequent answer. These are proposed measurements with pending results, rather than interchangeable claims of success.
+This report evaluates that role on typed SPRAG responses and a small real handwritten classroom set. The central analytical question is whether review mechanisms improve agreement or merely change its direction. An advocate can recover missed credit; a strict critic can only remove it. The ablation finds that the critic increases under-marking, motivating an advocate-only default chosen on development data. A separate confidence analysis asks how much marking can be accepted automatically at a stated error level.
 
-The implemented contributions are:
-\begin{itemize}
-  \item a full-sheet pipeline with explicit contracts for page reading, segmentation, criterion grading and report generation;
-  \item evidence enforcement, bounded awards and complementary advocate and critic passes;
-  \item a conservative confidence mechanism that marks uncertain answers for teacher review;
-  \item feedback verified against awarded marks, displayed both as an evidence report and as red-ink annotations;
-  \item an evaluation harness and results pack that separate saved measurements from report presentation.
-\end{itemize}
-These are engineering contributions supported by the repository implementation. Their educational value and generalisation to real handwritten scripts require the study described below.
+The contributions are an integrated full-sheet workflow with evidence checks and bounded awards; an empirical comparison of review directions; a confidence-based referral mechanism; and a report that distinguishes typed grading, handwritten end-to-end performance and targeted injection checks. Feedback remains the educational motivation, but its quality has not yet been rated by students and no learning effect is claimed. The measurements support assisted marking within the tested settings, rather than a validated replacement for teachers.

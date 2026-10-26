@@ -26,14 +26,14 @@ def _spec(spec_file):
     return load_spec(spec_file or SAMPLE / "exam_spec.yaml")
 
 
-def do_mark(spec_file, sheet_file, grader, input_mode, two_sided, language):
+def do_mark(spec_file, sheet_file, grader, input_mode, advocate_review, language, strict_critic=False):
     if sheet_file is None:
         raise gr.Error("Upload an answer sheet: a PDF, a photo, or a .txt file.")
     try:
         spec = _spec(spec_file)
     except Exception:
         raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
-    opts = Options(use_llm=grader == "LLM grader", input_mode=INPUTS[input_mode], two_sided=two_sided, language=language)
+    opts = Options(use_llm=grader == "LLM grader", input_mode=INPUTS[input_mode], advocate_review=advocate_review, strict_critic=strict_critic, language=language)
     try:
         r = mark_sheet(spec, sheet_file, opts)
     except ValueError as err:
@@ -83,7 +83,7 @@ def do_regrade(choice, reason, last):
     return f"**{cid}: {rec.old_marks:g} → {rec.new_marks:g}** ({rec.decision})\n\n{rec.response or rec.reason}"
 
 
-def do_class(spec_file, files, grader, two_sided):
+def do_class(spec_file, files, grader, advocate_review, strict_critic=False):
     if not files:
         raise gr.Error("Upload two or more answer sheets.")
     try:
@@ -91,7 +91,7 @@ def do_class(spec_file, files, grader, two_sided):
     except Exception:
         raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
     try:
-        rpath, zpath, notes = mark_class(spec, files, Options(use_llm=grader == "LLM grader", two_sided=two_sided))
+        rpath, zpath, notes = mark_class(spec, files, Options(use_llm=grader == "LLM grader", advocate_review=advocate_review, strict_critic=strict_critic))
     except ValueError as err:
         raise gr.Error(str(err)) from None
     except Exception:
@@ -108,7 +108,7 @@ ABOUT = """
 ### How it marks
 1. **Reads the sheet.** Typed text as is; scans with Bodhan IndicOCR (Indian languages), or a vision model.
 2. **Grades each rubric point** with an LLM, three times, keeping the median. Every mark must quote the student's own words, checked in code.
-3. **Two-sided review.** A critic can lower a generous mark; an advocate can raise a missed one, but only with a quote.
+3. **Advocate review by default.** An advocate can raise a missed mark only with a verified quote; the strict critic is optional and can only lower marks. The SPRAG dev ablation selected advocate-only review for its lowest MAE and near-zero bias, while the critic increased under-marking.
 4. **Knows when to defer.** Run spread, a second examiner, OCR confidence and the reviewers' changes give a confidence. Low confidence is marked **?** for a teacher.
 5. **Writes on the sheet** like an Indian examiner: a tick per mark, bracketed marks, a circled total, the marks grid on the cover, and a short remark: one strength, one fix, one thing for next time.
 
@@ -130,7 +130,8 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
         with gr.Row():
             grader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
             input_in = gr.Radio(list(INPUTS), value="OCR text", label="What the grader reads")
-            two_in = gr.Checkbox(value=True, label="Two-sided review (critic + advocate)")
+            advocate_in = gr.Checkbox(value=True, label="Advocate review")
+            critic_in = gr.Checkbox(value=False, label="Strict critic (lowers marks; off by default)")
             lang_in = gr.Dropdown(LANGUAGES, value="English", label="Feedback language")
         go = gr.Button("Mark it", variant="primary")
         sample = gr.Button("Try the sample sheet")
@@ -146,7 +147,7 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
             rg = gr.Button("Request regrade")
             rg_out = gr.Markdown()
         gr.Examples([[str(SAMPLE / "answer_sheets" / name)] for name in ("S001.txt", "S002.txt", "S003.txt", "S002_scan.pdf")], inputs=[sheet_in], label="Sample sheets")
-        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, two_in, lang_in], [gallery, summary, pdf, report, crit_in, status, last_result])
+        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, advocate_in, lang_in, critic_in], [gallery, summary, pdf, report, crit_in, status, last_result])
         sample.click(do_sample, outputs=[gallery, summary, pdf, report, crit_in, status, last_result])
         rg.click(do_regrade, [crit_in, reason_in, last_result], [rg_out])
     with gr.Tab("Mark a class"):
@@ -155,12 +156,13 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
             cspec_in = gr.File(label="Exam spec. Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath")
         with gr.Row():
             cgrader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
-            ctwo_in = gr.Checkbox(value=True, label="Two-sided review")
+            cadvocate_in = gr.Checkbox(value=True, label="Advocate review")
+            ccritic_in = gr.Checkbox(value=False, label="Strict critic (lowers marks; off by default)")
         cgo = gr.Button("Mark the class", variant="primary")
         cnotes = gr.Markdown()
         czip = gr.File(label="Marked sheets, grades and report (zip)")
         creport = gr.HTML()
-        cgo.click(do_class, [cspec_in, files_in, cgrader_in, ctwo_in], [creport, czip, cnotes, status])
+        cgo.click(do_class, [cspec_in, files_in, cgrader_in, cadvocate_in, ccritic_in], [creport, czip, cnotes, status])
     with gr.Tab("How it works"):
         gr.Markdown(ABOUT)
 

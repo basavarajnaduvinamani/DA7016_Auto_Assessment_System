@@ -1,6 +1,6 @@
 # 07: Final report with real results, and advocate-only default
 
-Status: todo
+Status: in review
 Depends on: 03, 06
 
 ## Goal

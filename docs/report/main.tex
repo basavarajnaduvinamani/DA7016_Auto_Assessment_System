@@ -21,7 +21,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Auto-Assessment is an implemented pipeline for grading complete answer sheets against a teacher's rubric. It accepts typed answers, scanned documents or photographs, and produces criterion-level marks, evidence-linked feedback, an HTML report and a red-ink annotated booklet. A mark must survive a quote check against the answer text; an advocate and a critic review the award in opposite directions. Confidence signals identify answers that need teacher review. The central educational question is whether feedback is specific enough for a student to improve, rather than whether an automated score merely resembles a human score. This report describes the implementation, the evaluation protocol and the mechanisms for assembling reproducible results. Empirical results and the example marked page remain explicitly pending; the report makes no claim of measured grading accuracy, learning gains or deployment readiness.
+Auto-Assessment grades answer sheets against a teacher's rubric and returns evidence-linked marks, feedback and red-ink annotations. We evaluate typed SPRAG responses and a handwritten classroom set, distinguishing grading from end-to-end document reading. On SPRAG test, advocate-only review achieves quadratic weighted kappa (QWK) 0.723 [0.667, 0.773], mean absolute error (MAE) 0.85 of 5 and within-1 agreement of 76\%, compared with lexical-baseline QWK 0.375 and human--human QWK 0.962. The review ablation finds that a critic permitted only to lower marks increases negative bias; advocate-only was selected on development data for MAE and near-zero bias. Confidence gating on the full pipeline accepts 62\% of answers at MAE 0.66, while the selected configuration accepts 92\% at MAE 0.76. On handwritten classroom answers, QWK against a single teacher is 0.47 [0.32, 0.57]. A targeted injection check reveals score manipulation despite prompt-level safeguards; a wording-specific pattern subsequently routes matching answers to a teacher. A Hindi worked example demonstrates the translation path without claiming multilingual evaluation. The remaining gap to human agreement supports selective auto-marking with teacher review, rather than autonomous replacement of examiners.
 \end{abstract}
 \input{sections/introduction}
 \input{sections/related_work}
@@ -31,6 +31,7 @@ Auto-Assessment is an implemented pipeline for grading complete answer sheets ag
 \input{sections/discussion}
 \input{sections/ethics}
 \input{sections/conclusion}
+\clearpage
 \bibliographystyle{plainnat}
 \bibliography{references}
 \clearpage

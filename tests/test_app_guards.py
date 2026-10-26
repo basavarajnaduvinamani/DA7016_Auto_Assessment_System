@@ -335,3 +335,34 @@ def test_scanned_example_is_available(app_module):
     config = app_module.demo.config
     datasets = [c for c in config['components'] if c['type'] == 'dataset']
     assert any('S002_scan.pdf' in str(c['props']['samples']) for c in datasets)
+
+
+def test_advocate_is_default_and_critic_is_separate_in_ui(app_module, monkeypatch):
+    for advocate, critic in ((app_module.advocate_in, app_module.critic_in), (app_module.cadvocate_in, app_module.ccritic_in)):
+        assert advocate.value is True and advocate.label == 'Advocate review'
+        assert critic.value is False and critic.label == 'Strict critic (lowers marks; off by default)'
+    assert 'ablation' in app_module.ABOUT and 'optional' in app_module.ABOUT
+    calls = []
+    real_mark = app_module.mark_sheet
+
+    def record(spec, sheet, opts):
+        calls.append((opts.advocate_review, opts.strict_critic))
+        opts.annotate = False
+        return real_mark(spec, sheet, opts)
+
+    monkeypatch.setattr(app_module, 'mark_sheet', record)
+    app_module.do_sample()
+    app_module.do_mark(None, str(SHEET), 'Lexical baseline', 'OCR text', False, 'English', True)
+    assert calls == [(True, False), (False, True)]
+    class_calls = []
+
+    def record_class(spec, sheets, opts):
+        class_calls.append((opts.advocate_review, opts.strict_critic))
+        report = Path('class.html')
+        report.write_text('Class')
+        return report, Path('class.zip'), []
+
+    monkeypatch.setattr(app_module, 'mark_class', record_class)
+    app_module.do_class(None, [str(SHEET)], 'Lexical baseline', True)
+    app_module.do_class(None, [str(SHEET)], 'Lexical baseline', False, True)
+    assert class_calls == [(True, False), (False, True)]

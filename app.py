@@ -20,7 +20,6 @@ from autoassess.demo import (
 from autoassess.spec_builder import lint_spec, load_spec
 
 INPUTS = {"OCR text": "text", "Page image": "image", "Both (hybrid)": "hybrid"}
-STATE: dict = {}
 
 
 def _spec(spec_file):
@@ -41,7 +40,6 @@ def do_mark(spec_file, sheet_file, grader, input_mode, two_sided, language):
         raise gr.Error(str(err)) from None
     except Exception:
         raise gr.Error("The sheet could not be marked. Try the sample sheet or a valid typed .txt file.") from None
-    STATE["last"] = (spec, r, sheet_file)
     notes = "\n".join(f"> {n}" for n in r.notes + [f"Rubric check: {w}" for w in lint_spec(spec)])
     choices = [f"{q.question_id} / {c.criterion_id} ({c.marks_awarded:g})" for q in r.grade.questions for c in q.criteria]
     return (
@@ -51,23 +49,32 @@ def do_mark(spec_file, sheet_file, grader, input_mode, two_sided, language):
         r.html_path.read_text(encoding="utf-8"),
         gr.update(choices=choices, value=choices[0] if choices else None),
         status_markdown(),
+        (spec, r, sheet_file),
     )
 
 
-def do_regrade(choice, reason):
+def do_regrade(choice, reason, last):
     from autoassess.providers import make_llm
     from autoassess.regrade import regrade
 
-    if "last" not in STATE:
+    if last is None:
         raise gr.Error("Mark a sheet first.")
     if not reason or not reason.strip():
         raise gr.Error("Say why the mark should change.")
-    spec, r, _ = STATE["last"]
+    if not choice:
+        raise gr.Error("Choose a mark to review.")
+    spec, r, _ = last
+    try:
+        qid, criterion = choice.split(" / ", 1)
+        cid = criterion.split(" ")[0]
+        answer = r.run.segments[qid].text
+        if not any(q.question_id == qid and any(c.criterion_id == cid for c in q.criteria) for q in r.grade.questions):
+            raise ValueError("Unknown criterion")
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise gr.Error("That answer or mark is unavailable. Mark the sheet again and choose a mark to review.") from None
     settings = demo_settings()
     if not llm_available(settings):
         raise gr.Error("Regrade requests need the LLM grader (no key is set).")
-    qid, cid = choice.split(" / ")[0], choice.split(" / ")[1].split(" ")[0]
-    answer = r.run.segments[qid].text
     try:
         new, rec = regrade(spec, r.grade, answer, qid, cid, reason, make_llm(settings), log=Path(settings.cache_dir) / "regrades.jsonl")
     except Exception:
@@ -114,6 +121,7 @@ grader_choices = ["LLM grader", "Lexical baseline"] if llm_enabled else ["Lexica
 
 with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
     gr.Markdown("# Red-Ink Grader\nUpload an answer sheet and get it back marked, with marks a student can check and feedback they can act on.")
+    last_result = gr.State(value=None)
     status = gr.Markdown(status_markdown())
     with gr.Tab("Mark a sheet"):
         with gr.Row():
@@ -137,10 +145,10 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
             reason_in = gr.Textbox(label="Why should it change?", lines=2)
             rg = gr.Button("Request regrade")
             rg_out = gr.Markdown()
-        gr.Examples([[str(SAMPLE / "answer_sheets" / f"S00{i}.txt")] for i in (1, 2, 3)], inputs=[sheet_in], label="Sample sheets")
-        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, two_in, lang_in], [gallery, summary, pdf, report, crit_in, status])
-        sample.click(do_sample, outputs=[gallery, summary, pdf, report, crit_in, status])
-        rg.click(do_regrade, [crit_in, reason_in], [rg_out])
+        gr.Examples([[str(SAMPLE / "answer_sheets" / name)] for name in ("S001.txt", "S002.txt", "S003.txt", "S002_scan.pdf")], inputs=[sheet_in], label="Sample sheets")
+        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, two_in, lang_in], [gallery, summary, pdf, report, crit_in, status, last_result])
+        sample.click(do_sample, outputs=[gallery, summary, pdf, report, crit_in, status, last_result])
+        rg.click(do_regrade, [crit_in, reason_in, last_result], [rg_out])
     with gr.Tab("Mark a class"):
         with gr.Row():
             files_in = gr.File(label="Answer sheets", file_count="multiple", type="filepath", file_types=list(UPLOAD_EXTENSIONS))

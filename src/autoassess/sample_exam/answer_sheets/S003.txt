@@ -1,0 +1,3 @@
+Q1 Attention is the most important part of ChatGPT and it is very powerful. It pays attention to important words in the sentence like humans do.
+
+Q2 Hallucination means the AI is seeing things that are not there. To fix it we should use a better model.

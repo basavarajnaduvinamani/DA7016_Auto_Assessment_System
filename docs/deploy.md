@@ -7,9 +7,11 @@
 3. Configure provider keys securely in the service's Environment settings if live grading is needed. The blueprint selects OpenRouter; a Gemini key alone does not enable that selection.
 4. Wait for Render's build and health check, then open the service URL. No deployment is performed by this repository task.
 
+The demo extra pins Gradio to `>=6.30,<6.31`, tested with 6.30.0. Sample exam files ship inside the Python package, so a non-editable `pip install .` also supports the default rubric and examples. `data/sample_exam/` remains the source of truth; tests check that the packaged copy matches.
+
 ## A dependable demonstration
 
-With no LLM key, both grader selectors are fixed to **Lexical baseline** and the UI explains why the LLM choice is unavailable. The **Try the sample sheet** button immediately marks the bundled `S002.txt` with the sample rubric. Typed text needs no OCR key. Scans require a configured OCR provider; unsupported or excessive files are rejected with readable errors before OCR or LLM work. Allowed answer-sheet extensions are `.pdf`, `.png`, `.jpg`, `.jpeg` and `.txt`.
+With no LLM key, both grader selectors are fixed to **Lexical baseline** and the UI explains why the LLM choice is unavailable. The **Try the sample sheet** button immediately marks the bundled `S002.txt` with the sample rubric. Typed text needs no OCR key. **Sample sheets** also includes `S002_scan.pdf` (under 300 KB), rendered from S002 using the annotator’s ruled-page layout. Choose it to populate the upload, then click **Mark it** to demonstrate OCR; it requires configured OCR and is unavailable in text-only dry-run mode. Each visitor’s last marking result is held in Gradio session state for regrades. Scans require a configured OCR provider; unsupported or excessive files are rejected with readable errors before OCR or LLM work. Allowed answer-sheet extensions are `.pdf`, `.png`, `.jpg`, `.jpeg` and `.txt`.
 
 Set `AUTOASSESS_DEMO_DRY_RUN=1` to show the full scripted grading, advocate, critic, feedback and red-ink path without provider calls. This uses task 01's fake provider, ignores configured LLM/OCR/translation credentials for the demo and accepts typed `.txt` sheets only. It is a workflow demonstration, not semantic assessment. It does not consume the paid LLM daily allowance. Feedback stays in English. Setting the shared provider to `fake` also enables scripted text grading.
 

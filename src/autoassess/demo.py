@@ -25,7 +25,7 @@ from autoassess.providers import make_llm, make_ocr, make_translator
 from autoassess.schemas import ExamSpec, OCRPage, SheetGrade
 
 ROOT = Path(__file__).resolve().parents[2]
-SAMPLE = ROOT / "data" / "sample_exam"
+SAMPLE = Path(__file__).resolve().parent / "sample_exam"
 LANGUAGES = ["English", "Hindi", "Kannada", "Tamil", "Telugu", "Marathi", "Bengali", "Malayalam", "Gujarati", "Odia", "Punjabi"]
 
 

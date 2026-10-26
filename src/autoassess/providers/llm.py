@@ -111,6 +111,14 @@ class OpenAICompatibleLLM(LLMClient):
             return response["choices"][0]["message"]["content"]
 
         if self.cache is None:
-            return parse_json_reply(call())
+            try:
+                return parse_json_reply(call())
+            except ValueError:
+                return parse_json_reply(call())
         reply = self.cache.get_or_compute(content_key("llm", payload), call)
-        return parse_json_reply(reply)
+        try:
+            return parse_json_reply(reply)
+        except ValueError:
+            # A malformed reply is cached too; ask once more under its own cache key.
+            reply = self.cache.get_or_compute(content_key("llm", {**payload, "retry": 1}), call)
+            return parse_json_reply(reply)

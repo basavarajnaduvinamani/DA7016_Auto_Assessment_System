@@ -246,7 +246,7 @@ def test_sample_button_marks_s002_in_one_call(app_module):
     result = app_module.do_sample()
     assert Path(result[2]).is_file()
     assert "S002" in result[3] and "Total:" in result[1]
-    assert len(result) == 6
+    assert len(result) == 7
     assert app_module.sample.value == "Try the sample sheet"
 
 
@@ -260,13 +260,13 @@ def test_bad_upload_becomes_gradio_error(app_module, tmp_path):
 def test_regrade_error_keeps_original_mark(app_module, monkeypatch):
     from autoassess import providers
 
-    app_module.do_sample()
-    grade = app_module.STATE["last"][1].grade.model_copy(deep=True)
+    last = app_module.do_sample()[-1]
+    grade = last[1].grade.model_copy(deep=True)
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setattr(providers, "make_llm", lambda *a: FailingLLM(ConnectionError("private")))
-    message = app_module.do_regrade("Q1 / Q1.c1 (0)", "Please check")
+    message = app_module.do_regrade("Q1 / Q1.c1 (0)", "Please check", last)
     assert "unavailable" in message and "private" not in message
-    assert app_module.STATE["last"][1].grade == grade
+    assert last[1].grade == grade
 
 
 def test_concurrent_daily_reservations_do_not_exceed_cap(tmp_path):
@@ -288,3 +288,50 @@ def test_keyless_custom_endpoint_counts_as_available(monkeypatch):
     base = Settings.load()
     assert llm_available(dataclasses.replace(base, llm_provider="custom", llm_base_url="http://localhost:11434/v1", llm_api_key=""))
     assert not llm_available(dataclasses.replace(base, llm_provider="openrouter", llm_api_key=""))
+
+
+def test_regrade_state_is_per_visitor(app_module, monkeypatch):
+    from types import SimpleNamespace
+    from autoassess import regrade as regrade_module
+    from autoassess import providers
+
+    first = app_module.do_sample()[-1]
+    second = app_module.do_mark(None, str(SAMPLE / 'answer_sheets/S001.txt'), 'Lexical baseline', 'OCR text', False, 'English')[-1]
+    assert first[1].grade.student_id == 'S002'
+    assert second[1].grade.student_id == 'S001'
+    seen = []
+
+    def fake_regrade(spec, grade, answer, *args, **kwargs):
+        seen.append((grade.student_id, answer))
+        return grade, SimpleNamespace(old_marks=0, new_marks=0, decision='keep', response='Reviewed', reason='')
+
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    monkeypatch.setattr(providers, 'make_llm', lambda *a: object())
+    monkeypatch.setattr(regrade_module, 'regrade', fake_regrade)
+    for last in (first, second):
+        assert 'Reviewed' in app_module.do_regrade('Q1 / Q1.c1 (0)', 'Check this', last)
+    assert seen == [(last[1].grade.student_id, last[1].run.segments['Q1'].text) for last in (first, second)]
+    assert isinstance(app_module.last_result, app_module.gr.State)
+    assert not hasattr(app_module, 'STATE')
+    deps = app_module.demo.config['dependencies']
+    assert any(app_module.last_result._id in d['inputs'] for d in deps)
+    assert sum(app_module.last_result._id in d['outputs'] for d in deps) == 2
+
+
+@pytest.mark.parametrize('problem', ['no_sheet', 'no_choice', 'missing_segment', 'bad_choice', 'no_reason'])
+def test_regrade_invalid_input_is_friendly(app_module, problem):
+    last = app_module.do_sample()[-1] if problem != 'no_sheet' else None
+    choice = None if problem == 'no_choice' else 'Q1 / Q1.c1 (0)'
+    if problem == 'missing_segment':
+        last[1].run.segments.pop('Q1')
+    if problem == 'bad_choice':
+        choice = 'invalid'
+    reason = '' if problem == 'no_reason' else 'Please check'
+    with pytest.raises(app_module.gr.Error, match='Mark a sheet|Choose a mark|unavailable|Say why'):
+        app_module.do_regrade(choice, reason, last)
+
+
+def test_scanned_example_is_available(app_module):
+    config = app_module.demo.config
+    datasets = [c for c in config['components'] if c['type'] == 'dataset']
+    assert any('S002_scan.pdf' in str(c['props']['samples']) for c in datasets)

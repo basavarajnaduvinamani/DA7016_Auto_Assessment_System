@@ -11,4 +11,4 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 03 | [Final report skeleton (LaTeX)](03-final-report.md) | done |
 | 04 | [Demo hardening for Render](04-demo-hardening.md) | done |
 | 05 | [Import the SPRAG dataset for evaluation](05-sprag-import.md) | done |
-| 06 | [Demo fixes and question-clustered CIs](06-demo-fixes-cluster-ci.md) | todo |
+| 06 | [Demo fixes and question-clustered CIs](06-demo-fixes-cluster-ci.md) | in review |

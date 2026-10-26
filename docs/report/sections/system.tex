@@ -12,7 +12,7 @@ The package separates provider interfaces from grading logic. A teacher-authored
 \node[stage,right=of ocr] (segment) {Segmentation};
 \node[stage,below=of segment] (grade) {Criterion grading};
 \node[stage,left=of grade] (advocate) {Advocate};
-\node[stage,left=of advocate] (critic) {Critic};
+\node[stage,left=of advocate] (critic) {Optional critic};
 \node[stage,below=of critic] (confidence) {Confidence};
 \node[stage,right=of confidence] (feedback) {Feedback};
 \node[stage,right=of feedback] (ink) {Red ink};
@@ -50,15 +50,15 @@ The grading prompt treats the student's answer as data and the rubric as authori
 For text-grounded grading, a quote must match the answer after the implemented normalisation, with a fuzzy option for small OCR differences. Unsupported quotes receive a repair opportunity; if still unsupported, the associated award is withdrawn and flagged. Matching is deliberately tolerant of transcription noise, so a verified quote proves textual support rather than mathematical or conceptual correctness. Repeated grading runs are combined by a criterion-level median, keeping a corresponding evidence-bearing result.
 
 \subsection{Advocate}
-The advocate examines criteria below full credit for a missed valid idea or alternative method. It may propose a higher mark only with evidence from the answer. Code checks that evidence and bounds the increase before accepting it. This pass counteracts the tendency of strict evidence rules and lower-only review to remove credit. It is optional, and a raise is recorded rather than silently replacing the marking history.
+The advocate examines criteria below full credit for a missed valid idea or alternative method. It may propose a higher mark only with evidence from the answer. Code checks that evidence and bounds the increase before accepting it. This pass counteracts the tendency of strict evidence rules and lower-only review to remove credit. It is enabled by default in the demo following the dev ablation, and a raise is recorded rather than silently replacing the marking history.
 
 \subsection{Critic}
-The critic audits awarded marks after the advocate. It can uphold or reduce an award but cannot raise it. The review asks whether quoted evidence satisfies the criterion, whether a statement is correct and whether partial credit is justified. Keeping the advocate before the critic lets the latter inspect newly proposed credit as well as the original award. Neither role is assumed independent merely because the prompt differs; both may share the same underlying model.
+The critic is off by default in the demo and, when explicitly enabled, audits awarded marks after the advocate. It can uphold or reduce an award but cannot raise it. The review asks whether quoted evidence satisfies the criterion, whether a statement is correct and whether partial credit is justified. Keeping the advocate before the critic lets the latter inspect newly proposed credit as well as the original award. Neither role is assumed independent merely because the prompt differs; both may share the same underlying model.
 
 \subsection{Confidence}
 Confidence combines available signals for run spread, disagreement with a second examiner, review changes, OCR confidence and withdrawn evidence. The weakest signal determines the combined value. Low confidence leads to a question mark on the sheet and referral for teacher review; diagram and reading concerns also remain visible as flags. Missing signals do not constitute successful checks, and a stable set of model outputs can still be consistently wrong.
 
-The threshold is configurable, and its empirical operating point remains \pending{confidence threshold performance}. Coverage reports must pair the share automatically accepted with accuracy on that subset. The class-marking path additionally flags similar answers with substantially different marks, supporting consistency checks across a pile of scripts.
+At confidence $\geq 0.8$, the measured full pipeline accepts 62\% of SPRAG test answers at MAE 0.66; the final advocate-only configuration accepts 92\% at MAE 0.76. Coverage reports must pair the share automatically accepted with accuracy on that subset. The class-marking path additionally flags similar answers with substantially different marks, supporting consistency checks across a pile of scripts.
 
 \subsection{Feedback}
 Feedback links earned and lost points to known criteria and supplies a concrete next step for each deduction. Verification rejects unknown criteria, praise without an award, loss claims without a deduction and unsupported quotations. A short remark separates a strength, a fix and a next-time suggestion; comments about the person are rejected. Missing feedback is filled from the rubric, ensuring that a deduction does not disappear simply because the model omitted it.

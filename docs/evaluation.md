@@ -123,4 +123,4 @@ The unchanged evaluator matches human marks by `(student_id, question_id)` and r
 
 ### Confidence interval sampling
 
-`evaluate` resamples whole question IDs with replacement for consensus and metadata-group confidence intervals, keeping every matched answer of each drawn question together. These reports record `ci_method: cluster:question`; point estimates are unchanged. Per-grader intervals retain item resampling (`ci_method: item`), as does `bootstrap_ci` when no groups are supplied. With only one question, the clustered interval is degenerate and cannot estimate variation across questions.
+`evaluate` resamples whole question IDs with replacement for per-grader, consensus and metadata-group confidence intervals, keeping every matched answer of each drawn question together. These reports record `ci_method: cluster:question`; point estimates are unchanged. `bootstrap_ci` keeps item resampling (`ci_method: item`) when no groups are supplied; per-grader intervals are clustered too because a single-grader dataset reports only those. With only one question, the clustered interval is degenerate and cannot estimate variation across questions.

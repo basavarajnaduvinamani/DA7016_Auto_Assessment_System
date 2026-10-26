@@ -57,7 +57,7 @@ def test_handwritten_table_matches_source_and_keeps_offset_distinct():
     assert r'52\% / 87\%' in tex
     assert values['Mean mark system vs teacher'] == '0.59 vs 1.07 (bias -0.49)'
     assert '0.59 / 1.07' in tex and '$-0.49$' in tex
-    assert values['Leave-one-student-out offset correction'] == 'QWK 0.55 [0.44, 0.65], bias -0.03'
+    assert values['Leave-one-student-out offset correction'] == 'QWK 0.55 [0.44, 0.65] (item-level bootstrap), bias -0.03'
     assert '0.55 [0.44, 0.65]' in tex and '$-0.03$' in tex
     assert values['Flagged for teacher review'] == '75 of 135 questions' and '75 of 135' in tex
 

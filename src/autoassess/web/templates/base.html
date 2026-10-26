@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"selfRequestsOnly":true}'>
   <title>{% block title %}Red-Ink Classroom{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
   <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>

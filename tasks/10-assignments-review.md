@@ -1,6 +1,6 @@
 # 10: Teacher web app, part 2: assignments, uploads, grading, review queue
 
-Status: todo
+Status: in review
 Depends on: 09
 
 ## Goal

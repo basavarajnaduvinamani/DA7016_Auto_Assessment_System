@@ -1,0 +1,9 @@
+<fieldset class="question-card panel" data-question="{{ q.index }}">
+  <legend>Question {{ q.index }}</legend>
+  {% if suggestion_error %}<div role="alert" class="notice error">{{ suggestion_error }}</div>{% endif %}
+  <div class="stack"><label>Question text<textarea name="q{{ q.index }}_text" required>{{ q.text }}</textarea></label><label>Maximum marks<input type="number" name="q{{ q.index }}_max_marks" value="{{ q.max_marks }}" min="0.01" step="any" required></label><label>Model answer <span class="muted">(optional)</span><textarea name="q{{ q.index }}_model_answer">{{ q.model_answer }}</textarea></label>
+  <div class="section-heading"><h3>Rubric criteria</h3><button class="button secondary" type="button" data-add-criterion>Add criterion</button></div>
+  <div class="criteria-list stack">{% for c in q.criteria %}<div class="criterion-fields"><label>Description<textarea name="q{{ q.index }}_criterion_description" required>{{ c.description }}</textarea></label><label>Marks<input name="q{{ q.index }}_criterion_marks" type="number" min="0.01" step="any" value="{{ c.marks }}" required></label><button type="button" class="link-button" data-remove-criterion aria-label="Remove criterion">Remove</button></div>{% endfor %}</div>
+  {% if ai_available %}<div><button type="button" class="button secondary" hx-post="/classes/{{ classroom.id }}/assignments/suggest?index={{ q.index }}" hx-include="closest fieldset" hx-target="closest fieldset" hx-swap="outerHTML" hx-disabled-elt="this">Suggest criteria</button><span class="small muted"> Review suggestions before saving.</span></div>{% endif %}
+  </div>
+</fieldset>

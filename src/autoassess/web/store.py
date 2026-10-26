@@ -10,7 +10,10 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
-class Store:
+from autoassess.web.repository import AssignmentStore
+
+
+class Store(AssignmentStore):
     def __init__(self, data_dir: str | Path):
         self.root = Path(data_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -33,6 +36,8 @@ class Store:
                     roll_no TEXT NOT NULL, name TEXT NOT NULL, UNIQUE(class_id, roll_no)
                 );
             """)
+
+        self.init_assignments()
 
     @contextmanager
     def connect(self):
@@ -57,11 +62,15 @@ class Store:
 
     def classes(self, teacher_id: int) -> list[dict]:
         with self.connect() as db:
-            return [dict(r) for r in db.execute("""
-                SELECT c.*, COUNT(s.id) AS student_count, 0 AS assignment_count, 0 AS review_count
-                FROM classes c LEFT JOIN students s ON s.class_id=c.id
-                WHERE c.teacher_id=? GROUP BY c.id ORDER BY c.id
+            classes = [dict(r) for r in db.execute("""
+                SELECT c.*, COUNT(s.id) AS student_count FROM classes c
+                LEFT JOIN students s ON s.class_id=c.id WHERE c.teacher_id=? GROUP BY c.id ORDER BY c.id
             """, (teacher_id,))]
+        for classroom in classes:
+            assignments = self.assignments(classroom['id'])
+            classroom['assignment_count'] = len(assignments)
+            classroom['review_count'] = sum(self.assignment_summary(a['id'])['needs_review'] for a in assignments)
+        return classes
 
     def classroom(self, class_id: int, teacher_id: int):
         with self.connect() as db:

@@ -54,3 +54,14 @@ def test_llm_rate_limit_backs_off_and_retries(monkeypatch):
     monkeypatch.setattr(llm_mod.time, "sleep", lambda s: None)
     client = llm_mod.OpenAICompatibleLLM("https://example.test/v1", "m")
     assert client._post({}) == {"ok": 1} and len(tries) == 3
+
+
+def test_llm_retries_once_after_cached_malformed_reply(tmp_path, monkeypatch):
+    import autoassess.providers.llm as llm_mod
+
+    replies = iter(['{"a" 1}', '{"a": 2}'])
+    client = llm_mod.OpenAICompatibleLLM("https://example.test/v1", "m", cache=DiskCache(tmp_path, "llm"))
+    monkeypatch.setattr(client, "_post", lambda payload: {"choices": [{"message": {"content": next(replies)}}]})
+    assert client.complete_json("s", "u") == {"a": 2}
+    # Both replies are now cached, so a rerun makes no new call.
+    assert client.complete_json("s", "u") == {"a": 2}

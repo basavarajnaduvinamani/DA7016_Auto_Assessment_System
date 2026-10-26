@@ -75,7 +75,8 @@ def compare(
         if not keys:
             continue
         report["per_grader"][grader] = agreement_report(
-            [system[k] for k in keys], [marks[k] for k in keys], [max_marks[k[1]] for k in keys], ci=ci
+            [system[k] for k in keys], [marks[k] for k in keys], [max_marks[k[1]] for k in keys], ci=ci,
+            groups=[k[1] for k in keys],
         )
 
     consensus = human_consensus(human)

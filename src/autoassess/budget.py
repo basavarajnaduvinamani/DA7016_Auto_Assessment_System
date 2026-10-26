@@ -34,7 +34,8 @@ class Ledger:
     def _read(self) -> dict:
         if not self.path.exists():
             return {}
-        return json.loads(self.path.read_text())
+        text = self.path.read_text()
+        return json.loads(text) if text.strip() else {}
 
     def spent(self) -> float:
         return float(self._read().get(f"spent_{self.currency}", 0.0))
@@ -50,11 +51,19 @@ class Ledger:
             )
 
     def add(self, cost: float) -> None:
-        data = self._read()
+        # Several grading processes can share one ledger: lock, then replace the file atomically.
+        import fcntl
+        import os
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        data[f"spent_{self.currency}"] = round(float(data.get(f"spent_{self.currency}", 0.0)) + cost, 6)
-        data["calls"] = int(data.get("calls", 0)) + 1
-        self.path.write_text(json.dumps(data))
+        with open(self.path.with_suffix(".lock"), "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            data = self._read()
+            data[f"spent_{self.currency}"] = round(float(data.get(f"spent_{self.currency}", 0.0)) + cost, 6)
+            data["calls"] = int(data.get("calls", 0)) + 1
+            tmp = self.path.with_suffix(f".{os.getpid()}.tmp")
+            tmp.write_text(json.dumps(data))
+            os.replace(tmp, self.path)
 
     def summary(self) -> str:
         budget = f" of {self.symbol}{self.budget:g}" if self.budget is not None else ""

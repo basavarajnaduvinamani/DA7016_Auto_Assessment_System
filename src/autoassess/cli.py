@@ -313,9 +313,25 @@ def _doctor(args: argparse.Namespace) -> int:
     return 1 if any(c.status == FAIL for c in checks) else 0
 
 
+def _serve(args) -> int:
+    import uvicorn
+    from autoassess.web.app import create_app
+
+    app = create_app(args.data_dir, reset_demo=args.reset_demo)
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="autoassess")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("serve", help="start the Red-Ink Classroom teacher app")
+    p.add_argument("--host", default="0.0.0.0")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--data-dir")
+    p.add_argument("--reset-demo", action="store_true", help="replace local app data with the synthetic demo")
+    p.set_defaults(func=_serve)
 
     p = sub.add_parser("doctor", help="check each configured key with one tiny live request")
     p.add_argument("--free", action="store_true", help="skip the Bodhan checks (they cost about Rs 0.20)")

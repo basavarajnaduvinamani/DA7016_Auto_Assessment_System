@@ -147,3 +147,14 @@ Bodhan AI (IIT Madras with AI4Bharat) serves IndicOCR and Indic-Translate as hos
 - Student: Basavaraj A Naduvinamani (DA25C005), Joint M.Sc. in Data Science and AI, IIT Madras and University of Birmingham
 - Course: DA7016, Recent Advances in Generative AI (Jul to Nov 2026), Prof. Mitesh M. Khapra
 - Earlier interim reports are kept in `docs/archive/`; this README and the build plan supersede them.
+
+## Teacher app
+
+```bash
+pip install ".[web]"
+autoassess serve
+```
+
+Open http://localhost:8000 and choose **Sign in as demo teacher** (`demo@redink.local`). Manage classes and import roster CSVs with the header `roll_no,name`. The existing Gradio demo is available at `/lab/`; `python app.py` still starts the standalone lab.
+
+This is mock sign-in, with no passwords: **not for real student data**. The app seeds one synthetic class with ten students. SQLite and files live under `AUTOASSESS_DATA_DIR` (default `.redink/`, ignored by Git); `--data-dir DIR` overrides it. `AUTOASSESS_SECRET_KEY` fixes the session-signing secret; otherwise it is random per process and sessions expire on restart. `--reset-demo` replaces local app records with the demo. Host and port can be set with `--host` and `--port`.

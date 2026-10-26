@@ -20,6 +20,7 @@ annotate = ["pillow>=10.1"]
 demo = ["gradio>=6.30,<6.31", "pillow>=10.1"]
 dev = ["pytest>=8", "httpx>=0.27"]
 report = ["matplotlib>=3.8"]
+web = ["fastapi>=0.110", "uvicorn>=0.29", "jinja2>=3.1", "python-multipart>=0.0.9", "itsdangerous>=2.2", "autoassess[demo]"]
 
 [project.scripts]
 autoassess = "autoassess.cli:main"
@@ -28,7 +29,7 @@ autoassess = "autoassess.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-autoassess = ["fonts/*.ttf", "fonts/*.txt", "sample_exam/*.yaml", "sample_exam/*.csv", "sample_exam/answer_sheets/*.txt", "sample_exam/answer_sheets/*.pdf"]
+autoassess = ["fonts/*.ttf", "fonts/*.txt", "sample_exam/*.yaml", "sample_exam/*.csv", "sample_exam/answer_sheets/*.txt", "sample_exam/answer_sheets/*.pdf", "web/templates/*.html", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

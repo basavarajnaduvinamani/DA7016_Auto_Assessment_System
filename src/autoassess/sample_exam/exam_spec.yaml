@@ -1,0 +1,82 @@
+# Sample exam used for development and tests. Replace with a real course exam.
+exam_id: da7016-sample
+title: DA7016 sample quiz - Generative AI basics
+language: en
+questions:
+  - id: Q1
+    aliases: ["1", "Ans 1", "1."]
+    text: Explain what the attention mechanism in a Transformer computes. (5 marks)
+    max_marks: 5
+    model_answer: >
+      Attention computes, for each token, a weighted sum of value vectors. Queries,
+      keys and values are linear projections of the input. Weights come from the
+      scaled dot product of the query with every key, divided by the square root of
+      the key dimension and passed through a softmax. Multi-head attention runs
+      several of these in parallel on different projections and concatenates them.
+    criteria:
+      - id: Q1.c1
+        description: States that queries, keys and values are linear projections of the input tokens.
+        marks: 1
+      - id: Q1.c2
+        description: Says the weights come from the dot product of a query with the keys, scaled by the square root of the key dimension.
+        marks: 1.5
+      - id: Q1.c3
+        description: Mentions the softmax that turns the scores into weights that sum to one.
+        marks: 1
+        allow_partial: false
+      - id: Q1.c4
+        description: Says the output is the weighted sum of the value vectors.
+        marks: 1
+        allow_partial: false
+      - id: Q1.c5
+        description: Explains multi-head attention as several attention operations in parallel whose outputs are concatenated.
+        marks: 0.5
+        allow_partial: false
+  - id: Q2
+    aliases: ["2", "Ans 2", "2."]
+    text: What is hallucination in large language models? Give one cause and one mitigation. (4 marks)
+    max_marks: 4
+    model_answer: >
+      Hallucination is when a model produces fluent text that is false or not
+      supported by its input or sources. One cause is that next-token training
+      rewards plausible text, not verified facts. One mitigation is retrieval
+      augmented generation, which grounds answers in retrieved documents and lets
+      the model cite them.
+    criteria:
+      - id: Q2.c1
+        description: Defines hallucination as fluent output that is false or unsupported by the input or sources.
+        marks: 1.5
+      - id: Q2.c2
+        description: Gives one valid cause, such as next-token training rewarding plausibility over truth, or gaps in training data.
+        marks: 1.25
+      - id: Q2.c3
+        description: Gives one valid mitigation, such as retrieval augmented generation, citing sources, or abstaining when unsure, and says how it helps.
+        marks: 1.25
+  - id: Q3
+    aliases: ["3", "Ans 3", "3."]
+    text: Compare fine-tuning and in-context learning for adapting an LLM to a new task. (6 marks)
+    max_marks: 6
+    model_answer: >
+      Fine-tuning updates the model's weights on task data, so it needs labelled
+      examples, compute and a training run, but then needs no examples at inference
+      and can learn new formats well. In-context learning leaves weights unchanged and
+      puts instructions and a few examples in the prompt; it is quick and cheap to
+      try but limited by the context window and adds tokens to every call. Use
+      in-context learning to prototype and fine-tuning when there is enough data and
+      the task is stable and high volume.
+    criteria:
+      - id: Q3.c1
+        description: States that fine-tuning updates the model weights using task data.
+        marks: 1
+      - id: Q3.c2
+        description: States that in-context learning leaves weights unchanged and uses instructions or examples in the prompt.
+        marks: 1
+      - id: Q3.c3
+        description: Gives at least one cost of fine-tuning, such as needing labelled data, compute, or a training run.
+        marks: 1
+      - id: Q3.c4
+        description: Gives at least one limit of in-context learning, such as the context window size or extra tokens on every call.
+        marks: 1
+      - id: Q3.c5
+        description: Says when to prefer each approach, for example prototyping versus a stable high-volume task with enough data.
+        marks: 2

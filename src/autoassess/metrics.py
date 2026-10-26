@@ -52,15 +52,26 @@ def bootstrap_ci(
     n_boot: int = 2000,
     alpha: float = 0.05,
     seed: int = 0,
+    groups: Sequence[str] | None = None,
 ) -> tuple[float, float]:
-    """Percentile bootstrap interval for metric(system, human), resampling items with replacement."""
+    """Percentile interval, resampling items or whole groups with replacement."""
     import random
 
     rng = random.Random(seed)
     n = len(system)
+    if len(human) != n or (groups is not None and len(groups) != n):
+        raise ValueError("marks and groups must have equal lengths")
+    clusters: dict[str, list[int]] = {}
+    if groups is not None:
+        for i, group in enumerate(groups):
+            clusters.setdefault(group, []).append(i)
+    members = list(clusters.values())
     stats = []
     for _ in range(n_boot):
-        idx = [rng.randrange(n) for _ in range(n)]
+        if groups is None:
+            idx = [rng.randrange(n) for _ in range(n)]
+        else:
+            idx = [i for _ in members for i in members[rng.randrange(len(members))]]
         try:
             v = metric([system[i] for i in idx], [human[i] for i in idx])
         except (ValueError, ZeroDivisionError):
@@ -85,10 +96,12 @@ def pearson(a: Sequence[float], b: Sequence[float]) -> float:
 
 
 def agreement_report(
-    system: Sequence[float], human: Sequence[float], max_marks: Sequence[float] | None = None, ci: bool = False
+    system: Sequence[float], human: Sequence[float], max_marks: Sequence[float] | None = None, ci: bool = False,
+    groups: Sequence[str] | None = None,
 ) -> dict:
     report = {
         "n": len(system),
+        "ci_method": "cluster:question" if groups is not None else "item",
         "qwk": round(quadratic_weighted_kappa(system, human), 3),
         "mae": round(mean_absolute_error(system, human), 3),
         "within_1": round(within(system, human, 1.0), 3),
@@ -102,9 +115,9 @@ def agreement_report(
         report["nmae"] = round(sum(abs(s - h) / m for s, h, m in zip(system, human, max_marks, strict=True)) / len(system), 3)
     if ci and len(system) >= 5:
         report["ci95"] = {
-            "qwk": bootstrap_ci(system, human, quadratic_weighted_kappa),
-            "mae": bootstrap_ci(system, human, mean_absolute_error),
-            "bias": bootstrap_ci(system, human, signed_bias),
+            "qwk": bootstrap_ci(system, human, quadratic_weighted_kappa, groups=groups),
+            "mae": bootstrap_ci(system, human, mean_absolute_error, groups=groups),
+            "bias": bootstrap_ci(system, human, signed_bias, groups=groups),
         }
     return report
 

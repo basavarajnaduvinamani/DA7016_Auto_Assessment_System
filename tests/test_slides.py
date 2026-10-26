@@ -30,7 +30,7 @@ def test_twelve_slides_share_report_identity_and_cover_demo():
     assert 'DA7016, IIT Madras' in SOURCE
     assert 'no teacher action on each answer' in FRAMES[1]
     assert 'defer to a teacher' in FRAMES[1]
-    assert all(word in FRAMES[-1] for word in ('Sample sheet', 'Red-ink PDF', 'Regrade request', 'LLM service'))
+    assert all(word in FRAMES[-1] for word in ('Sample sheets', 'Review queue', 'regrade request', 'red-ink PDF', 'LLM service'))
 
 
 def test_headline_and_ablation_cells_preserve_source_precision_and_bias():

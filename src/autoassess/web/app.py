@@ -16,6 +16,7 @@ from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
 from autoassess.web.seed import seed, seed_assignment
 from autoassess.web.jobs import Jobs
 from autoassess.web.routes import mount_assignment_routes
+from autoassess.web.downloads import mount_download_routes
 from autoassess.web.store import Store
 
 HERE = Path(__file__).resolve().parent
@@ -126,6 +127,7 @@ def create_app(data_dir=None, *, reset_demo=False, seed_samples=True):
         return roster_result(request, class_id, message=f"Imported {count} students. Existing roll numbers were updated.")
 
     mount_assignment_routes(app, store, templates, jobs)
+    mount_download_routes(app, store, templates)
 
     # Packaging the lab keeps non-editable installations independent of repo app.py.
     import gradio as gr

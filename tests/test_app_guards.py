@@ -227,7 +227,7 @@ def test_class_provider_failure_falls_back(tmp_path, monkeypatch):
 def app_module(monkeypatch):
     pytest.importorskip("gradio")
     monkeypatch.setenv("GRADIO_ANALYTICS_ENABLED", "False")
-    spec = importlib.util.spec_from_file_location("guarded_demo_app", ROOT / "app.py")
+    spec = importlib.util.spec_from_file_location("guarded_demo_app", ROOT / "src/autoassess/web/lab.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -1,6 +1,6 @@
 # 05: Import the SPRAG dataset for evaluation
 
-Status: in review
+Status: done
 
 ## Goal
 

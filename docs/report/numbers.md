@@ -2,7 +2,7 @@
 
 Written by Claude from the private runs on 2026-10-26. Only aggregate numbers appear here; no answers, names or scans.
 Marks are question-level. QWK is quadratic weighted kappa on half-mark bins. Intervals are 95% percentile bootstrap.
-Rows marked TBD are still running; Claude fills them in. Intervals are clustered by question unless stated.
+Intervals are clustered by question unless stated.
 
 ## Datasets
 
@@ -52,8 +52,8 @@ Reading: on dev the LLM configurations are within noise on QWK (0.64-0.68); the 
 | google/gemini-2.5-flash (chosen) | 0.701 [0.583, 0.802] | 0.91 | -0.47 |
 | anthropic/claude-haiku-5.5 | 0.659 [0.531, 0.778] | 0.98 | -0.39 |
 | openai/gpt-5-mini | 0.639 [0.470, 0.782] | 0.96 | +0.27 |
-| qwen/qwen3.8-flash | TBD | | |
-| deepseek/deepseek-chat-v3.1 | TBD | | |
+| deepseek/deepseek-chat-v3.1 | 0.665 [0.505, 0.788] | 0.95 | -0.42 |
+| qwen/qwen3.8-flash | 0.634 [0.472, 0.763] | 1.03 | -0.41 |
 
 Rule fixed in advance: replace gemini-2.5-flash only if another model beats it by more than 0.05 QWK on dev. None did.
 
@@ -81,4 +81,4 @@ A Hindi (Devanagari) answer to SPRAG Q1 ("What is machine learning?") was graded
 
 ## Cost
 
-OpenRouter total across all experiments about $7.5 (about $0.006 per answer for the full pipeline on SPRAG). Bodhan: about Rs 6 (OCR at Rs 0.20 per page plus translation).
+OpenRouter total across all experiments $7.72 (about $0.006 per answer for the full pipeline on SPRAG). Bodhan: about Rs 6 (OCR at Rs 0.20 per page plus translation).

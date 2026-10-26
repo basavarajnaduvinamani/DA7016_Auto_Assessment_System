@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
@@ -12,17 +13,32 @@ from fastapi.templating import Jinja2Templates
 
 from autoassess.demo import health_payload
 from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
-from autoassess.web.seed import seed
+from autoassess.web.seed import seed, seed_assignment
+from autoassess.web.jobs import Jobs
+from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.store import Store
 
 HERE = Path(__file__).resolve().parent
 
 
-def create_app(data_dir=None, *, reset_demo=False):
+def create_app(data_dir=None, *, reset_demo=False, seed_samples=True):
     store = Store(data_dir or os.getenv("AUTOASSESS_DATA_DIR", ".redink"))
     seed(store, reset=reset_demo)
+    if seed_samples:
+        seed_assignment(store)
+    jobs = Jobs(store)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        jobs.start()
+        try:
+            yield
+        finally:
+            jobs.close()
+
     serializer = signer()
-    app = FastAPI(title="Red-Ink Classroom")
+    app = FastAPI(title="Red-Ink Classroom", lifespan=lifespan)
+    app.state.jobs = jobs
     app.state.store = store
     templates = Jinja2Templates(directory=HERE / "templates")
     app.state.templates = templates
@@ -84,10 +100,10 @@ def create_app(data_dir=None, *, reset_demo=False):
 
     @app.get("/classes/{class_id}")
     def class_page(request: Request, class_id: int):
-        return render(request, "class.html", classroom=classroom(request, class_id), students=store.students(class_id))
+        return render(request, "class.html", classroom=classroom(request, class_id), students=store.students(class_id), assignments=store.assignments(class_id))
 
     def roster_result(request, class_id, error=None, message=None):
-        response = render(request, "class.html", classroom=classroom(request, class_id), students=store.students(class_id), error=error, message=message)
+        response = render(request, "class.html", classroom=classroom(request, class_id), students=store.students(class_id), assignments=store.assignments(class_id), error=error, message=message)
         response.status_code = 400 if error else 200
         return response
 
@@ -108,6 +124,8 @@ def create_app(data_dir=None, *, reset_demo=False):
         except ValueError as err:
             return roster_result(request, class_id, error=str(err))
         return roster_result(request, class_id, message=f"Imported {count} students. Existing roll numbers were updated.")
+
+    mount_assignment_routes(app, store, templates, jobs)
 
     # Packaging the lab keeps non-editable installations independent of repo app.py.
     import gradio as gr

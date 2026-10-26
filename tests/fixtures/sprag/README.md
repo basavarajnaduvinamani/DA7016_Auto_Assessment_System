@@ -1,0 +1,1 @@
+All questions, reference answers, student responses and scores in these fixtures are invented for importer tests. They are not copied from SPRAG. The source column names and ID patterns follow the public format.

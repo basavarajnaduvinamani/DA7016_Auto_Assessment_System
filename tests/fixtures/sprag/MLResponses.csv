@@ -1,0 +1,11 @@
+QuestionID,StudentAnswer,Score1,Score2
+BasicML010,A measured berry property such as mass is a feature.,5,5.0
+BasicML010,It is just the name of the orchard.,1,0
+BasicML010,-,0,0
+BasicML010,Some measured property of a berry.,,3
+BasicML020,Unseen fruit tests generalization beyond the training orchard.,5,4
+BasicML020,It provides a new check of the classifier.,3,
+BasicML020,No answer for this,0,0
+BasicML030,The model has no unripe examples and cannot learn the distinction.,5,5
+BasicML030,It might not recognize unripe berries.,4,3
+BasicML030,The labels are shiny.,,

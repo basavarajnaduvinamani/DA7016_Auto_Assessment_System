@@ -92,3 +92,31 @@ Only `--agreement` and `--out` are required. Omit optional inputs to omit their 
 `figures/coverage.png` plots accuracy within 0.5 marks against the share auto-accepted, excluding thresholds with no accepted items. `bias.png` shows signed bias per question when supplied; current `evaluate` outputs have no per-question CIs, so no intervals are invented. If an upstream report supplies each bias as `{"bias": value, "ci95": {"bias": [lower, upper]}}`, those intervals appear as error bars. `ablation.png` compares arm QWK with the human-human QWK line when available. Matplotlib is imported only while rendering figures; without it, tables and summary still work and the command prints one figures-skipped line.
 
 `summary.json` is a flat dictionary with `qwk`, `human_qwk`, `mae`, `within_1`, `bias`, `coverage_at_0_8` and `robustness_pass_rate`. System and ablation metrics use `vs_consensus`, falling back to the alphabetically first human grader for older reports. Coverage is copied from threshold 0.8, not from `auto_accepted_share`. Robustness pass rate is the share of passing rows across all cases (or the case-weighted pass rate from summaries when rows are unavailable). Unavailable headline values are `null`; table rounding does not alter the summary values. Reruns refresh the known table and figure filenames, removing stale optional sections while preserving unrelated files in the output directory.
+
+## Public data: SPRAG
+
+SPRAG contains typed English Python and ML answers from an Indian engineering college, with question text, reference answers and two human scores per answer. The [Zenodo release](https://zenodo.org/records/14928181) declares **CC BY 4.0** (Sridevi B., *SPRAG v1.0*, DOI `10.5281/zenodo.14928181`). The GitHub copy has no licence file. Keep the checkout and every imported/derived file under the git-ignored `data/private/`; **do not commit any SPRAG content**, including reference answers or generated reports. Tests use independently invented examples only.
+
+```bash
+git clone --depth 1 https://github.com/sridevibonthu/SPRAG data/private/SPRAG
+autoassess import-sprag --src data/private/SPRAG/Data --out data/private/sprag \
+    --subject all --per-question 5 --dev-share 0.2 --seed 0
+
+autoassess validate-spec data/private/sprag/exam_spec.yaml
+autoassess grade --baseline --spec data/private/sprag/exam_spec.yaml \
+    --out data/private/sprag-baseline data/private/sprag/sheets/*.txt
+autoassess evaluate --spec data/private/sprag/exam_spec.yaml \
+    --grades data/private/sprag-baseline --human data/private/sprag/human_marks.csv \
+    --meta data/private/sprag/sheets.csv --out data/private/sprag-agreement.json
+autoassess results --agreement data/private/sprag-agreement.json --out data/private/sprag-results
+```
+
+Choose a new or empty import output directory; the importer refuses nonempty destinations to prevent old sheets contaminating a new sample. It reads `Question_data.csv`, `MLResponses.csv` and `PyResponses.csv`, ignoring the duplicate `refstdcombined.csv`. `--subject ml|python|all` defaults to `all`; `--per-question` defaults to `5`, with `0` retaining every answer. Sampling uses the mean of available human scores to balance score strata, prioritising low/high strata when slots are scarce and choosing rows within strata using the seed. Entirely unscored answers form an additional stratum and may be omitted when a limited sample has enough known score levels. A balanced sample is not a prevalence estimate for the full dataset.
+
+Each source answer becomes its own sheet, **not a reconstructed student booklet**: SPRAG provides no student IDs. Sheet IDs combine the source question ID and its original within-question row ordinal, so sampling or filtering does not renumber them. Repeated answer texts, `-`, and `No answer for this` are retained as separate records. Empty scores omit only that grader's human-marks row; the printed missing-score count refers to the selected sample. Numeric scores must be finite and within the source's 0–5 range.
+
+`exam_spec.yaml` has sorted source questions mapped to `Q1..Qn`, with the original ID as an alias and the provided reference as model answer. Each question has one five-mark, partial-credit holistic criterion. This is a coarse rubric, not an analytic rubric or a claim that the lexical baseline can assess all of the reference answer. For questions above `Q99`, an extra lettered alias such as `Q1a` is used on the sheet label line so the existing segmenter can recognise it; canonical spec and grading IDs remain `Q100`, etc.
+
+The metadata CSV records subject, question type and `dev`/`test`. The seed shuffles the selected source questions and assigns the nearest integer number of questions to `--dev-share` (default `0.2`); all answers to a question stay in the same split. A share of zero or one is allowed. Metadata does not itself filter grading: the commands above evaluate both groups and report them separately via `--meta`. For future prompt tuning, select only dev sheet IDs from `sheets.csv`, freeze decisions, and then evaluate test questions. No live LLM grading is part of this import task.
+
+The unchanged evaluator matches human marks by `(student_id, question_id)` and reports human–human agreement where both graders supplied a score. An imported sheet answers only one question in the shared exam spec, so other questions appear as unanswered in its grade/report. Interpret agreement and coverage on the human-matched answer pairs; the whole-spec `auto_accepted_share` also includes those unrelated unanswered entries and is not an estimate of SPRAG review workload. This typed dataset does not measure OCR or handwriting performance.

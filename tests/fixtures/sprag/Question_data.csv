@@ -1,0 +1,7 @@
+QuestionID,QuestionText,QuestionType,Reference Answer
+BasicML010,"In a toy berry classifier, what is a feature?",Define,A feature is a measured berry property such as mass supplied to the classifier.
+BasicML020,Why hold back fruit from a second orchard?,Explain,Unseen orchard fruit tests whether the classifier generalizes beyond the training orchard.
+BasicML030,What happens if every training berry is labelled ripe?,,The model lacks examples of unripe berries and cannot learn that distinction reliably.
+PythonQ010,"What should tally_clouds([2, -1, 4]) return if it adds positive entries?",Apply,It returns six by adding two and four while ignoring the negative entry.
+PythonQ020,How does adding a meteor label differ for a list and a frozen set?,Difference,A list can be extended in place but a frozen set cannot be mutated.
+PythonQ030,Recall the starting index of the first rover waypoint in a Python list.,Remember,The first waypoint has index zero.

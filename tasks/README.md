@@ -10,4 +10,4 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 02 | [Results pack: tables and figures for the report](02-results-pack.md) | done |
 | 03 | [Final report skeleton (LaTeX)](03-final-report.md) | done |
 | 04 | [Demo hardening for Render](04-demo-hardening.md) | done |
-| 05 | [Import the SPRAG dataset for evaluation](05-sprag-import.md) | todo |
+| 05 | [Import the SPRAG dataset for evaluation](05-sprag-import.md) | in review |

@@ -65,3 +65,16 @@ def test_llm_retries_once_after_cached_malformed_reply(tmp_path, monkeypatch):
     assert client.complete_json("s", "u") == {"a": 2}
     # Both replies are now cached, so a rerun makes no new call.
     assert client.complete_json("s", "u") == {"a": 2}
+
+
+def test_llm_gives_up_after_three_malformed_replies(tmp_path, monkeypatch):
+    import pytest
+
+    import autoassess.providers.llm as llm_mod
+
+    client = llm_mod.OpenAICompatibleLLM("https://example.test/v1", "m", cache=DiskCache(tmp_path, "llm"))
+    calls = []
+    monkeypatch.setattr(client, "_post", lambda payload: calls.append(1) or {"choices": [{"message": {"content": '{"a" 1}'}}]})
+    with pytest.raises(ValueError):
+        client.complete_json("s", "u")
+    assert len(calls) == 3

@@ -70,7 +70,11 @@ def advocate(
     crit = {c.id: c for c in question.criteria}
     if all(r.marks_awarded >= crit[r.criterion_id].marks for r in results):
         return results, []
-    reply = llm.complete_json(ADVOCATE_SYSTEM, build_advocate_prompt(question, answer, results, context))
+    try:
+        reply = llm.complete_json(ADVOCATE_SYSTEM, build_advocate_prompt(question, answer, results, context))
+    except ValueError:
+        # Unreadable reply even after retries: keep the examiner's marks and say so.
+        return results, ["advocate_skipped:bad_reply"]
     raises = {}
     for p in reply.get("proposals", []) if isinstance(reply, dict) else []:
         if isinstance(p, dict) and p.get("decision") == "raise":

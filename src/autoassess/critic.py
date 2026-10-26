@@ -61,7 +61,11 @@ def audit(
     """Return results after the critic's reductions, plus a flag per reduction."""
     if not any(r.marks_awarded > 0 for r in results):
         return results, []
-    reply = llm.complete_json(CRITIC_SYSTEM, build_critic_prompt(question, answer, results))
+    try:
+        reply = llm.complete_json(CRITIC_SYSTEM, build_critic_prompt(question, answer, results))
+    except ValueError:
+        # Unreadable reply even after retries: keep the examiner's marks and say so.
+        return results, ["critic_skipped:bad_reply"]
     decisions = {}
     for a in reply.get("audits", []) if isinstance(reply, dict) else []:
         if isinstance(a, dict) and a.get("decision") == "reduce":

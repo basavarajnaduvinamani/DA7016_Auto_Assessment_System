@@ -110,15 +110,12 @@ class OpenAICompatibleLLM(LLMClient):
             record_llm_cost(self.ledger, response)
             return response["choices"][0]["message"]["content"]
 
-        if self.cache is None:
+        # A malformed reply is cached too, so each new attempt gets its own cache key.
+        for attempt in range(3):
+            key = payload if attempt == 0 else {**payload, "retry": attempt}
+            reply = call() if self.cache is None else self.cache.get_or_compute(content_key("llm", key), call)
             try:
-                return parse_json_reply(call())
+                return parse_json_reply(reply)
             except ValueError:
-                return parse_json_reply(call())
-        reply = self.cache.get_or_compute(content_key("llm", payload), call)
-        try:
-            return parse_json_reply(reply)
-        except ValueError:
-            # A malformed reply is cached too; ask once more under its own cache key.
-            reply = self.cache.get_or_compute(content_key("llm", {**payload, "retry": 1}), call)
-            return parse_json_reply(reply)
+                if attempt == 2:
+                    raise

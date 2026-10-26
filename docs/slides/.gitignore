@@ -1,0 +1,14 @@
+# Generated TeX outputs; the slides PDF is an artifact, not source.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+main.pdf

@@ -1,0 +1,23 @@
+% Adapted from the report's figure: same stages, interfaces and serpentine flow.
+% Explicit quote checking and the final advocate-only path suit the talk.
+\begin{tikzpicture}[
+  stage/.style={draw,rounded corners,align=center,minimum width=35mm,minimum height=12mm,font=\normalsize},
+  flow/.style={-{Latex},thick},node distance=8mm and 8mm]
+\node[stage] (ingest) {Ingest};
+\node[stage,right=of ingest] (ocr) {Bodhan OCR};
+\node[stage,right=of ocr] (segment) {Segmentation};
+\node[stage,below=of segment] (grade) {Criterion grading\\$\times 3$, median};
+\node[stage,left=of grade] (quote) {Quote check};
+\node[stage,left=of quote] (advocate) {Advocate};
+\node[stage,below=of advocate] (confidence) {Confidence};
+\node[stage,right=of confidence] (feedback) {Feedback};
+\node[stage,right=of feedback] (ink) {Red ink};
+\draw[flow] (ingest)--(ocr);
+\draw[flow] (ocr)--(segment);
+\draw[flow] (segment)--(grade);
+\draw[flow] (grade)--(quote);
+\draw[flow] (quote)--(advocate);
+\draw[flow] (advocate)--(confidence);
+\draw[flow] (confidence)--(feedback);
+\draw[flow] (feedback)--(ink);
+\end{tikzpicture}

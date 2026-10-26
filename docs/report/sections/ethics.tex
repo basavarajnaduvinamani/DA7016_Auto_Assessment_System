@@ -1,4 +1,5 @@
 \section{Ethics and privacy}
+\label{sec:ethics}
 The anonymiser removes recognised names, roll or registration identifiers, email addresses and phone patterns from answer text before downstream grading calls. Pattern matching cannot guarantee complete de-identification: unrecognised identifiers, free-form personal details and the original page image can still reveal a student. Operators must therefore remove identifying material from scans before any hosted OCR or vision request. Local OCR and precomputed transcription routes can reduce which material leaves the grading machine.
 
 When real-sheet mode is enabled, the provider check rejects the known free-tier Gemini endpoint unless the configuration indicates a paid project. This implements the project's restriction against using a free-tier LLM that may train on real student answers. It is not a universal policy audit for arbitrary endpoints, nor does enabling a flag establish consent or validate every provider's current data practices. The operator must choose an appropriate service and obtain permission for the actual study.

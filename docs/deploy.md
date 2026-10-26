@@ -1,13 +1,47 @@
-# Deploying the demo on Render (free)
+# Running Red-Ink Classroom
 
-`app.py` mounts Gradio on a FastAPI app and serves it with Uvicorn. The Render blueprint installs `.[ingest,api,demo]`, starts `python app.py`, and checks `GET /healthz`. Health returns `{"ok": true, "llm": "<provider or none>", "ocr": "<configured provider>"}` without constructing providers, checking credits or making API calls. It indicates process readiness, not provider connectivity.
+The teacher app and its Gradio lab run in one process. **Demo sign-in. Not for real student data.** Accounts are seeded local records without passwords; signed cookies are not real authentication. The app is for a synthetic demonstration, not public collection of student work.
+
+## Local install
+
+From the repository, using Python 3.11 or newer:
+
+```bash
+pip install ".[web,ingest,annotate]"
+AUTOASSESS_DEMO_DRY_RUN=1 autoassess serve --host 127.0.0.1 --port 8000
+```
+
+Open http://localhost:8000, then **Sign in as demo teacher**. The SQLite file and uploads live in `AUTOASSESS_DATA_DIR` (default `.redink/`); `--data-dir DIR` overrides it. `--reset-demo` replaces local app records with the synthetic demo. Keep one server process per data directory. Two worker threads mark queued sheets; jobs interrupted while running resume at startup. The Gradio lab is at `/lab/`; `python app.py` still runs the standalone lab.
+
+## Docker
+
+```bash
+docker build -t redink .
+docker run --rm -p 8000:8000 -e AUTOASSESS_DEMO_DRY_RUN=1 -v redink-data:/var/lib/redink redink
+```
+
+Open http://localhost:8000. The Python 3.12 slim image runs as a non-root user. `PORT` defaults to 8000; if changed, map that container port. The named volume preserves SQLite, uploads and annotations. Without a volume, removing the container loses app data and the next container starts with the synthetic seed. Mount provider credentials at runtime or pass them as environment variables; never bake them into the image. `.dockerignore` excludes private datasets, run/cache directories, local app data and `.env` files. CI builds without pushing and checks startup with container networking disabled. On a network with a private TLS proxy, an optional build-only certificate can be passed with `--secret id=build_ca,src=/path/to/ca-bundle.pem`; the certificate is not copied into the image and TLS verification remains enabled.
+
+## Render (free plan)
 
 1. Sign in at [render.com](https://render.com) with GitHub.
 2. Choose **New > Blueprint**, select this repository and branch `main`, and apply.
-3. Configure provider keys securely in the service's Environment settings if live grading is needed. The blueprint selects OpenRouter; a Gemini key alone does not enable that selection.
-4. Wait for Render's build and health check, then open the service URL. No deployment is performed by this repository task.
+3. For an offline demonstration set `AUTOASSESS_DEMO_DRY_RUN=1`. To use live providers, leave it off and configure keys securely in the Environment settings. The blueprint selects OpenRouter; a Gemini key alone does not enable that selection.
+4. Wait for the build and `/healthz`, then open the service URL. Free services can sleep; warm it up before the call. These repository changes configure deployment but do not publish a service.
 
-The demo extra pins Gradio to `>=6.30,<6.31`, tested with 6.30.0. Sample exam files ship inside the Python package, so a non-editable `pip install .` also supports the default rubric and examples. `data/sample_exam/` remains the source of truth; tests check that the packaged copy matches.
+The blueprint installs `.[web,ingest,annotate]` and starts `autoassess serve --host 0.0.0.0 --port $PORT`. `GET /healthz` returns `{"ok": true, "llm": "<provider or none>", "ocr": "<configured provider>"}` without provider calls; this is process readiness, not connectivity. Render generates `AUTOASSESS_SECRET_KEY` and stores data at `/tmp/redink`. **The free plan’s disk resets on restart/redeploy: app records, overrides, uploads, annotations and local ledgers are lost, and the synthetic demo data is re-seeded.** Download anything needed before a restart. A fixed signing key does not persist the database.
+
+The first start seeds ten synthetic students and a sample assignment pre-graded with the fake provider. This never uses paid startup grading. When OCR is configured, the optional S002 scan is assigned to synthetic S004 and seed-graded from its known packaged transcript, with no startup OCR calls. Live scan uploads still require working OCR. The demo extra pins Gradio to `>=6.30,<6.31`, tested with 6.30.0. Packaged samples support non-editable installs; `data/sample_exam/` remains the source of truth.
+
+## A 60-second TA demonstration
+
+- **0–10 seconds:** sign in as the demo teacher and open **DA7016 Generative AI, Section A**.
+- **10–20 seconds:** open the seeded sample assignment and its **Review answers** queue. Explain that flagged answers appear first and the queue also contains the remaining marked answers.
+- **20–35 seconds:** open an answer, inspect the quote, then **Change mark** with a reason. **Save mark & accept** retains the original decision and a teacher override.
+- **35–45 seconds:** return to the assignment and **Release results**. Confirm release anyway only if unresolved flags remain; ungraded uploads must finish first.
+- **45–60 seconds:** download **Grade sheet · CSV** or **XLSX**, open a **Marked PDF**, and show the printable **Class report** if time allows.
+
+Rehearse with the cached synthetic seed before the call. Exports use current overrides; ungraded roster marks stay blank. `reviewed_by_teacher` is true only for sheets with all questions accepted, so partial review is not mislabeled complete. ZIPs contain graded PDFs named `<roll_no>_<name>_marked.pdf`; unsafe path characters are replaced and rare naming collisions receive an ID suffix. PDF downloads are rebuilt without provider calls. Class-report consistency pairs are derived from current marks and answer similarity without changing accepted decisions. Real authentication, student accounts and LMS sync remain out of scope.
 
 ## A dependable demonstration
 
@@ -25,8 +59,10 @@ Settings are loaded from process variables and an optional local `.env` (existin
 
 | Variable | Application default | Meaning / blueprint override |
 | --- | --- | --- |
-| `HOST` | `0.0.0.0` | Uvicorn bind address. |
-| `PORT` | `7860` | Uvicorn port; Render supplies its listening port. |
+| `HOST` | `0.0.0.0` | Standalone lab bind address; teacher app uses `--host`. |
+| `PORT` | lab `7860`; container `8000` | Teacher CLI defaults to `--port 8000`; Render/container startup passes `$PORT`. |
+| `AUTOASSESS_DATA_DIR` | `.redink/` | SQLite and files; CLI `--data-dir` wins. Docker `/var/lib/redink`, Render `/tmp/redink`. |
+| `AUTOASSESS_SECRET_KEY` | random per process | Signed demo-session secret. Unset values invalidate sessions after restart; Render generates one. |
 | `AUTOASSESS_DEMO_DRY_RUN` | unset / off | Exactly `1` selects the offline scripted text mode; blueprint `0`. |
 | `AUTOASSESS_MAX_UPLOAD_MB` | `10` | Maximum bytes per uploaded file in MiB, enforced by Gradio and sheet validation. |
 | `AUTOASSESS_MAX_PAGES` | `8` | Maximum PDF answer-sheet pages, inspected before OCR; encrypted or unreadable PDFs are rejected. |

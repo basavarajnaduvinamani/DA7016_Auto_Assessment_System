@@ -16,4 +16,4 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 08 | [Presentation slides (Beamer)](08-slides.md) | in review |
 | 09 | [Teacher web app 1: shell, mock sign-in, classes](09-web-shell.md) | in review |
 | 10 | [Teacher web app 2: assignments, uploads, grading, review queue](10-assignments-review.md) | in review |
-| 11 | [Teacher web app 3: exports, class report, deploy](11-export-deploy.md) | todo |
+| 11 | [Teacher web app 3: exports, class report, deploy](11-export-deploy.md) | in review |

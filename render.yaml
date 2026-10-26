@@ -1,4 +1,4 @@
-# Render Blueprint: free web service running the Gradio demo (app.py).
+# Render Blueprint: Red-Ink Classroom with the Gradio lab at /lab.
 # Render dashboard > New > Blueprint > pick this repo. Then fill in the keys
 # marked sync: false under the service's Environment tab. See docs/deploy.md.
 services:
@@ -6,12 +6,16 @@ services:
     name: red-ink-grader
     runtime: python
     plan: free
-    buildCommand: pip install ".[ingest,api,demo]"
-    startCommand: python app.py
+    buildCommand: pip install ".[web,ingest,annotate]"
+    startCommand: autoassess serve --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      - key: AUTOASSESS_DATA_DIR
+        value: /tmp/redink
+      - key: AUTOASSESS_SECRET_KEY
+        generateValue: true
       - key: AUTOASSESS_LLM_PROVIDER
         value: openrouter
       - key: OPENROUTER_MODEL

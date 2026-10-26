@@ -1,0 +1,5 @@
+1. Attention lets the model look at other words. It uses query key and value and a softmax to get weights, then it adds things up.
+
+3. Fine tuning means training the model more on your data so the weights change. In context learning means giving examples in the prompt. Fine tuning is better because it is more accurate.
+
+2. Hallucination is when the model makes things up.

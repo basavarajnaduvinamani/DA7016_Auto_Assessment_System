@@ -75,14 +75,15 @@ def compare(
         if not keys:
             continue
         report["per_grader"][grader] = agreement_report(
-            [system[k] for k in keys], [marks[k] for k in keys], [max_marks[k[1]] for k in keys], ci=ci
+            [system[k] for k in keys], [marks[k] for k in keys], [max_marks[k[1]] for k in keys], ci=ci,
+            groups=[k[1] for k in keys],
         )
 
     consensus = human_consensus(human)
     keys = sorted(k for k in consensus if k in system)
     if keys:
         sysv, humv, mx = [system[k] for k in keys], [consensus[k] for k in keys], [max_marks[k[1]] for k in keys]
-        report["vs_consensus"] = agreement_report(sysv, humv, mx, ci=ci)
+        report["vs_consensus"] = agreement_report(sysv, humv, mx, ci=ci, groups=[k[1] for k in keys])
         report["coverage_curve"] = coverage_curve([conf[k] for k in keys], sysv, humv, mx)
         report["auto_accepted_share"] = round(
             sum(1 for g in grades for q in g.questions if not q.needs_review) / max(1, sum(len(g.questions) for g in grades)), 3
@@ -93,7 +94,7 @@ def compare(
             if any(k[1] == q.id for k in keys)
         }
         if meta:
-            report["per_group"] = _per_group(keys, system, consensus, max_marks, meta)
+            report["per_group"] = _per_group(keys, system, consensus, max_marks, meta, ci=ci)
 
     graders = sorted(human)
     if len(graders) >= 2:
@@ -115,7 +116,7 @@ def compare(
     return report
 
 
-def _per_group(keys, system, consensus, max_marks, meta) -> dict:
+def _per_group(keys, system, consensus, max_marks, meta, ci=True) -> dict:
     out: dict = {}
     columns = sorted({c for row in meta.values() for c in row})
     for col in columns:
@@ -125,7 +126,7 @@ def _per_group(keys, system, consensus, max_marks, meta) -> dict:
             if value:
                 groups[value].append(k)
         out[col] = {
-            v: agreement_report([system[k] for k in ks], [consensus[k] for k in ks], [max_marks[k[1]] for k in ks], ci=len(ks) >= 10)
+            v: agreement_report([system[k] for k in ks], [consensus[k] for k in ks], [max_marks[k[1]] for k in ks], ci=ci and len(ks) >= 10, groups=[k[1] for k in ks])
             for v, ks in sorted(groups.items())
             if len(ks) >= 2
         }

@@ -1,6 +1,11 @@
-% Placeholder: replaced by make results when a measured table is supplied.
-\begin{tabular}{l}
+\begin{tabular}{lrrrr}
 \toprule
-pending \\
+System & QWK [95\% CI] & MAE (of 5) & Within 1 & Bias \\
+\midrule
+Human vs human & 0.962 & 0.22 & 100\% & --- \\
+Lexical baseline (ablation) & 0.375 & 1.62 & 40\% & $-1.41$ \\
+Full pipeline, lenient & 0.688 [0.628, 0.745] & 0.91 & 73\% & $-0.39$ \\
+Full + dev offset ($+0.53$) & 0.708 [0.649, 0.760] & 0.91 & --- & $+0.03$ \\
+\textbf{Final: advocate only} & \textbf{0.723 [0.667, 0.773]} & \textbf{0.85} & \textbf{76\%} & $+0.24$ \\
 \bottomrule
 \end{tabular}

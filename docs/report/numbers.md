@@ -65,7 +65,7 @@ Rule fixed in advance: replace gemini-2.5-flash only if another model beats it b
 | MAE | 0.55 of 2 |
 | Exact agreement / within 1 mark | 52% / 87% |
 | Mean mark system vs teacher | 0.59 vs 1.07 (bias -0.49) |
-| Leave-one-student-out offset correction | QWK 0.55 [0.44, 0.65], bias -0.03 |
+| Leave-one-student-out offset correction | QWK 0.55 [0.44, 0.65] (item-level bootstrap), bias -0.03 |
 | Flagged for teacher review | 75 of 135 questions |
 
 Reading: the teacher was generous to short or vague answers that the rubric-bound system marked 0; OCR on handwriting added uncertainty (low_ocr_confidence flags). This set has one grader, so there is no human-human ceiling.

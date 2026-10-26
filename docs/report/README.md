@@ -1,25 +1,18 @@
 # Final report
 
-Build the pending report with a standard TeX Live installation containing `latexmk`, pdfLaTeX, BibTeX, TikZ, `booktabs`, `adjustbox` and `natbib`:
+Build the report with TeX Live containing `latexmk`, pdfLaTeX, BibTeX, TikZ, `booktabs`, `adjustbox` and `natbib`:
 
 ```bash
 make -C docs/report
 ```
 
-This builds `main.pdf` and checks the final log for undefined references, citations and duplicate labels. The PDF and auxiliary files are ignored; CI uploads the PDF as `final-report`. The report uses only verified cited works. The bibliography starts from the archive inventory, which includes unused entries; the IndicOCR discussion has a citation TODO until a primary source is verified. No archived result numbers are used.
+This builds `main.pdf` and checks the final log for undefined references, citations and duplicate labels. Main text is ten pages, followed by references and the appendix. The PDF and auxiliary files are ignored; the existing CI workflow builds and uploads `final-report`.
 
-Generate a results pack as documented in `docs/evaluation.md`, then copy its assets and rebuild:
+`numbers.md`, maintained by Claude, is the source of truth for measured quantities. The five booktabs tables in `results/` are manually transcribed from that record and included via `\input{results/...}`. Tests compare their numeric cells with the source record and check numerical prose. Preserve the printed precision, separate headline runs from ablations, and retain the stated item-level versus question-clustered interval methods. Do not overwrite these curated tables with a generic results pack. Report building makes no model calls and runs no experiments.
 
-```bash
-make -C docs/report results
-make -C docs/report
-```
+The bibliography uses verified primary pages or records. Burrows et al.'s bibliographic metadata was also verified in Haller et al.'s survey (arXiv:2204.03503). The SPRAG citation is the Zenodo release, whose creator is recorded as “Sridevi B”, rather than an inferred dataset-paper citation. IndicOCR is cited as a model card without asserting an unknown publication year.
 
-The default input is `runs/results/` relative to the repository root. Override it with `RESULTS_DIR=/absolute/path/to/pack` if needed. Tables from `tables/*.tex` are flattened to `docs/report/results/*.tex`, matching the report's `\input{results/agreement}` convention. Figures retain their `figures/` directory. The target requires an agreement table and copies only the known tables and figures; absent optional outputs reset to generic pending assets so old results cannot silently remain. It does not run experiments or copy JSON, scans or answer sheets.
-
-The appendix expects `results/figures/example_redink.png`. Supply an anonymised or synthetic page at `runs/results/figures/example_redink.png` before copying, or retain the pending image. The results command does not generate this example.
-
-All committed result assets are visibly pending. The shared `results/pending.tex` and `results/figures/pending.png` are fallback templates, not measurements. Replacing the tables and figures does not replace prose marked with `\pending{...}`; retain those markers until the corresponding study supports an interpretation. Numerical results belong in the imported tables rather than hand-copied prose. Build settings, citations, course identifiers and automatic section/page numbering are document metadata, not empirical results.
+Only the red-ink example remains pending. The appendix expects `results/figures/example_redink.png`; replace this placeholder with a reviewed anonymised or synthetic page when available. No real student answers, names or scans are committed. The aggregate handwritten results do not include private source material. OCR CER/WER, paired scan/transcript experiments and educational feedback studies were not measured and appear only as limitations/future work.
 
 To remove build outputs without changing result assets:
 

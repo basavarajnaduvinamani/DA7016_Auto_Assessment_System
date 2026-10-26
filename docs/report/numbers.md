@@ -2,7 +2,7 @@
 
 Written by Claude from the private runs on 2026-10-26. Only aggregate numbers appear here; no answers, names or scans.
 Marks are question-level. QWK is quadratic weighted kappa on half-mark bins. Intervals are 95% percentile bootstrap.
-Rows marked TBD are still running; Claude fills them in.
+Rows marked TBD are still running; Claude fills them in. Intervals are clustered by question unless stated.
 
 ## Datasets
 
@@ -21,9 +21,11 @@ All prompt, policy and configuration decisions were made on SPRAG dev; test was 
 | Lexical baseline (ablation run) | 0.375 | 1.62 | 40% | -1.41 |
 | Full pipeline (3 runs, advocate + critic), lenient | 0.688 [0.628, 0.745] | 0.91 | 73% | -0.39 |
 | Full pipeline + offset correction fitted on dev (+0.53 marks) | 0.708 [0.649, 0.760] | 0.91 | - | +0.03 |
-| **Final config: advocate only, no critic** (chosen on dev, see ablation) | 0.728 (ablation run; clustered CI TBD) | 0.81 | 81% | +0.14 |
+| **Final config: advocate only, no critic** (chosen on dev, see ablation) | 0.723 [0.667, 0.773] | 0.85 | 76% | +0.24 |
 
-Confidence gating on the full pipeline: accepting answers with confidence >= 0.8 auto-marks 62% of answers with MAE 0.66; the rest go to the teacher.
+The final-config row is a separate grading run with question-clustered intervals (dev: QWK 0.677 [0.547, 0.792], MAE 0.91, bias +0.01); the ablation table below is a different run of the same config (test QWK 0.728), so small differences between the two are run-to-run variation. Intervals for the full-pipeline rows are item-level.
+
+Confidence gating on the full pipeline: accepting answers with confidence >= 0.8 auto-marks 62% of answers with MAE 0.66; the rest go to the teacher. With the final advocate-only config, fewer answers are flagged: confidence >= 0.8 covers 92% of test answers with MAE 0.76, so confidence separates easy from hard answers less sharply once the critic's disagreements are gone.
 By question type: best on "define" questions (QWK 0.76), weakest on "explain" (0.65).
 Standard vs lenient marking policy (dev): standard QWK 0.66, bias -0.76; lenient QWK 0.68, bias -0.53. Lenient chosen.
 
@@ -47,9 +49,9 @@ Reading: on dev the LLM configurations are within noise on QWK (0.64-0.68); the 
 
 | Model | QWK [95% CI] | MAE | Bias |
 | --- | --- | --- | --- |
-| google/gemini-2.5-flash (chosen) | 0.701 [0.582, 0.794] | 0.91 | -0.47 |
-| anthropic/claude-haiku-5.5 | 0.659 [0.534, 0.762] | 0.98 | -0.39 |
-| openai/gpt-5-mini | 0.639 [0.486, 0.758] | 0.96 | +0.27 |
+| google/gemini-2.5-flash (chosen) | 0.701 [0.583, 0.802] | 0.91 | -0.47 |
+| anthropic/claude-haiku-5.5 | 0.659 [0.531, 0.778] | 0.98 | -0.39 |
+| openai/gpt-5-mini | 0.639 [0.470, 0.782] | 0.96 | +0.27 |
 | qwen/qwen3.8-flash | TBD | | |
 | deepseek/deepseek-chat-v3.1 | TBD | | |
 
@@ -59,7 +61,7 @@ Rule fixed in advance: replace gemini-2.5-flash only if another model beats it b
 
 | Measure | Value |
 | --- | --- |
-| QWK vs teacher | 0.47 [0.35, 0.58] (item bootstrap; question-clustered CI TBD) |
+| QWK vs teacher | 0.47 [0.32, 0.57] (question-clustered bootstrap) |
 | MAE | 0.55 of 2 |
 | Exact agreement / within 1 mark | 52% / 87% |
 | Mean mark system vs teacher | 0.59 vs 1.07 (bias -0.49) |

@@ -22,7 +22,7 @@ def teacher_app(tmp_path, monkeypatch):
 
     monkeypatch.setattr(socket.socket, 'connect', blocked)
     monkeypatch.setattr(socket, 'getaddrinfo', blocked)
-    app = create_app(tmp_path / 'app')
+    app = create_app(tmp_path / 'app', seed_samples=False)
     with TestClient(app) as client:
         yield app, client
 
@@ -66,7 +66,7 @@ def test_class_create_add_student_roster_and_escape(teacher_app):
     response = client.post('/classes', data={'name': '<script>Class</script>', 'subject': 'Science', 'section': 'B'})
     class_id = int(response.url.path.rsplit('/', 1)[1])
     assert response.status_code == 200 and '&lt;script&gt;Class&lt;/script&gt;' in response.text
-    assert 'Assignments arrive in the next release' in response.text
+    assert 'No assignments yet' in response.text
     assert client.post(f'/classes/{class_id}/students', data={'roll_no': 'R1', 'name': 'Sample One'}).status_code == 200
     roster = b'roll_no,name\nR1,Updated One\nR2,Sample Two\n'
     imported = client.post(f'/classes/{class_id}/roster', files={'roster': ('roster.csv', roster, 'text/csv')})
@@ -109,7 +109,7 @@ def test_seed_is_idempotent_and_persists(tmp_path):
     seed(reopened, reset=True)
     assert len(reopened.students(1)) == 10
     with store.connect() as db:
-        assert [r[0] for r in db.execute('SELECT version FROM schema_version')] == [1]
+        assert [r[0] for r in db.execute('SELECT version FROM schema_version')] == [2]
     assert (store.root / 'files').is_dir()
 
 

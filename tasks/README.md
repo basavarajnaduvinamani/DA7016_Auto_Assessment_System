@@ -13,7 +13,7 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 05 | [Import the SPRAG dataset for evaluation](05-sprag-import.md) | done |
 | 06 | [Demo fixes and question-clustered CIs](06-demo-fixes-cluster-ci.md) | done |
 | 07 | [Final report with real results, and advocate-only default](07-report-final-numbers.md) | in review |
-| 08 | [Presentation slides (Beamer)](08-slides.md) | todo |
+| 08 | [Presentation slides (Beamer)](08-slides.md) | in review |
 | 09 | [Teacher web app 1: shell, mock sign-in, classes](09-web-shell.md) | todo (after 07, 08) |
 | 10 | [Teacher web app 2: assignments, uploads, grading, review queue](10-assignments-review.md) | todo |
 | 11 | [Teacher web app 3: exports, class report, deploy](11-export-deploy.md) | todo |

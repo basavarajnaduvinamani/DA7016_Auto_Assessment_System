@@ -1,5 +1,6 @@
 /* Small progressive interactions; no build step or remote scripts. */
 document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-print]')) window.print();
   const add = event.target.closest('[data-add-question]');
   if (add) {
     const count = document.querySelector('#question-count');

@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block breadcrumb %}<span>/</span><a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a><span>/</span><span>Class report</span>{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">A VIEW OF THE WHOLE CLASS</p><h1>{{ assignment.title }}</h1><p class="muted">Current marks, including teacher overrides. Ungraded sheets are excluded from averages.</p></div><button class="button secondary" type="button" data-print>Print class report</button></div>
+<section class="panel class-report">{{ report_body }}</section>
+<section class="panel assignment-section"><h2>Similar answers with different marks</h2>{% if pairs %}<p class="muted">A consistency check identifies pairs worth comparing; it does not change either award.</p><div class="table-scroll"><table><thead><tr><th>Question</th><th>Student</th><th>Compare with</th></tr></thead><tbody>{% for qid, first, second in pairs %}<tr><td>{{ qid }}</td><td>{{ first }}</td><td>{{ second }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No inconsistent-mark pairs were identified among the graded sheets.</p>{% endif %}</section>
+<script src="{{ url_for('static',path='classroom.js') }}" defer></script>
+{% endblock %}

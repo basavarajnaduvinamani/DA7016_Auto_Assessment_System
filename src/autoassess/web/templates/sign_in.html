@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="sign-in-layout">
+  <div class="intro"><p class="eyebrow">A LITTLE LESS MARKING. A LOT MORE TEACHING.</p><h1>Give every answer<br>the attention it deserves.</h1><p class="lede">Rubric-grounded marks, evidence you can inspect, and feedback your students can act on.</p><div class="feature-line"><span>✓</span> Your classes. Your rubric. Your final say.</div></div>
+  <div class="panel sign-in"><span class="eyebrow">WELCOME BACK</span><h2>Open your classroom</h2><p class="muted">Use a seeded teacher email to explore the demo workspace.</p>
+    <form action="/sign-in" method="post" class="stack"><label>Email address<input type="email" name="email" value="{{ email|default('') }}" placeholder="you@school.edu" required autocomplete="email"></label><button class="button">Continue <span aria-hidden="true">→</span></button></form>
+    <div class="divider">or try it out</div>
+    <form action="/sign-in" method="post"><input type="hidden" name="email" value="demo@redink.local"><button class="button secondary full">Sign in as demo teacher</button></form>
+    <p class="small muted">No password needed. This is a demonstration workspace.</p>
+  </div>
+</section>
+{% endblock %}

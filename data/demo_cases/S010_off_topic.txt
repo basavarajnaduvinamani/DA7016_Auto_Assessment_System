@@ -1,0 +1,8 @@
+Q1
+Transformers are electrical devices that change the voltage of alternating current using two coils wound on an iron core.
+
+Q2
+Attention attention attention softmax query key value retrieval augmented generation hallucination mitigation cause.
+
+Q3
+I did not have time to answer this question.

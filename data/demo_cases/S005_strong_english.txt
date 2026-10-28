@@ -1,0 +1,5 @@
+Ans 1. Each token is projected into a query, key and value using learned matrices. The score between two tokens is the dot product of the query with the key, divided by sqrt(d_k), and a softmax turns the scores into weights that add up to 1. The output for a token is the weighted sum of the values. Multi-head attention does this several times in parallel and concatenates the heads.
+
+Ans 2. Hallucination is when the model writes confident, fluent text that is not true or not supported by the given context. It happens because training only teaches the model to predict likely next tokens, not to check facts. Retrieval augmented generation reduces it by giving the model relevant documents to ground its answer.
+
+Ans 3. Fine-tuning changes the weights by training on labelled task data; it needs GPUs and data. In-context learning keeps the weights frozen and just puts a few examples in the prompt, but it is limited by the context length. Use in-context learning to prototype quickly and fine-tune once the task is stable and you have enough data.

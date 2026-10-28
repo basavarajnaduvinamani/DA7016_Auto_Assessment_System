@@ -1,164 +1,186 @@
-# Auto-Assessment
+# Red-Ink Grader: rubric-grounded auto-assessment of answer sheets
 
-DA7016 (Recent Advances in Generative AI) final project. It grades a full answer sheet against a rubric and gives marks per question with feedback a student can act on. Every mark points to a rubric criterion and a verbatim quote from the answer.
+Red-Ink Grader marks a student's answer sheet against a teacher's rubric. It gives marks for each question, feedback specific enough for the student to improve, and returns the sheet marked in red ink the way an Indian examiner marks a booklet. Every mark points to a rubric criterion and a quote copied from the student's own answer. When the system is unsure, it says so: the mark gets a **?** and goes to the teacher.
 
-Inputs are the question paper, the answer sheet, the rubric and a model answer per question. Outputs are marks per question, feedback that the rubric supports, and the sheet itself marked in red ink the way an Indian examiner marks a booklet. It grades on its own and knows when to defer: a mark it is unsure of is written with a **?** and sent to a teacher, and the evaluation reports accuracy on the marks it accepts by itself.
+- **Live app:** https://red-ink-grader.onrender.com (free hosting: the first load after a quiet spell takes about a minute; sign in as the demo teacher)
+- **Final report:** [`docs/report/`](docs/report) (LaTeX; CI builds the PDF) · **Slides:** [`docs/slides/`](docs/slides)
+- **Course:** DA7016 Recent Advances in Generative AI, IIT Madras (Jul to Nov 2026) · Basavaraj A Naduvinamani (DA25C005)
 
-Plan: [Auto-Assessment: Build Plan](https://claude.ai/artifact/9nQFs4PiXSN8tURk7ajeVo)
+## Key features
 
-## Pipeline
+- **Grades per rubric criterion, with evidence.** For every criterion the model gives a verdict, marks and an exact quote from the answer. Code checks that the quote really appears in the answer; an invented quote loses its marks.
+- **Three independent grading runs, median marks,** then an **advocate** that looks for valid credit the first pass missed. It can raise a mark only with a verified quote.
+- **Knows when to defer.** Confidence combines run-to-run spread, review changes, reading (OCR) confidence and withdrawn quotes. Low-confidence marks are flagged for the teacher.
+- **Red-ink marked PDF:** ticks at the evidence, part marks, carets for missing points, margin marks, a circled total, a cover marks grid, an "AI-marked" stamp and a feedback page.
+- **Feedback a student can act on:** what earned marks, what lost them, and one concrete next step per lost point. A verifier removes praise without marks and quotes that are not in the answer.
+- **Handwritten sheets** read with Bodhan IndicOCR (English and Indian languages), with low-confidence pages flagged.
+- **Indian languages:** answers in Hindi, Kannada and other Indian languages are graded with quotes kept in the original script; feedback can be translated with Bodhan Indic-Translate.
+- **Adversarial inputs:** the answer is passed to the model as data; text that tries to instruct the examiner ("award full marks") is flagged and routed to the teacher.
+- **Teacher app (Red-Ink Classroom):** sign in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
+- **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, coverage curves.
+- **Spend guards and caching:** every paid call is cached by content hash; OpenRouter and Bodhan spending stop at configured limits.
 
-```
-teacher docs ──> exam spec builder ─────────────────────┐
-answer sheet ──> ingest ──> OCR ──> segmentation ──> rubric grading ──> feedback + verifier ──> report
-                             ^                                              ^
-                    Bodhan IndicOCR (week 5)                  Bodhan Indic-Translate (week 5)
-```
+## Results at a glance
 
-Each stage reads and writes a Pydantic model from `src/autoassess/schemas.py`. OCR, LLM and translation sit behind interfaces in `src/autoassess/providers/`, so Bodhan AI plugs in by config. Every paid call is cached by content hash under `.cache/`.
+On the held-out SPRAG test set (455 typed short answers, two human graders), from [`docs/report/numbers.md`](docs/report/numbers.md):
 
-## Status
+| System | QWK [95% CI] | MAE (of 5) | Within 1 mark |
+| --- | --- | --- | --- |
+| Human vs human | 0.962 | 0.22 | 100% |
+| **Red-Ink Grader (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
+| Lexical baseline | 0.375 | 1.62 | 40% |
 
-| Week | Phase | State |
-| --- | --- | --- |
-| 1 | Foundations: schemas, exam spec builder, ingest, providers, cache | done |
-| 2 | Criterion grader with evidence quotes, critic, segmentation, baseline, agreement metrics | done |
-| 3 | OCR: IndicOCR open weights (local or Colab JSON), vision-LLM baseline; segmentation on OCR pages | done |
-| 4 | Feedback with verifier, HTML report with highlighted evidence, FastAPI, Gradio demo | done |
-| 5 | Bodhan hosted IndicOCR and Indic-Translate, with cache and budget guard | done |
-| 6 | Evaluation harness: ablations, robustness suite, OCR error rates ([protocol](docs/evaluation.md)) | done; needs real sheets and human marks |
-| 7 | [Design review](https://claude.ai/artifact/PKrBZ3ECvzbwnB3jw41d9V) changes: two-sided review, multi-signal confidence and "?", second examiner, follow-through (ECF), crossed-out work, fuzzy quotes, rubric lint, anonymiser, harder robustness, signed bias, CIs, coverage curve, fairness | done |
-| 8 | Input ablation: OCR text vs page image vs both | done; needs real scans |
-| 9 | Red-ink annotator, class mode and report, regrade requests, Gradio demo, Render deploy | done |
+On a real handwritten classroom set (9 students, 135 answers, one teacher) agreement is lower (QWK 0.47), mainly because the teacher was more generous to vague answers than the rubric. The system is therefore framed as selective auto-marking with teacher review, not a replacement for the teacher. The report covers the ablations, model comparison, prompt-injection check and limitations.
 
-## Setup
+## Quick start
 
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[ingest,dev]"
-cp .env.example .env      # add your Gemini, OpenRouter and Bodhan keys
-autoassess doctor         # one tiny live call per key, plus OpenRouter credit left; --free skips Bodhan (~Rs 0.20)
-pytest
-```
-
-For an offline text-only dry run with no key or network, set `AUTOASSESS_LLM_PROVIDER=fake` (scripted word overlap, not semantic grading).
-
-## Commands
+Requires Python 3.11 or newer.
 
 ```bash
-# Check an exam spec: marks add up, ids are unique, criteria are checkable
-autoassess validate-spec data/sample_exam/exam_spec.yaml
+git clone https://github.com/basavarajnaduvinamani/DA7016_Auto_Assessment_System
+cd DA7016_Auto_Assessment_System
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -e ".[web,ingest,annotate]"
+cp .env.example .env                 # then add your keys (see Configuration)
+autoassess serve                     # open http://localhost:8000
+```
 
-# Draft a spec from plain-text documents with an LLM, then review it by hand
-autoassess draft-spec --paper paper.txt --rubric rubric.txt --model-answers answers.txt \
-    --exam-id midterm --out data/midterm/exam_spec.yaml
+Click **Sign in as demo teacher**. A sample class and a pre-graded sample assignment are loaded. To see live grading, create an assignment, import `data/sample_exam/exam_spec.yaml` as the rubric, upload the sheets from [`data/demo_cases/`](data/demo_cases) and click **Grade all**.
 
-# Answer sheet PDF, photo or folder of photos -> cleaned grayscale pages
-autoassess ingest scans/S001.pdf work/S001
+**Without any API key:** run `AUTOASSESS_DEMO_DRY_RUN=1 autoassess serve`. Grading then uses a scripted offline provider: it shows the whole workflow, but the marks are not real assessment.
 
-# Grade sheets: 3 runs per question, median marks, advocate review, red-ink PDF
-autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/llm --advocate --annotate \
-    data/sample_exam/answer_sheets/*.txt
-#   --second-model openai/gpt-4.1-mini   a second examiner for the confidence check
-#   --input image|hybrid                 grade from the page image (vision model), or image + OCR text
+**Docker:**
 
-# A whole class, question by question, with a consistency pass and a class report
-autoassess grade-class --spec ... --out runs/class --advocate --annotate sheets...
-autoassess class-report --spec ... --grades runs/class
+```bash
+docker build -t redink .
+docker run --rm -p 8000:8000 --env-file .env -v redink-data:/var/lib/redink redink
+```
 
-# A student's regrade request for one criterion (logged beside the grade)
-autoassess regrade --spec ... --grade runs/llm/S002.json --sheet S002.txt --criterion Q2.c3 --reason 'I named RAG'
+**Render:** `render.yaml` is a ready blueprint (New > Blueprint, pick this repository, add the keys). See [`docs/deploy.md`](docs/deploy.md).
 
-# Same, with the no-LLM lexical baseline (the floor every model must beat)
-autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/baseline --baseline data/sample_exam/answer_sheets/*.txt
+## Configuration
 
-# Agreement with human marks (QWK, MAE, signed bias, bootstrap CIs, coverage curve), plus human-vs-human;
-# --meta adds results per language / handwriting / split, --transcript-grades the handwriting penalty
-autoassess evaluate --spec data/sample_exam/exam_spec.yaml --grades runs/llm --human data/private/human_marks.csv \
-    --meta data/private/sheets.csv --transcript-grades runs/llm_typed
+Settings come from environment variables or a `.env` file. The main ones:
 
-# Experiments: ablations, robustness, OCR accuracy (see docs/evaluation.md)
+| Variable | Purpose |
+| --- | --- |
+| `OPENROUTER_API_KEY` | LLM grading through OpenRouter (default model `google/gemini-2.5-flash`) |
+| `AUTOASSESS_LLM_PROVIDER` | `openrouter`, `gemini`, `custom` (any OpenAI-compatible endpoint, e.g. Ollama) or `fake` (offline, scripted) |
+| `AUTOASSESS_LLM_MODEL` | Override the grading model |
+| `BODHAN_API_KEY` | Bodhan IndicOCR for scans and Indic-Translate for feedback |
+| `AUTOASSESS_OCR_PROVIDER` | `text` (typed sheets), `bodhan` (hosted OCR), `indic-local` / `indic-precomputed` (open weights), `vision` (vision LLM) |
+| `OPENROUTER_BUDGET_USD`, `BODHAN_BUDGET_INR` | Spend limits; paid calls stop there |
+| `AUTOASSESS_DEMO_DRY_RUN` | `1` = offline scripted grading for demos |
+| `AUTOASSESS_DATA_DIR` | Where the teacher app keeps its SQLite file and uploads (default `.redink/`) |
+
+`autoassess doctor` checks each configured key with one tiny live request. All variables are listed in [`.env.example`](.env.example).
+
+## Command-line use
+
+Everything the app does is also available from the `autoassess` command:
+
+```bash
+autoassess validate-spec data/sample_exam/exam_spec.yaml           # check a rubric: marks add up, criteria are checkable
+autoassess draft-spec --paper paper.txt --rubric rubric.txt \
+    --model-answers answers.txt --exam-id midterm --out spec.yaml  # draft a rubric with an LLM, then edit it
+
+# Grade sheets (.txt, .pdf or photos): marks, feedback, HTML report and red-ink PDF
+autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/demo --advocate --annotate data/demo_cases/*.txt
+autoassess grade ... --feedback-language Hindi                      # translated feedback (Bodhan)
+autoassess grade ... --baseline                                     # no-LLM lexical baseline
+
+autoassess grade-class --spec ... --out runs/class --advocate --annotate sheets...   # a whole class + consistency pass
+autoassess class-report --spec ... --grades runs/class                               # per-question summary, misconceptions
+autoassess regrade --spec ... --grade runs/demo/S006_weak_english.json \
+    --sheet data/demo_cases/S006_weak_english.txt --criterion Q2.c3 --reason "I named a mitigation"
+
+# Evaluation against human marks and experiments (see docs/evaluation.md)
+autoassess evaluate --spec ... --grades runs/demo --human human_marks.csv --out agreement.json
 autoassess experiment ablation --spec ... --human ... --out runs/ablation sheets...
-autoassess experiment robustness --spec ... --out runs/robustness sheets...
-autoassess ocr-eval --reference transcripts/ sheets...
+autoassess results --agreement agreement.json --out runs/results    # report tables and figures
 ```
 
-## How grading stays defensible
+The rubric format is a YAML exam spec: questions with marks, model answers and criteria. See [`data/sample_exam/exam_spec.yaml`](data/sample_exam/exam_spec.yaml).
 
-- **One verdict per rubric criterion**, each with a quote copied from the answer. Code checks the quote really occurs in the answer; a made-up quote gets one repair round, then the marks are withdrawn and flagged.
-- **Rubric rules in code**: marks are clipped to each criterion's range, and all-or-nothing criteria snap to 0 or full.
-- **Three independent runs**, combined by the median per criterion.
-- **Advocate review by default in the demo**: an advocate looks for missed credit (another valid method, a correct idea in other words) and can raise a mark only with a verified quote; an optional strict critic audits every award, the advocate's included, and can lower it. The SPRAG dev ablation chose advocate-only review for its lowest MAE and near-zero bias; the critic increased under-marking. CLI review flags remain opt-in. Evaluation reports **signed bias**, not just error size.
-- **Knows when to defer**: confidence is the weakest of several signals: spread across runs, disagreement with a second examiner model, how much the reviewers changed, OCR confidence and withdrawn quotes. Below 0.8 the mark gets a **?** and goes to a teacher. `evaluate` reports the coverage curve: accuracy on the share accepted automatically at each threshold.
-- **Quotes matched loosely enough** that one misread OCR character doesn't cost a criterion, and **spelling is never penalised** unless a criterion asks for it.
-- **Follow-through (ECF)**: a criterion with `follow_through: true` on a question with `depends_on` sees the student's earlier answers and can credit correct working from a wrong earlier value. **Crossed-out work** (`~~text~~`, `[crossed out]`) is ignored.
-- **Rubric lint** before grading: vague, bundled, duplicate or orphan follow-through criteria, and missing model answers.
-- **Prompt-injection safe**: the answer is passed as data. The robustness suite covers English, Hindi, Kannada and subtle rubric-citing injections, keyword stuffing, an answer to a different question and spelling noise.
-- **Privacy**: names, roll numbers, emails and phone numbers are removed before any LLM call, and `AUTOASSESS_REAL_SHEETS=1` refuses the free Gemini tier, which may use prompts for training.
+## How it works
 
-Paid calls go through spend guards (`src/autoassess/budget.py`). OpenRouter calls record the exact cost the API reports and stop at `OPENROUTER_BUDGET_USD` (default $18 of the course's $20). Bodhan calls stop at `BODHAN_BUDGET_INR` (default ₹100 of ₹110). `grade` and `doctor` print the running totals.
+```
+answer sheet ─> ingest ─> OCR ─> segment by question ─> grade each criterion (x3, median)
+                 (PDF,    (Bodhan        │                    │
+                 photos)  IndicOCR)      │              quote check ─> advocate review
+                                         │                    │
+                                         └──────────> confidence ─> feedback + verifier
+                                                              │
+                              review queue (flagged first) <──┴──> red-ink PDF, HTML report, exports
+```
 
-The LLM client works with any OpenAI-compatible endpoint. `AUTOASSESS_LLM_PROVIDER` switches between Gemini (free tier, for development), OpenRouter (the course key, for evaluation and the demo) and a custom endpoint such as Ollama or vLLM.
+1. **Ingest** turns PDFs and photos into clean page images; typed `.txt` sheets skip this.
+2. **OCR** reads each page into lines with boxes and confidence (Bodhan IndicOCR, open weights, or a vision LLM).
+3. **Segmentation** splits the text into answers per question, using the question numbers and aliases in the rubric.
+4. **Criterion grading** asks the LLM for a verdict, marks and an exact quote for every criterion, three times; the median is kept. Marks are clipped to the rubric, and all-or-nothing criteria snap to 0 or full marks.
+5. **Quote check** confirms each quote occurs in the answer (tolerating small OCR errors); unsupported marks are withdrawn.
+6. **Advocate review** looks for missed credit and may raise a mark only with a verified quote. An optional strict critic can lower marks; it is off by default because the ablation showed it increased under-marking.
+7. **Confidence** takes the weakest of several signals. Below 0.8, or when an injection pattern is found, the answer is flagged for the teacher.
+8. **Feedback** is written per criterion and checked by a verifier; it can be translated into an Indian language.
+9. **Red-ink annotation** draws the marks on the page and builds the marked booklet.
 
-## Try it
+## Project structure
 
-**Web demo (no key needed):** https://claude.ai/artifact/L2FPAup8f9jBFYfi8UVpxC runs the offline pipeline in the browser: segmentation, the lexical baseline and rubric feedback, on the sample quiz or your own spec and typed sheets. Its engine (`web/engine.js`) is a port of the Python baseline, and `tests/test_web_parity.py` checks both give identical marks and feedback. The LLM grader, critic, OCR and translation run in the Python app once keys are set.
+```
+src/autoassess/              the Python package
+  cli.py                     `autoassess` command-line entry point
+  schemas.py                 Pydantic models passed between stages (ExamSpec, OCRPage, SheetGrade, ...)
+  spec_builder.py            load, validate, lint and draft rubrics (exam specs)
+  ingest.py, page_images.py  PDF/photo to page images; page crops for vision grading
+  segment.py                 split OCR text into answers per question
+  grader.py                  criterion grading, quote check, median of runs, injection flag
+  advocate.py, critic.py     review passes that can raise / lower marks with evidence
+  confidence.py              combine signals into a confidence score and the "?" decision
+  feedback.py, translate.py  feedback writing and verification; translation to Indian languages
+  annotate.py, fonts/        red-ink marked pages and booklet (handwriting fonts with Devanagari)
+  report.py                  HTML evidence report
+  pipeline.py, demo.py       end-to-end runs used by the CLI and the apps
+  classwork.py, regrade.py   class-level grading and report; student regrade requests
+  privacy.py                 removes names, roll numbers, emails and phone numbers before LLM calls
+  budget.py, cache.py        spend guards and content-hash cache for paid calls
+  baseline.py                lexical baseline (no LLM)
+  metrics.py, evaluate.py    QWK, MAE, bias, bootstrap intervals; comparison with human marks
+  experiments.py, results.py ablation and robustness experiments; report tables and figures
+  datasets/sprag.py          importer for the public SPRAG dataset
+  providers/                 LLM (OpenAI-compatible), Bodhan, IndicOCR, vision and offline scripted providers
+  web/                       Red-Ink Classroom teacher app (FastAPI, Jinja templates, htmx, SQLite)
+  sample_exam/               packaged copy of the sample quiz for installed apps
+app.py                       standalone Gradio grading lab (also mounted at /lab in the teacher app)
+data/sample_exam/            sample quiz rubric and three typed answer sheets
+data/demo_cases/             six test sheets: strong, weak, Hindi, Kannada, prompt injection, off-topic
+docs/report/                 final report (LaTeX) and numbers.md, the source of every reported number
+docs/slides/                 presentation (Beamer)
+docs/evaluation.md           evaluation protocol; docs/deploy.md: local, Docker and Render
+tests/                       pytest suite (offline; no keys needed)
+Dockerfile, render.yaml      container image and Render blueprint
+```
 
-## Feedback, report and demo
-
-- **Feedback** says what earned marks, what lost them, and one concrete next step per lost point. A verifier keeps only items the grading supports: real criteria, praise only where marks were given, and quotes that occur in the answer. Gaps are filled from the rubric, so every lost mark gets a next step.
-- **Report**: `grade` writes `<student>.html` beside the JSON. It shows the mark sheet, the answer with evidence highlighted, verdicts per criterion, feedback, flags and, when OCR gave boxes, the scanned page with evidence lines outlined.
-- **API**: `pip install -e ".[api,ingest]"` then `uvicorn autoassess.api:app`. `POST /grade` takes `spec` and `sheet` files and returns the grade and the HTML report.
-- **Demo**: `pip install -e ".[demo,ingest]"` then `python app.py`. Upload a sheet and get it back marked in red ink, with a comment-first summary, the marked PDF, the full evidence report and a regrade box; a second tab marks a class. `render.yaml` deploys the teacher app with this lab at `/lab/` on Render's free plan ([docs/deploy.md](docs/deploy.md)). The demo extra pins Gradio to `>=6.30,<6.31` (tested with 6.30.0). Sample files are bundled for non-editable installs; choose `S002_scan.pdf` in Sample sheets to try the ruled-page PDF with configured OCR.
-- **Red ink** (`--annotate`): one tick per mark at the evidence line, fractions for part marks, ECF and BOD where they apply, a wavy underline and correction under a wrong statement, a caret where a point is missing, bracketed marks in the margin, the total circled, a **?** for review, a strength / fix / next-time remark, a booklet cover with the marks grid, an **AI-marked** stamp, and a last page with the full feedback. Typed sheets are laid out on ruled pages first.
-- **Translated feedback**: `--feedback-language Hindi` (Bodhan Indic-Translate, week 5). Evidence quotes stay as written, and the English feedback is kept for the teacher.
-
-## Reading scanned sheets
-
-Choose the OCR with `AUTOASSESS_OCR_PROVIDER`:
-
-| Provider | What it is | Needs |
-| --- | --- | --- |
-| `text` | Typed `.txt` sheets, no OCR | nothing |
-| `indic-precomputed` | Bodhan IndicOCR JSON made in [`notebooks/indic_ocr_colab.ipynb`](notebooks/indic_ocr_colab.ipynb) | a free Colab GPU, once per batch |
-| `indic-local` | Bodhan IndicOCR open weights in-process | a GPU and the gated `bodhan-ai/indic-ocr` weights |
-| `vision` | A vision LLM transcribes the page (baseline) | `AUTOASSESS_VISION_MODEL` |
-| `bodhan` | Bodhan hosted API | week 5, uses the coupon credits |
-
-IndicOCR handles printed English and 22 Indian languages, and handwriting in English and 12 Indian languages, including Hindi, Kannada, Tamil and Telugu. It returns boxes per block, which the report uses to highlight evidence on the page. Questions with low OCR confidence or a diagram are flagged.
-
-## Data
-
-- `data/sample_exam/` holds a 15-mark sample quiz with three typed answer sheets at different quality levels (S001 strong, S002 partial and out of order, S003 weak with Q3 missing).
-- `human_marks_template.csv` is the format for human marks, one row per criterion per grader. Two independent graders per sheet give the human-to-human agreement baseline.
-- Real student sheets go in `data/private/`, which git ignores. Remove names and roll numbers before any API call.
-
-## Bodhan AI
-
-Bodhan AI (IIT Madras with AI4Bharat) serves IndicOCR and Indic-Translate as hosted APIs, and as open weights on Hugging Face.
-
-- **Hosted OCR**: set `AUTOASSESS_OCR_PROVIDER=bodhan` and `BODHAN_API_KEY`. Each page goes to `POST https://api.bodhan.ai/v1/chat/completions` with model `indic-ocr`; layout blocks come back with boxes, as with the open weights.
-- **Translated feedback**: `autoassess grade ... --feedback-language Kannada` sends feedback paragraph by paragraph to `POST /v1/chat/completions` with model `indic-translate` and `target_language`. (The cookbook's `POST /translate` returns 404 on the live API.)
-- **Credits**: every call is cached by content, so re-running costs nothing. A ledger in `.cache/bodhan_ledger.json` estimates spend (about Rs 0.20 per page) and stops paid calls at `BODHAN_BUDGET_INR` (default Rs 100 of the Rs 110 credit).
-- **Free route**: the open weights run on a Colab GPU through `notebooks/indic_ocr_colab.ipynb`, which gives the same output format at no cost.
-
-## Course and author
-
-- Student: Basavaraj A Naduvinamani (DA25C005), Joint M.Sc. in Data Science and AI, IIT Madras and University of Birmingham
-- Course: DA7016, Recent Advances in Generative AI (Jul to Nov 2026), Prof. Mitesh M. Khapra
-- Earlier interim reports are kept in `docs/archive/`; this README and the build plan supersede them.
-
-## Teacher app
+## Tests
 
 ```bash
-pip install ".[web]"
-autoassess serve
+pip install -e ".[web,ingest,annotate,dev]"
+pytest -q
 ```
 
-Open http://localhost:8000 and choose **Sign in as demo teacher** (`demo@redink.local`). Manage classes and import roster CSVs with the header `roll_no,name`. Create assignments with a question/criteria form or imported YAML/JSON rubric, upload sheets, match roll numbers, and grade in the background. Review flagged answers first, accept them or record a reasoned override, request an evidence-checked AI re-check, then release marked PDFs. J/K move between review answers and A accepts (outside form fields). The existing Gradio demo is available at `/lab/`; `python app.py` still starts the standalone lab.
+The suite runs offline: API keys are cleared in tests and grading uses the scripted provider. CI runs the tests, builds the report and slides PDFs, and builds the Docker image.
 
-This is mock sign-in, with no passwords: **not for real student data**. The app seeds one synthetic class with ten students and an offline pre-graded sample assignment. Sample startup grading always uses the fake provider, even when live keys are configured. If OCR is configured, the optional synthetic scan is assigned to S004 and pre-graded from its known packaged transcript; live uploads still use configured OCR. SQLite and files live under `AUTOASSESS_DATA_DIR` (default `.redink/`, ignored by Git); `--data-dir DIR` overrides it. `AUTOASSESS_SECRET_KEY` fixes the session-signing secret; otherwise it is random per process and sessions expire on restart. `--reset-demo` replaces local app records with the demo. Host and port can be set with `--host` and `--port`.
+## Data and privacy
 
-Assignment jobs use two local worker threads and durable SQLite states. Interrupted running jobs return to the queue at startup; reloads retain progress. Failed sheets expose a retry action. One upload is matched per student per assignment; ambiguous/duplicate names need manual matching. Release requires all uploaded sheets to be graded and explicit confirmation if flagged answers remain. Teacher overrides retain both versions, reopen a released assignment, and are applied when its PDFs are rebuilt on release. AI re-checks retain verified evidence and return the answer for teacher acceptance. Keep one server process per data directory.
+- `data/sample_exam/` and `data/demo_cases/` are synthetic.
+- Real student sheets belong in `data/private/`, which git ignores. The evaluation data (SPRAG and the classroom set) is not in this repository; only aggregate results are reported.
+- Names, roll numbers, emails and phone numbers are removed from answer text before any LLM call. Remove identifying details from scans before sending them to a hosted OCR service.
+- The teacher app's sign-in is a demo mechanism with seeded synthetic accounts. It is **not for real student data** without proper authentication and access control.
 
-From an assignment, download CSV/XLSX grade sheets (all roster students; ungraded marks are blank), current marked PDFs as a ZIP, or the printable class report. Exports apply recorded overrides; `reviewed_by_teacher` is true only when every question on that student’s sheet has been accepted. ZIP names use roll number and student name, with unsafe path characters replaced. See [deployment instructions](docs/deploy.md) for local, Docker and Render startup and the TA demo script.
+## Limitations
+
+Agreement is well below human-human agreement, so marks should be reviewed by a teacher, starting with the flagged ones. The handwritten evaluation is small and has one grader. Keyword-stuffed answers can still collect some partial credit (see `data/demo_cases/`). The injection check matches instruction-like wording and can miss paraphrased attacks. Feedback quality has not yet been rated by students.
+
+## Acknowledgements
+
+Bodhan AI (IIT Madras with AI4Bharat) for IndicOCR and Indic-Translate; the SPRAG dataset authors (CC BY 4.0); course instructor Prof. Mitesh M. Khapra and the DA7016 TAs.

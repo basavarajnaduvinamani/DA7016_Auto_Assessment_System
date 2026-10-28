@@ -1,6 +1,6 @@
 # 11: Teacher web app, part 3: exports, class report, deploy
 
-Status: in review
+Status: done
 Depends on: 10
 
 ## Goal

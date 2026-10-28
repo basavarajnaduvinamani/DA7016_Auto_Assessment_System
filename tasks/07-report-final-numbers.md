@@ -1,6 +1,6 @@
 # 07: Final report with real results, and advocate-only default
 
-Status: in review
+Status: done
 Depends on: 03, 06
 
 ## Goal

@@ -1,6 +1,6 @@
 # 09: Teacher web app, part 1: shell, mock sign-in, classes
 
-Status: in review
+Status: done
 Depends on: 07, 08 (start only after both are merged)
 
 Concept (read first): https://claude.ai/artifact/U42QKHoJ7rxqsqRfKCRrkt ("Red-Ink Grader: product concept"). Tasks 09-11 build its "Red-Ink Classroom" teacher app. The grading engine does not change.

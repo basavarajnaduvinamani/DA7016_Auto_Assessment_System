@@ -1,6 +1,6 @@
 # 08: Presentation slides (Beamer)
 
-Status: in review
+Status: done
 Depends on: 07 (same numbers)
 
 ## Goal

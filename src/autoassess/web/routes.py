@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
-from autoassess.demo import demo_settings, llm_available, validate_upload
+from autoassess.demo import LANGUAGES, demo_settings, llm_available, validate_upload
 from autoassess.providers import make_llm
 from autoassess.regrade import regrade
 from autoassess.schemas import ExamSpec
@@ -25,6 +25,7 @@ from autoassess.spec_builder import draft_spec, lint_spec, load_spec
 from autoassess.web.forms import build_spec, question_values
 from autoassess.web.grading import match_student, rebuild_artifacts
 from autoassess.web.jobs import Jobs
+from autoassess.web.presentation import language_code
 
 if TYPE_CHECKING:
     from autoassess.web.store import Store
@@ -39,7 +40,12 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             request=request,
             name=name,
             status_code=status,
-            context={"teacher": request.state.teacher, "ai_available": llm_available(demo_settings()), **context},
+            context={
+                "teacher": request.state.teacher,
+                "ai_available": llm_available(demo_settings()),
+                "languages": LANGUAGES,
+                **context,
+            },
         )
 
     def classroom(request: Request, class_id: int) -> dict[str, Any]:
@@ -75,6 +81,14 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             "summary": store.assignment_summary(assignment_id),
             "submissions": store.submissions(assignment_id),
             "warnings": lint_spec(spec),
+            "translation_notice": row["feedback_language"] != "English" and not demo_settings().translate_key,
+            "sheet_notices": [
+                {"name": sub["original_name"], "note": note}
+                for sub in store.submissions(assignment_id)
+                if sub["run_json"]
+                for note in json.loads(sub["run_json"]).get("notes", [])
+                if note.startswith("No recognisable questions")
+            ],
         }
 
     def assignment_page(
@@ -115,6 +129,7 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
         form = await request.form()
         title = str(form.get("title", "")).strip()
         values = []
+        feedback_language = str(form.get("feedback_language", "English"))
         try:
             count = int(form.get("question_count", 1))
             if not 1 <= count <= 50:
@@ -136,8 +151,16 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             else:
                 spec = build_spec(title, values)
             lint_spec(spec)
-            assignment_id = store.create_assignment(class_id, title, spec)
+            assignment_id = store.create_assignment(class_id, title, spec, feedback_language=feedback_language)
         except (ValueError, ValidationError, TypeError, KeyError) as err:
+            details = (
+                "; ".join(
+                    item["msg"].removeprefix("Value error, ")
+                    for item in err.errors(include_url=False, include_input=False)
+                )
+                if isinstance(err, ValidationError)
+                else str(err)
+            )
             return render(
                 request,
                 "new_assignment.html",
@@ -153,8 +176,8 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
                         "criteria": [{"description": "", "marks": ""}],
                     }
                 ],
-                values={"title": title},
-                error=f"Check the rubric: {str(err)[:1200]}",
+                values={"title": title, "feedback_language": feedback_language},
+                error=f"Check the rubric: {details[:1200]}",
             )
         except Exception:
             return render(
@@ -163,7 +186,7 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
                 status=400,
                 classroom=room,
                 questions=values,
-                values={"title": title},
+                values={"title": title, "feedback_language": feedback_language},
                 error="The rubric could not be read. Check its YAML/JSON format.",
             )
         return RedirectResponse(f"/assignments/{assignment_id}", status_code=303)
@@ -231,7 +254,9 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
         row = assignment(request, assignment_id)
         form = await request.form()
         incoming = [f for f in form.getlist("sheets") if getattr(f, "filename", "")]
-        if row["released"] or not incoming or len(incoming) > 100:
+        if not incoming:
+            return upload_page(request, assignment_id, status=400, error="Choose at least one answer sheet to upload.")
+        if row["released"] or len(incoming) > 100:
             return upload_page(
                 request, assignment_id, status=400, error="Choose up to 100 sheets for an unreleased assignment."
             )
@@ -246,6 +271,8 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
                 name = Path(incoming_file.filename.replace("\\", "/")).name
                 path = folder / f"{uuid.uuid4().hex}{Path(name).suffix.lower()}"
                 content = await incoming_file.read(limit + 1)
+                if not content:
+                    raise ValueError("This sheet is empty. Upload a file containing an answer.")
                 path.write_bytes(content)
                 validate_upload(path)
                 student_id = match_student(name, roster)
@@ -255,6 +282,9 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
                     occupied.add(student_id)
                 records.append((student_id, name, path))
             store.add_submissions(assignment_id, records)
+        except ValueError as err:
+            shutil.rmtree(folder, ignore_errors=True)
+            return upload_page(request, assignment_id, status=400, error=f"No files were added. {err}")
         except Exception:
             shutil.rmtree(folder, ignore_errors=True)
             return upload_page(
@@ -308,11 +338,25 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
         return RedirectResponse(f"/assignments/{assignment_id}", status_code=303)
 
     @app.get("/assignments/{assignment_id}/review")
-    def review(request: Request, assignment_id: int) -> Response:
-        """Display the flagged-first answer review queue."""
-        return render(
-            request, "review.html", **page_context(request, assignment_id), rows=store.review_rows(assignment_id)
-        )
+    def review(request: Request, assignment_id: int, show: str = "all") -> Response:
+        """Display readable review flags with an optional flagged or injection filter."""
+        context = page_context(request, assignment_id)
+        rows = store.review_rows(assignment_id)
+        if show == "flagged":
+            rows = [row for row in rows if row["needs_review"] or row["question"].flags]
+        elif show == "injection":
+            rows = [row for row in rows if "possible_prompt_injection" in row["question"].flags]
+        elif show != "all":
+            return render(
+                request,
+                "review.html",
+                status=400,
+                **context,
+                rows=[],
+                show="all",
+                error="Choose all, flagged or injection.",
+            )
+        return render(request, "review.html", **context, rows=rows, show=show)
 
     def answer_page(request: Request, assignment_id: int, submission_id: int, qid: str, **kwargs: Any) -> Response:
         """Render one answer, its evidence and the complete criterion decision history."""
@@ -342,6 +386,9 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             **context,
             submission=row,
             question=qg,
+            answer_lang=language_code(context["spec"].language),
+            feedback_lang=language_code(context["assignment"]["feedback_language"]) if qg.feedback_en else "en",
+            thumbnail=bool(json.loads(row["artifacts_json"]).get("pngs")),
             rubric=context["spec"].question(qid),
             answer=saved["segments"].get(qid, {}).get("text", ""),
             image=next(
@@ -529,6 +576,9 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             path = saved["pages"][index].get("image_path") if index < len(saved["pages"]) else None
             if Path(path or "").suffix.lower() not in (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp"):
                 path = None
+        elif kind == "thumbnail":
+            images = artifacts.get("pngs", [])
+            path = images[index] if index < len(images) else None
         elif kind == "pdf":
             path = artifacts.get("pdf")
         elif kind == "html":

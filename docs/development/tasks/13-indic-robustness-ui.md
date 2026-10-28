@@ -1,6 +1,6 @@
 # 13: Teacher app: Indic feedback, robustness signals and UI polish
 
-Status: todo
+Status: in review
 Depends on: 12 can run in parallel; merge after 12 if both touch the same files
 
 ## Why

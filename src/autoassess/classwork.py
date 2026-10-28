@@ -36,10 +36,11 @@ def _canon(text: str) -> str:
 
 def _vector(text: str) -> Counter:
     words = _WORD.findall(text.lower())
-    return Counter(words + [f"{a}_{b}" for a, b in zip(words, words[1:])])
+    return Counter(words + [f"{a}_{b}" for a, b in zip(words, words[1:], strict=False)])
 
 
 def cosine(a: str, b: str) -> float:
+    """Compare answer wording using unigram and bigram cosine similarity."""
     va, vb = _vector(a), _vector(b)
     dot = sum(v * vb[k] for k, v in va.items() if k in vb)
     na, nb = math.sqrt(sum(v * v for v in va.values())), math.sqrt(sum(v * v for v in vb.values()))
@@ -65,7 +66,9 @@ def grade_class(
             seg = segs.get(q.id) or AnswerSegment(question_id=q.id, text="")
             key = _canon(seg.text)
             if key and key in done and mode == "text":
-                by_sheet[sid][q.id] = done[key].model_copy(update={"flags": [*done[key].flags, "same_as_earlier_answer"]})
+                by_sheet[sid][q.id] = done[key].model_copy(
+                    update={"flags": [*done[key].flags, "same_as_earlier_answer"]}
+                )
                 continue
             crops = images(sid, seg) if images and mode != "text" else None
             g = grade_question(
@@ -93,7 +96,11 @@ def consistency_pass(
     flags: dict[tuple[str, str], list[str]] = defaultdict(list)
     for q in spec.questions:
         rows = [
-            (g.student_id, (sheets.get(g.student_id, {}).get(q.id) or AnswerSegment(question_id=q.id, text="")).text, qg)
+            (
+                g.student_id,
+                (sheets.get(g.student_id, {}).get(q.id) or AnswerSegment(question_id=q.id, text="")).text,
+                qg,
+            )
             for g in grades
             for qg in g.questions
             if qg.question_id == q.id
@@ -132,6 +139,7 @@ def _histogram(values: list[float], max_marks: float, bins: int = 5) -> list[int
 
 
 def class_report(spec: ExamSpec, grades: list[SheetGrade], top: int = 3) -> dict:
+    """Summarise current class marks, missed criteria and common mistakes."""
     report: dict = {"exam_id": spec.exam_id, "students": len(grades), "questions": {}}
     totals = [g.total for g in grades]
     if totals:
@@ -161,7 +169,9 @@ def class_report(spec: ExamSpec, grades: list[SheetGrade], top: int = 3) -> dict
         for sid, qg in qgs:
             for e in qg.errors:
                 key = _canon(e.correction or e.quote)
-                m = mistakes.setdefault(key, {"correction": e.correction, "example": e.quote, "student": sid, "count": 0})
+                m = mistakes.setdefault(
+                    key, {"correction": e.correction, "example": e.quote, "student": sid, "count": 0}
+                )
                 m["count"] += 1
         answered = sum(1 for _, qg in qgs if "unanswered" not in qg.flags)
         report["questions"][q.id] = {
@@ -171,7 +181,13 @@ def class_report(spec: ExamSpec, grades: list[SheetGrade], top: int = 3) -> dict
             "unanswered": len(marks) - answered,
             "histogram": _histogram(marks, q.max_marks),
             "most_missed": [
-                {"criterion_id": cid, "criterion": crit[cid].description, "missed_by": n, "share": round(n / max(1, answered), 3), "example_reason": example_reason[cid]}
+                {
+                    "criterion_id": cid,
+                    "criterion": crit[cid].description,
+                    "missed_by": n,
+                    "share": round(n / max(1, answered), 3),
+                    "example_reason": example_reason[cid],
+                }
                 for cid, n in missed.most_common(top)
             ],
             "common_mistakes": sorted(mistakes.values(), key=lambda m: -m["count"])[:top],
@@ -181,6 +197,7 @@ def class_report(spec: ExamSpec, grades: list[SheetGrade], top: int = 3) -> dict
 
 
 def class_report_html(report: dict, title: str = "") -> str:
+    """Render an escaped HTML class summary with per-question histograms."""
     esc = html.escape
     parts = [
         "<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>",
@@ -196,7 +213,9 @@ def class_report_html(report: dict, title: str = "") -> str:
         parts.append(f"<p>Mean total {t['mean']:g} of {t['max_marks']:g} (range {t['min']:g} to {t['max']:g}).</p>")
     for qid, q in report["questions"].items():
         blank = f" &middot; {q['unanswered']} unanswered" if q["unanswered"] else ""
-        parts.append(f"<h2>{esc(qid)}</h2><p>Mean {q['mean']:g} of {q['max_marks']:g} &middot; full marks {q['full_marks_share']:.0%}{blank}</p>")
+        parts.append(
+            f"<h2>{esc(qid)}</h2><p>Mean {q['mean']:g} of {q['max_marks']:g} &middot; full marks {q['full_marks_share']:.0%}{blank}</p>"
+        )
         hist = q["histogram"]
         width = max(hist) or 1
         step = q["max_marks"] / len(hist)

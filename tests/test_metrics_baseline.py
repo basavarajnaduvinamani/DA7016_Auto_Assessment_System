@@ -1,11 +1,11 @@
 import pytest
+from conftest import SAMPLE
 
 from autoassess.baseline import grade_sheet_lexical
 from autoassess.metrics import agreement_report, quadratic_weighted_kappa, within
 from autoassess.providers.text_ocr import PlainTextOCR
 from autoassess.segment import segment_pages
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE
 
 
 def test_qwk_perfect_and_reversed():

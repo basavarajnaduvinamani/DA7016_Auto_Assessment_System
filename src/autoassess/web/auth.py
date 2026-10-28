@@ -1,26 +1,37 @@
 """Signed demo sessions, including the mounted lab's HTTP/WebSocket routes."""
 
+from __future__ import annotations
+
 import os
 import secrets
+from typing import TYPE_CHECKING
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from starlette.requests import HTTPConnection
 from starlette.responses import RedirectResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
+
+if TYPE_CHECKING:
+    from autoassess.web.store import Store
+
 
 _PROCESS_SECRET = secrets.token_hex(32)
 COOKIE = "redink_session"
 MAX_AGE = 12 * 60 * 60
 
 
-def signer():
+def signer() -> URLSafeTimedSerializer:
+    """Create the timed demo-session signer using the configured process secret."""
     return URLSafeTimedSerializer(os.getenv("AUTOASSESS_SECRET_KEY") or _PROCESS_SECRET, salt="redink-demo-session")
 
 
 class DemoSession:
-    def __init__(self, app, store, serializer):
+    """Require a signed teacher session for protected HTTP and WebSocket routes."""
+
+    def __init__(self, app: ASGIApp, store: Store, serializer: URLSafeTimedSerializer) -> None:
         self.app, self.store, self.serializer = app, store, serializer
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] not in ("http", "websocket"):
             return await self.app(scope, receive, send)
         path = scope.get("path", "")

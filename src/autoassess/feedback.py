@@ -25,13 +25,13 @@ from autoassess.grader import evidence_in_answer
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import (
     ErrorMark,
+    ExamSpec,
     FeedbackItem,
-    Remark,
     Question,
     QuestionFeedback,
     QuestionGrade,
+    Remark,
     SheetGrade,
-    ExamSpec,
 )
 
 FEEDBACK_SYSTEM = """You write feedback for a student on one graded exam answer.
@@ -71,6 +71,7 @@ def _quotes_ok(text: str, answer: str) -> bool:
 
 
 def build_feedback_prompt(question: Question, grade: QuestionGrade, answer: str) -> str:
+    """Build a feedback prompt grounded in the current rubric awards."""
     crit = {c.id: c for c in question.criteria}
     rows = [
         {
@@ -91,7 +92,9 @@ def build_feedback_prompt(question: Question, grade: QuestionGrade, answer: str)
     )
 
 
-def verify_items(question: Question, grade: QuestionGrade, answer: str, raw: dict) -> tuple[list[FeedbackItem], list[str]]:
+def verify_items(
+    question: Question, grade: QuestionGrade, answer: str, raw: dict
+) -> tuple[list[FeedbackItem], list[str]]:
     """Keep only feedback items the grading supports; return (items, flags)."""
     by_id = {r.criterion_id: r for r in grade.criteria}
     maxes = {c.id: c.marks for c in question.criteria}
@@ -124,7 +127,9 @@ def verify_items(question: Question, grade: QuestionGrade, answer: str, raw: dic
                 flags.append(f"feedback_dropped:{reason}:{cid or '?'}")
                 continue
             seen.add((kind, cid))
-            items.append(FeedbackItem(criterion_id=cid, kind=kind, text=text, next_step=step if kind == "lost" else None))
+            items.append(
+                FeedbackItem(criterion_id=cid, kind=kind, text=text, next_step=step if kind == "lost" else None)
+            )
     return items, flags
 
 
@@ -200,9 +205,19 @@ def _short(description: str, words: int = REMARK_WORDS - 2, imperative: bool = T
     or 'queries ...' (for a strength), trimmed to a few words.
     """
     text = description.rstrip(".")
-    if m := re.match(r"^(States|Says|Mentions|Explains|Gives|Defines|Names|Lists|Describes|Compares|Shows|Uses|Notes)\b\s*(that\s+)?(.*)$", text):
+    if m := re.match(
+        r"^(States|Says|Mentions|Explains|Gives|Defines|Names|Lists|Describes|Compares|Shows|Uses|Notes)\b\s*(that\s+)?(.*)$",
+        text,
+    ):
         verb, that, rest = m.groups()
-        base = {"Says": "say", "Gives": "give", "Uses": "use", "Compares": "compare", "Describes": "describe", "Notes": "note"}.get(verb, verb[:-1].lower())
+        base = {
+            "Says": "say",
+            "Gives": "give",
+            "Uses": "use",
+            "Compares": "compare",
+            "Describes": "describe",
+            "Notes": "note",
+        }.get(verb, verb[:-1].lower())
         text = f"{base} {that or ''}{rest}" if imperative else rest
     w = text.split()
     out = " ".join(w[:words])
@@ -216,7 +231,13 @@ def rubric_items(question: Question, grade: QuestionGrade) -> list[FeedbackItem]
     for r in grade.criteria:
         c = crit[r.criterion_id]
         if r.marks_awarded > 0:
-            items.append(FeedbackItem(criterion_id=c.id, kind="earned", text=f"You covered this: {c.description[0].lower()}{c.description[1:]}"))
+            items.append(
+                FeedbackItem(
+                    criterion_id=c.id,
+                    kind="earned",
+                    text=f"You covered this: {c.description[0].lower()}{c.description[1:]}",
+                )
+            )
         if r.marks_awarded < c.marks:
             missing = "This point was only partly covered." if r.marks_awarded > 0 else "This point was missing."
             items.append(
@@ -230,7 +251,10 @@ def rubric_items(question: Question, grade: QuestionGrade) -> list[FeedbackItem]
     return items
 
 
-def question_feedback(question: Question, grade: QuestionGrade, answer: str, llm: LLMClient | None = None) -> QuestionFeedback:
+def question_feedback(
+    question: Question, grade: QuestionGrade, answer: str, llm: LLMClient | None = None
+) -> QuestionFeedback:
+    """Generate and verify feedback for one graded question."""
     if not answer.strip():
         return QuestionFeedback(
             question_id=question.id,
@@ -282,13 +306,17 @@ def sheet_summary(spec: ExamSpec, grade: SheetGrade) -> str:
         parts.append("Strongest answers: " + ", ".join(q.question_id for q in best) + ".")
     weak_answered = [q.question_id for q in weak if q.question_id not in missing]
     if weak_answered:
-        parts.append("Focus your revision on " + ", ".join(weak_answered) + "; the points to add are listed under each question.")
+        parts.append(
+            "Focus your revision on " + ", ".join(weak_answered) + "; the points to add are listed under each question."
+        )
     if missing:
         parts.append("Not attempted: " + ", ".join(missing) + ".")
     return " ".join(parts)
 
 
-def add_feedback(spec: ExamSpec, grade: SheetGrade, answers: dict[str, str], llm: LLMClient | None = None) -> SheetGrade:
+def add_feedback(
+    spec: ExamSpec, grade: SheetGrade, answers: dict[str, str], llm: LLMClient | None = None
+) -> SheetGrade:
     """Fill feedback on every question and the sheet summary."""
     questions = []
     for qg in grade.questions:

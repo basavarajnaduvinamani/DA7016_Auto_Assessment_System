@@ -10,7 +10,7 @@ appended to a log next to the original decision, whatever the outcome.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -31,6 +31,8 @@ Return ONLY JSON:
 
 
 class RegradeRecord(BaseModel):
+    """An auditable criterion challenge with before/after marks and verified evidence."""
+
     time: str
     student_id: str
     question_id: str
@@ -54,6 +56,7 @@ def regrade(
     llm: LLMClient,
     log: str | Path | None = None,
 ) -> tuple[SheetGrade, RegradeRecord]:
+    """Reassess one criterion, enforcing mark bounds and quote support before updating it."""
     q = spec.question(question_id)
     crit = {c.id: c for c in q.criteria}
     if criterion_id not in crit:
@@ -92,10 +95,14 @@ def regrade(
         )  # fmt: skip
         criteria = [updated if r.criterion_id == criterion_id else r for r in qg.criteria]
         total = round(min(sum(r.marks_awarded for r in criteria), q.max_marks), 2)
-        new_qg = qg.model_copy(update={"criteria": criteria, "marks_awarded": total, "flags": [*qg.flags, f"regraded:{criterion_id}"]})
-        grade = grade.model_copy(update={"questions": [new_qg if x.question_id == question_id else x for x in grade.questions]})
+        new_qg = qg.model_copy(
+            update={"criteria": criteria, "marks_awarded": total, "flags": [*qg.flags, f"regraded:{criterion_id}"]}
+        )
+        grade = grade.model_copy(
+            update={"questions": [new_qg if x.question_id == question_id else x for x in grade.questions]}
+        )
     record = RegradeRecord(
-        time=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        time=datetime.now(UTC).isoformat(timespec="seconds"),
         student_id=grade.student_id,
         question_id=question_id,
         criterion_id=criterion_id,

@@ -1,9 +1,10 @@
 """The web demo's logic, run without Gradio and without any key."""
 
+from conftest import SAMPLE
+
 from autoassess.config import Settings
 from autoassess.demo import DailyCap, Options, mark_class, mark_sheet
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 

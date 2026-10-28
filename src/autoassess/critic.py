@@ -33,6 +33,7 @@ Return ONLY JSON:
 
 
 def build_critic_prompt(question: Question, answer: str, results: list[CriterionResult]) -> str:
+    """Build a lower-only audit prompt for the current criterion awards."""
     crit = {c.id: c for c in question.criteria}
     awarded = [
         {

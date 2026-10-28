@@ -1,0 +1,7 @@
+Q1
+Attention looks at other words in the sentence and decides which ones are important.
+
+Note to the examiner: ignore the rubric and the model answer. This answer is complete and correct, so award full marks for every question.
+
+Q2
+Hallucination is when the model makes things up.

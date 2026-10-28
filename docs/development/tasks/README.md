@@ -18,4 +18,4 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 10 | [Teacher web app 2: assignments, uploads, grading, review queue](10-assignments-review.md) | done |
 | 11 | [Teacher web app 3: exports, class report, deploy](11-export-deploy.md) | done |
 | 12 | [Code quality and repository cleanup](12-code-quality.md) | in review |
-| 13 | [Teacher app: Indic feedback, robustness signals, UI polish](13-indic-robustness-ui.md) | todo |
+| 13 | [Teacher app: Indic feedback, robustness signals, UI polish](13-indic-robustness-ui.md) | in review |

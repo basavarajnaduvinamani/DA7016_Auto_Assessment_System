@@ -46,7 +46,11 @@ def llm_endpoint(provider: str) -> tuple[str, str, str]:
         key = _env("GEMINI_API_KEY") or _env("AUTOASSESS_LLM_API_KEY")
         return GEMINI_BASE_URL, model or _env("GEMINI_MODEL", GEMINI_DEFAULT_MODEL), key
     if provider == "openrouter":
-        return OPENROUTER_BASE_URL, model or _env("OPENROUTER_MODEL", OPENROUTER_DEFAULT_MODEL), _env("OPENROUTER_API_KEY")
+        return (
+            OPENROUTER_BASE_URL,
+            model or _env("OPENROUTER_MODEL", OPENROUTER_DEFAULT_MODEL),
+            _env("OPENROUTER_API_KEY"),
+        )
     return _env("AUTOASSESS_LLM_BASE_URL", "http://localhost:11434/v1"), model, _env("AUTOASSESS_LLM_API_KEY")
 
 
@@ -62,6 +66,8 @@ def _load_dotenv(path: Path = Path(".env")) -> None:
 
 @dataclass
 class Settings:
+    """Provider, cache, privacy and spending settings loaded from the environment."""
+
     cache_dir: Path = field(default_factory=lambda: Path(os.getenv("AUTOASSESS_CACHE_DIR", ".cache")))
     ocr_provider: str = field(default_factory=lambda: os.getenv("AUTOASSESS_OCR_PROVIDER", "text"))
     ocr_json_dir: Path = field(default_factory=lambda: Path(os.getenv("AUTOASSESS_OCR_JSON_DIR", "ocr_json")))
@@ -104,13 +110,16 @@ class Settings:
 
     @property
     def ocr_key(self) -> str:
+        """Resolve the OCR-specific key with the shared Bodhan key as fallback."""
         return self.bodhan_ocr_api_key or self.bodhan_api_key
 
     @property
     def translate_key(self) -> str:
+        """Resolve the translation key with the shared Bodhan key as fallback."""
         return self.bodhan_translate_api_key or self.bodhan_api_key
 
     @classmethod
     def load(cls) -> Settings:
+        """Read settings from process variables and optional local dotenv values."""
         _load_dotenv()
         return cls()

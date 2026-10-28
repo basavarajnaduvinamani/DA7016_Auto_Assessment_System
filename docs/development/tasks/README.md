@@ -1,6 +1,6 @@
 # Tasks
 
-Specs written by Claude, implemented by Codex, one PR each. See `AGENTS.md` for the workflow.
+Specs written by Claude, implemented by Codex, one PR each. See [AGENTS.md](../AGENTS.md) for the workflow.
 
 Status values: `todo`, `in progress`, `in review`, `done`.
 
@@ -17,5 +17,5 @@ Status values: `todo`, `in progress`, `in review`, `done`.
 | 09 | [Teacher web app 1: shell, mock sign-in, classes](09-web-shell.md) | done |
 | 10 | [Teacher web app 2: assignments, uploads, grading, review queue](10-assignments-review.md) | done |
 | 11 | [Teacher web app 3: exports, class report, deploy](11-export-deploy.md) | done |
-| 12 | [Code quality and repository cleanup](12-code-quality.md) | todo |
+| 12 | [Code quality and repository cleanup](12-code-quality.md) | in review |
 | 13 | [Teacher app: Indic feedback, robustness signals, UI polish](13-indic-robustness-ui.md) | todo |

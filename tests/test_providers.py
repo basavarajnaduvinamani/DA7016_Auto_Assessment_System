@@ -1,10 +1,10 @@
 import pytest
+from conftest import SAMPLE
 
 from autoassess.cache import DiskCache, content_key
 from autoassess.config import Settings
 from autoassess.providers import make_ocr
 from autoassess.providers.llm import parse_json_reply
-from conftest import SAMPLE
 
 
 def test_cache_computes_once(tmp_path):
@@ -74,7 +74,9 @@ def test_llm_gives_up_after_three_malformed_replies(tmp_path, monkeypatch):
 
     client = llm_mod.OpenAICompatibleLLM("https://example.test/v1", "m", cache=DiskCache(tmp_path, "llm"))
     calls = []
-    monkeypatch.setattr(client, "_post", lambda payload: calls.append(1) or {"choices": [{"message": {"content": '{"a" 1}'}}]})
+    monkeypatch.setattr(
+        client, "_post", lambda payload: calls.append(1) or {"choices": [{"message": {"content": '{"a" 1}'}}]}
+    )
     with pytest.raises(ValueError):
         client.complete_json("s", "u")
     assert len(calls) == 3

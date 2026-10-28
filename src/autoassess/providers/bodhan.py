@@ -58,6 +58,8 @@ def language_code(language: str) -> str:
 
 
 class BodhanError(RuntimeError):
+    """A hosted Bodhan request failed or returned an invalid response."""
+
     pass
 
 
@@ -94,16 +96,35 @@ class _BodhanClient:
 
 
 class BodhanOCR(OCRProvider):
+    """Read document pages through the hosted Bodhan OCR service."""
+
     name = "bodhan-indicocr"
 
-    def __init__(self, api_key: str, base_url: str = DEFAULT_BASE_URL, cache: DiskCache | None = None, budget_inr: float | None = None, timeout: float = 180):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = DEFAULT_BASE_URL,
+        cache: DiskCache | None = None,
+        budget_inr: float | None = None,
+        timeout: float = 180,
+    ):
         self.client = _BodhanClient(api_key, base_url, cache, budget_inr, timeout)
 
     def _ocr(self, image: bytes, mime: str) -> dict:
         self.client.ledger.check(OCR_INR_PER_PAGE)
         body = {
             "model": "indic-ocr",
-            "messages": [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode()}"}}]}],
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode()}"},
+                        }
+                    ],
+                }
+            ],
             "table_format": "markdown",
         }
         result = self.client._post("/v1/chat/completions", body)
@@ -123,6 +144,7 @@ class BodhanOCR(OCRProvider):
         return blocks_to_page(parsed, page_index, image_path, self.name)
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
+        """Read and normalise one page, reusing cached OCR when available."""
         image = Path(image_path).read_bytes()
         mime = mimetypes.guess_type(str(image_path))[0] or "image/png"
         try:
@@ -147,15 +169,28 @@ class BodhanOCR(OCRProvider):
             img.crop(box).save(buf, format="PNG")
             for line in self._read(buf.getvalue(), "image/png", page_index, image_path).lines:
                 if line.bbox is not None:
-                    line = line.model_copy(update={"bbox": line.bbox.model_copy(update={"y0": line.bbox.y0 + top, "y1": line.bbox.y1 + top})})
+                    line = line.model_copy(
+                        update={
+                            "bbox": line.bbox.model_copy(update={"y0": line.bbox.y0 + top, "y1": line.bbox.y1 + top})
+                        }
+                    )
                 lines.append(line)
         return OCRPage(page_index=page_index, image_path=image_path, lines=lines, provider=self.name)
 
 
 class BodhanTranslate(Translator):
+    """Translate feedback through the hosted Bodhan language service."""
+
     name = "bodhan-indic-translate"
 
-    def __init__(self, api_key: str, base_url: str = DEFAULT_BASE_URL, cache: DiskCache | None = None, budget_inr: float | None = None, timeout: float = 60):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = DEFAULT_BASE_URL,
+        cache: DiskCache | None = None,
+        budget_inr: float | None = None,
+        timeout: float = 60,
+    ):
         self.client = _BodhanClient(api_key, base_url, cache, budget_inr, timeout)
 
     def _translate(self, text: str, code: str) -> str:
@@ -172,6 +207,7 @@ class BodhanTranslate(Translator):
         return choice["message"]["content"].strip()
 
     def translate(self, text: str, target_language: str, source_language: str = "English") -> str:
+        """Translate text with the configured cache and spending guard."""
         code = language_code(target_language)
         if code == "en" or not text.strip():
             return text
@@ -183,7 +219,9 @@ class BodhanTranslate(Translator):
                 continue
             cache = self.client.cache
             parts.append(
-                cache.get_or_compute(content_key("bodhan-translate", code, para), lambda p=para: self._translate(p, code))
+                cache.get_or_compute(
+                    content_key("bodhan-translate", code, para), lambda p=para: self._translate(p, code)
+                )
                 if cache
                 else self._translate(para, code)
             )

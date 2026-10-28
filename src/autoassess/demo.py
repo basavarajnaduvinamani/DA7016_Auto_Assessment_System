@@ -26,7 +26,19 @@ from autoassess.schemas import ExamSpec, OCRPage, SheetGrade
 
 ROOT = Path(__file__).resolve().parents[2]
 SAMPLE = Path(__file__).resolve().parent / "sample_exam"
-LANGUAGES = ["English", "Hindi", "Kannada", "Tamil", "Telugu", "Marathi", "Bengali", "Malayalam", "Gujarati", "Odia", "Punjabi"]
+LANGUAGES = [
+    "English",
+    "Hindi",
+    "Kannada",
+    "Tamil",
+    "Telugu",
+    "Marathi",
+    "Bengali",
+    "Malayalam",
+    "Gujarati",
+    "Odia",
+    "Punjabi",
+]
 
 
 UPLOAD_EXTENSIONS = (".pdf", ".png", ".jpg", ".jpeg", ".txt")
@@ -34,11 +46,21 @@ _CAP_LOCK = RLock()
 
 
 def demo_settings(settings: Settings | None = None) -> Settings:
+    """Resolve demo settings, stripping remote credentials in scripted mode."""
     settings = settings or Settings.load()
     if _env("AUTOASSESS_DEMO_DRY_RUN") == "1" or settings.llm_provider == "fake":
         return dataclasses.replace(
-            settings, llm_provider="fake", llm_base_url="", llm_model="fake", llm_api_key="",
-            bodhan_api_key="", bodhan_ocr_api_key="", bodhan_translate_api_key="", vision_model="", ocr_provider="text")
+            settings,
+            llm_provider="fake",
+            llm_base_url="",
+            llm_model="fake",
+            llm_api_key="",
+            bodhan_api_key="",
+            bodhan_ocr_api_key="",
+            bodhan_translate_api_key="",
+            vision_model="",
+            ocr_provider="text",
+        )
     return settings
 
 
@@ -50,20 +72,29 @@ def llm_available(settings: Settings) -> bool:
 
 
 def health_payload(settings: Settings | None = None) -> dict:
+    """Return provider metadata without constructing clients or making calls."""
     settings = demo_settings(settings)
-    return {"ok": True, "llm": settings.llm_provider if llm_available(settings) else "none", "ocr": settings.ocr_provider}
+    return {
+        "ok": True,
+        "llm": settings.llm_provider if llm_available(settings) else "none",
+        "ocr": settings.ocr_provider,
+    }
 
 
 def daily_cap(settings: Settings) -> DailyCap:
+    """Create the paid-sheet counter using the configured cache and limit."""
     return DailyCap(settings.cache_dir, int(_env("AUTOASSESS_DEMO_DAILY_SHEETS", "40")))
 
 
 def status_markdown() -> str:
+    """Describe provider availability and the remaining daily sheet allowance."""
     settings = demo_settings()
     remaining = daily_cap(settings).remaining()
     if settings.llm_provider == "fake":
         return f"Dry run: scripted text grading, no API calls. Paid LLM sheets remaining today: {remaining}."
-    note = "" if llm_available(settings) else "LLM grader disabled: no key configured. The lexical baseline is available. "
+    note = (
+        "" if llm_available(settings) else "LLM grader disabled: no key configured. The lexical baseline is available. "
+    )
     return f"{note}LLM sheets remaining today: {remaining}."
 
 
@@ -93,7 +124,9 @@ def validate_upload(sheet: str | Path) -> Path:
 def _provider_note(err: Exception) -> str:
     from autoassess.budget import BudgetExceeded
 
-    reason = "The provider budget is exhausted" if isinstance(err, BudgetExceeded) else "A grading provider is unavailable"
+    reason = (
+        "The provider budget is exhausted" if isinstance(err, BudgetExceeded) else "A grading provider is unavailable"
+    )
     return f"{reason}; the lexical baseline marked the sheet instead. Feedback is in English."
 
 
@@ -106,7 +139,9 @@ def _demo_llm(settings: Settings, opts: Options, notes: list[str], count: int = 
     if settings.llm_provider == "fake":
         notes.append("Dry run: scripted grading, not semantic assessment; no API calls.")
     elif not daily_cap(settings).take(count):
-        notes.append("Today's demo limit for the LLM grader is used up, so the free lexical baseline marked this sheet.")
+        notes.append(
+            "Today's demo limit for the LLM grader is used up, so the free lexical baseline marked this sheet."
+        )
         return None
     return make_llm(settings)
 
@@ -114,22 +149,33 @@ def _demo_llm(settings: Settings, opts: Options, notes: list[str], count: int = 
 def _read_demo_sheet(sheet: Path, settings: Settings, out: Path, spec: ExamSpec, notes: list[str]) -> tuple[list, bool]:
     if settings.llm_provider == "fake" and sheet.suffix.lower() != ".txt":
         raise ValueError("Dry-run mode accepts typed .txt sheets. Try the sample sheet.")
-    if sheet.suffix.lower() != ".txt" and settings.ocr_provider == "text" and not (settings.ocr_key or settings.vision_model):
-        raise ValueError("This sheet is a scan, but no OCR is configured (set BODHAN_OCR_API_KEY or AUTOASSESS_VISION_MODEL).")
+    if (
+        sheet.suffix.lower() != ".txt"
+        and settings.ocr_provider == "text"
+        and not (settings.ocr_key or settings.vision_model)
+    ):
+        raise ValueError(
+            "This sheet is a scan, but no OCR is configured (set BODHAN_OCR_API_KEY or AUTOASSESS_VISION_MODEL)."
+        )
     try:
         ocr, note = _ocr_for(sheet, settings)
         if note:
             notes.append(note)
         return read_sheet(sheet, ocr, work_dir=out / "pages", language=spec.language), True
     except Exception:
-        notes.append("Reading provider unavailable: no answers could be extracted. The baseline report has no assessed answers. Upload a typed .txt sheet to retry.")
+        notes.append(
+            "Reading provider unavailable: no answers could be extracted. The baseline report has no assessed answers. Upload a typed .txt sheet to retry."
+        )
         return [OCRPage(page_index=0)], False
 
 
 @dataclass
 class Options:
+    """Grading, review, annotation and feedback choices for a demo run."""
+
     use_llm: bool = True
     input_mode: str = "text"  # text | image | hybrid
+    # Lower-only audits amplify under-marking; the advocate can recover supported missed credit.
     advocate_review: bool = True
     strict_critic: bool = False
     runs: int = 3
@@ -139,6 +185,8 @@ class Options:
 
 @dataclass
 class SheetResult:
+    """A graded sheet with its reports, annotations and provider notices."""
+
     grade: SheetGrade
     summary_md: str
     html_path: Path
@@ -158,7 +206,9 @@ def _ocr_for(sheet: Path, settings: Settings):
         return make_ocr(dataclasses.replace(settings, ocr_provider="bodhan")), "Read with Bodhan IndicOCR."
     if settings.vision_model:
         return make_ocr(dataclasses.replace(settings, ocr_provider="vision")), "Read with a vision model."
-    raise ValueError("This sheet is a scan, but no OCR is configured (set BODHAN_OCR_API_KEY or AUTOASSESS_VISION_MODEL).")
+    raise ValueError(
+        "This sheet is a scan, but no OCR is configured (set BODHAN_OCR_API_KEY or AUTOASSESS_VISION_MODEL)."
+    )
 
 
 class DailyCap:
@@ -174,13 +224,19 @@ class DailyCap:
         except (OSError, ValueError):
             data = {}
         valid = isinstance(data, dict) and isinstance(data.get("count"), int) and data["count"] >= 0
-        return data if valid and data.get("day") == date.today().isoformat() else {"day": date.today().isoformat(), "count": 0}
+        return (
+            data
+            if valid and data.get("day") == date.today().isoformat()
+            else {"day": date.today().isoformat(), "count": 0}
+        )
 
     def remaining(self) -> int:
+        """Return the number of paid sheet attempts still available today."""
         with _CAP_LOCK:
             return max(0, self.limit - self._load()["count"])
 
     def take(self, count: int = 1) -> bool:
+        """Atomically reserve sheet attempts without exceeding the daily cap."""
         with _CAP_LOCK:
             data = self._load()
             if data["count"] + count > self.limit:
@@ -212,7 +268,21 @@ def summary_markdown(spec: ExamSpec, grade: SheetGrade) -> str:
     return "\n".join(lines)
 
 
-def mark_sheet(spec: ExamSpec, sheet: str | Path, opts: Options, settings: Settings | None = None, out_dir: Path | None = None) -> SheetResult:
+def mark_sheet(
+    spec: ExamSpec, sheet: str | Path, opts: Options, settings: Settings | None = None, out_dir: Path | None = None
+) -> SheetResult:
+    """Read and grade one validated upload, retaining safe fallback notices.
+
+    Args:
+        spec: Validated questions, rubric and model answers.
+        sheet: Typed answer file or supported scanned document.
+        opts: Review, language, input-mode and annotation choices.
+        settings: Optional provider/cache settings, resolved from the environment otherwise.
+        out_dir: Optional persistent directory; defaults to a new temporary directory.
+
+    Returns:
+        Marks, feedback, source segments, reports and any provider fallback notices.
+    """
     sheet = validate_upload(sheet)
     settings = demo_settings(settings)
     out = out_dir or Path(tempfile.mkdtemp(prefix="autoassess_"))
@@ -222,13 +292,21 @@ def mark_sheet(spec: ExamSpec, sheet: str | Path, opts: Options, settings: Setti
     try:
         llm = _demo_llm(settings, opts, notes) if readable else None
         reviewer = make_llm(settings, critic=True) if llm and (opts.advocate_review or opts.strict_critic) else None
-        translator = make_translator(settings) if readable and opts.language != "English" and settings.translate_key else None
+        translator = (
+            make_translator(settings) if readable and opts.language != "English" and settings.translate_key else None
+        )
         if opts.language != "English" and translator is None:
             notes.append("Feedback stays in English: no Bodhan translate key is set.")
         result = run(
-            spec, pages, sheet.stem, llm, runs=opts.runs if llm else 1,
-            critic=reviewer if opts.strict_critic else None, advocate=reviewer if opts.advocate_review else None,
-            mode=opts.input_mode if llm else "text", translator=translator,
+            spec,
+            pages,
+            sheet.stem,
+            llm,
+            runs=opts.runs if llm else 1,
+            critic=reviewer if opts.strict_critic else None,
+            advocate=reviewer if opts.advocate_review else None,
+            mode=opts.input_mode if llm else "text",
+            translator=translator,
             feedback_language=opts.language if translator else None,
         )
     except Exception as err:
@@ -243,7 +321,9 @@ def mark_sheet(spec: ExamSpec, sheet: str | Path, opts: Options, settings: Setti
     return SheetResult(result.grade, summary_markdown(spec, result.grade), html_path, pdf, pngs, notes, result)
 
 
-def mark_class(spec: ExamSpec, sheets: list[str | Path], opts: Options, settings: Settings | None = None) -> tuple[Path, Path, list[str]]:
+def mark_class(
+    spec: ExamSpec, sheets: list[str | Path], opts: Options, settings: Settings | None = None
+) -> tuple[Path, Path, list[str]]:
     """Grade several sheets, question by question. Returns (class report HTML, zip of marked PDFs and grades, notes)."""
     from autoassess.annotate import annotate_sheet
     from autoassess.classwork import class_report, class_report_html, grade_class
@@ -265,12 +345,18 @@ def mark_class(spec: ExamSpec, sheets: list[str | Path], opts: Options, settings
         readable = readable and ok
 
     def grade_batch(llm):
+        """Grade the loaded class using the selected provider or lexical fallback."""
         segs = {sid: segment(spec, ps, llm) for sid, ps in pages.items()}
         if llm is not None:
             reviewer = make_llm(settings, critic=True) if opts.advocate_review or opts.strict_critic else None
             grades = grade_class(
-                spec, segs, llm, runs=opts.runs,
-                critic=reviewer if opts.strict_critic else None, advocate=reviewer if opts.advocate_review else None)
+                spec,
+                segs,
+                llm,
+                runs=opts.runs,
+                critic=reviewer if opts.strict_critic else None,
+                advocate=reviewer if opts.advocate_review else None,
+            )
         else:
             from autoassess.baseline import grade_sheet_lexical
             from autoassess.classwork import consistency_pass

@@ -26,6 +26,7 @@ from autoassess.schemas import ExamSpec
 
 
 def load_spec(path: str | Path) -> ExamSpec:
+    """Load and validate an exam specification from YAML or JSON."""
     path = Path(path)
     raw = path.read_text(encoding="utf-8")
     data = json.loads(raw) if path.suffix == ".json" else yaml.safe_load(raw)
@@ -33,6 +34,7 @@ def load_spec(path: str | Path) -> ExamSpec:
 
 
 def save_spec(spec: ExamSpec, path: str | Path) -> None:
+    """Write a validated exam specification as YAML or JSON."""
     path = Path(path)
     data = spec.model_dump(mode="json")
     if path.suffix == ".json":
@@ -67,6 +69,7 @@ def _draft_prompt(paper: str, rubric: str, model_answers: str, exam_id: str) -> 
 def draft_spec(
     paper: str, rubric: str, model_answers: str, llm: LLMClient, exam_id: str = "exam", max_repairs: int = 1
 ) -> ExamSpec:
+    """Draft an exam specification from teacher documents, repairing validation once."""
     user = _draft_prompt(paper, rubric, model_answers, exam_id)
     data = llm.complete_json(DRAFT_SYSTEM, user)
     for attempt in range(max_repairs + 1):

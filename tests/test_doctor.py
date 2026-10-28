@@ -16,7 +16,6 @@ from autoassess.config import (
 from autoassess.providers.bodhan import BodhanError, _BodhanClient
 from autoassess.providers.llm import LLMError, OpenAICompatibleLLM
 
-
 KEY_VARS = (
     "AUTOASSESS_LLM_PROVIDER", "AUTOASSESS_LLM_BASE_URL", "AUTOASSESS_LLM_MODEL", "AUTOASSESS_LLM_API_KEY",
     "GEMINI_API_KEY", "GEMINI_MODEL", "OPENROUTER_API_KEY", "OPENROUTER_MODEL",
@@ -51,7 +50,15 @@ def _fake_bodhan(self, path, body):
         return {"translation": "अच्छा उत्तर।", "usage": {"output_tokens": 5}}
     return {
         "choices": [{"message": {"content": "Answer 1: a stack is LIFO"}}],
-        "blocks": [{"order": 0, "type": "Text", "bbox_xyxy": [30, 50, 600, 100], "conf": 0.9, "text": "Answer 1: a stack is LIFO"}],
+        "blocks": [
+            {
+                "order": 0,
+                "type": "Text",
+                "bbox_xyxy": [30, 50, 600, 100],
+                "conf": 0.9,
+                "text": "Answer 1: a stack is LIFO",
+            }
+        ],
     }
 
 
@@ -59,11 +66,19 @@ def test_provider_selection(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     s = Settings()  # only OpenRouter has a key
     assert (s.llm_provider, s.llm_base_url, s.llm_model, s.llm_api_key) == (
-        "openrouter", OPENROUTER_BASE_URL, OPENROUTER_DEFAULT_MODEL, "or-key"
+        "openrouter",
+        OPENROUTER_BASE_URL,
+        OPENROUTER_DEFAULT_MODEL,
+        "or-key",
     )
     monkeypatch.setenv("AUTOASSESS_LLM_API_KEY", "g-key")
     s = Settings()  # both: free Gemini wins for development
-    assert (s.llm_provider, s.llm_base_url, s.llm_model, s.llm_api_key) == ("gemini", GEMINI_BASE_URL, GEMINI_DEFAULT_MODEL, "g-key")
+    assert (s.llm_provider, s.llm_base_url, s.llm_model, s.llm_api_key) == (
+        "gemini",
+        GEMINI_BASE_URL,
+        GEMINI_DEFAULT_MODEL,
+        "g-key",
+    )
     monkeypatch.setenv("AUTOASSESS_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_MODEL", "anthropic/claude-haiku")
     s = Settings()  # one line switches to OpenRouter for the demo
@@ -131,7 +146,13 @@ def test_missing_keys_skip_and_free_mode(tmp_path):
 
 def test_cli_exit_code(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)  # no .env here
-    for var in ("AUTOASSESS_LLM_API_KEY", "GEMINI_API_KEY", "BODHAN_API_KEY", "BODHAN_OCR_API_KEY", "BODHAN_TRANSLATE_API_KEY"):
+    for var in (
+        "AUTOASSESS_LLM_API_KEY",
+        "GEMINI_API_KEY",
+        "BODHAN_API_KEY",
+        "BODHAN_OCR_API_KEY",
+        "BODHAN_TRANSLATE_API_KEY",
+    ):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("AUTOASSESS_LLM_API_KEY", "k-1234567890abcd")
     monkeypatch.setattr(OpenAICompatibleLLM, "_post", lambda self, p: (_ for _ in ()).throw(LLMError("401 nope", 401)))
@@ -177,7 +198,9 @@ def test_openrouter_credit_and_standby_check(tmp_path, monkeypatch):
     monkeypatch.setattr(
         OpenAICompatibleLLM,
         "_post",
-        lambda self, p: llm_calls.append((self.base_url, p["model"])) or {"choices": [{"message": {"content": '{"sum": 5}'}}]},
+        lambda self, p: (
+            llm_calls.append((self.base_url, p["model"])) or {"choices": [{"message": {"content": '{"sum": 5}'}}]}
+        ),
     )
     s = _settings(tmp_path, openrouter_api_key="sk-or-v1-fakefakefake")
     checks = {c.name: c for c in doctor.run_doctor(s, paid=False)}
@@ -185,7 +208,10 @@ def test_openrouter_credit_and_standby_check(tmp_path, monkeypatch):
     assert credit.status == "ok" and "$19.58 left" in credit.detail and "no expiry date" in credit.detail
     assert seen == [(f"{OPENROUTER_BASE_URL}/key", "Bearer sk-or-v1-fakefakefake")]
     assert checks[f"standby LLM [openrouter] ({OPENROUTER_DEFAULT_MODEL})"].status == "ok"
-    assert (OPENROUTER_BASE_URL, OPENROUTER_DEFAULT_MODEL) in llm_calls and (GEMINI_BASE_URL, GEMINI_DEFAULT_MODEL) in llm_calls
+    assert (OPENROUTER_BASE_URL, OPENROUTER_DEFAULT_MODEL) in llm_calls and (
+        GEMINI_BASE_URL,
+        GEMINI_DEFAULT_MODEL,
+    ) in llm_calls
 
     key_info["data"].update(limit_remaining=0.0, usage=20.0, expires_at="2027-06-30T00:00:00Z")
     credit = doctor.check_openrouter_credit(s)

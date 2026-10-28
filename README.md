@@ -102,7 +102,7 @@ The LLM client works with any OpenAI-compatible endpoint. `AUTOASSESS_LLM_PROVID
 
 ## Try it
 
-**Web demo (no key needed):** https://claude.ai/artifact/L2FPAup8f9jBFYfi8UVpxC runs the offline pipeline in the browser: segmentation, the lexical baseline and rubric feedback, on the sample quiz or your own spec and typed sheets. Its engine (`web/engine.js`) is a port of the Python baseline, and `tests/test_web_parity.py` checks both give identical marks and feedback. The LLM grader, critic, OCR and translation run in the Python app once keys are set.
+Run the [teacher app](#teacher-app) for the classroom workflow, or use the Gradio lab at `/lab/`. Set `AUTOASSESS_DEMO_DRY_RUN=1` for scripted text grading without provider calls.
 
 ## Feedback, report and demo
 
@@ -120,7 +120,7 @@ Choose the OCR with `AUTOASSESS_OCR_PROVIDER`:
 | Provider | What it is | Needs |
 | --- | --- | --- |
 | `text` | Typed `.txt` sheets, no OCR | nothing |
-| `indic-precomputed` | Bodhan IndicOCR JSON made in [`notebooks/indic_ocr_colab.ipynb`](notebooks/indic_ocr_colab.ipynb) | a free Colab GPU, once per batch |
+| `indic-precomputed` | Precomputed Bodhan IndicOCR JSON from a GPU run | a free Colab GPU, once per batch |
 | `indic-local` | Bodhan IndicOCR open weights in-process | a GPU and the gated `bodhan-ai/indic-ocr` weights |
 | `vision` | A vision LLM transcribes the page (baseline) | `AUTOASSESS_VISION_MODEL` |
 | `bodhan` | Bodhan hosted API | week 5, uses the coupon credits |
@@ -140,13 +140,12 @@ Bodhan AI (IIT Madras with AI4Bharat) serves IndicOCR and Indic-Translate as hos
 - **Hosted OCR**: set `AUTOASSESS_OCR_PROVIDER=bodhan` and `BODHAN_API_KEY`. Each page goes to `POST https://api.bodhan.ai/v1/chat/completions` with model `indic-ocr`; layout blocks come back with boxes, as with the open weights.
 - **Translated feedback**: `autoassess grade ... --feedback-language Kannada` sends feedback paragraph by paragraph to `POST /v1/chat/completions` with model `indic-translate` and `target_language`. (The cookbook's `POST /translate` returns 404 on the live API.)
 - **Credits**: every call is cached by content, so re-running costs nothing. A ledger in `.cache/bodhan_ledger.json` estimates spend (about Rs 0.20 per page) and stops paid calls at `BODHAN_BUDGET_INR` (default Rs 100 of the Rs 110 credit).
-- **Free route**: the open weights run on a Colab GPU through `notebooks/indic_ocr_colab.ipynb`, which gives the same output format at no cost.
+- **Local route**: accepted IndicOCR weights can run on a suitable GPU and produce precomputed JSON for grading. See the model provider’s installation instructions.
 
 ## Course and author
 
 - Student: Basavaraj A Naduvinamani (DA25C005), Joint M.Sc. in Data Science and AI, IIT Madras and University of Birmingham
 - Course: DA7016, Recent Advances in Generative AI (Jul to Nov 2026), Prof. Mitesh M. Khapra
-- Earlier interim reports are kept in `docs/archive/`; this README and the build plan supersede them.
 
 ## Teacher app
 
@@ -162,3 +161,5 @@ This is mock sign-in, with no passwords: **not for real student data**. The app 
 Assignment jobs use two local worker threads and durable SQLite states. Interrupted running jobs return to the queue at startup; reloads retain progress. Failed sheets expose a retry action. One upload is matched per student per assignment; ambiguous/duplicate names need manual matching. Release requires all uploaded sheets to be graded and explicit confirmation if flagged answers remain. Teacher overrides retain both versions, reopen a released assignment, and are applied when its PDFs are rebuilt on release. AI re-checks retain verified evidence and return the answer for teacher acceptance. Keep one server process per data directory.
 
 From an assignment, download CSV/XLSX grade sheets (all roster students; ungraded marks are blank), current marked PDFs as a ZIP, or the printable class report. Exports apply recorded overrides; `reviewed_by_teacher` is true only when every question on that student’s sheet has been accepted. ZIP names use roll number and student name, with unsafe path characters replaced. See [deployment instructions](docs/deploy.md) for local, Docker and Render startup and the TA demo script.
+
+Development rules and implementation task specs live in [docs/development/](docs/development/README.md).

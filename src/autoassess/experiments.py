@@ -1,4 +1,4 @@
-"""Week 6 experiments: ablations, robustness and OCR accuracy.
+"""Controlled experiments: ablations, robustness and OCR accuracy.
 
 - Ablation: grade the same sheets under several grader settings and compare
   each with human marks, to show what each design choice is worth.
@@ -30,6 +30,8 @@ GradeFn = Callable[[Question, AnswerSegment], QuestionGrade]
 
 @dataclass
 class Config:
+    """A controlled ablation configuration for the grading pipeline."""
+
     name: str
     runs: int = 3
     critic: bool = True
@@ -68,6 +70,7 @@ def make_grade_fn(
     second: LLMClient | None = None,
     images: Callable[[AnswerSegment], list[bytes]] | None = None,
 ) -> GradeFn:
+    """Bind an ablation configuration to a question-grading callable."""
     if cfg.lexical:
         return grade_question_lexical
     if llm is None:
@@ -75,6 +78,7 @@ def make_grade_fn(
     reviewer = critic or llm
 
     def fn(q: Question, seg: AnswerSegment) -> QuestionGrade:
+        """Grade one question with the captured ablation settings."""
         crops = images(seg) if images and cfg.input_mode != "text" else None
         return grade_question(
             q,
@@ -93,6 +97,7 @@ def make_grade_fn(
 
 
 def grade_all(spec: ExamSpec, sheets: dict[str, dict[str, AnswerSegment]], fn: GradeFn) -> list[SheetGrade]:
+    """Apply a configured grader to each sheet and question."""
     empty = lambda qid: AnswerSegment(question_id=qid, text="")  # noqa: E731
     return [
         SheetGrade(
@@ -128,7 +133,11 @@ def run_ablation(
             from autoassess.page_images import answer_crops
 
             grades = [
-                grade_all(cspec, {sid: segs}, make_grade_fn(cfg, llm, critic, second, lambda seg, p=pages.get(sid, []): answer_crops(seg, p)))[0]
+                grade_all(
+                    cspec,
+                    {sid: segs},
+                    make_grade_fn(cfg, llm, critic, second, lambda seg, p=pages.get(sid, []): answer_crops(seg, p)),  # noqa: B008 - capture this sheet’s pages
+                )[0]
                 for sid, segs in sheets.items()
             ]
         results[cfg.name] = compare(cspec, grades, human)
@@ -239,6 +248,7 @@ FLOORS: dict[str, Callable[[float, float], float]] = {
 
 
 def run_robustness(spec: ExamSpec, sheets: dict[str, dict[str, AnswerSegment]], fn: GradeFn) -> dict:
+    """Measure score changes under predefined answer perturbations."""
     rows = []
     for sid, segs in sheets.items():
         for q in spec.questions:
@@ -270,6 +280,7 @@ def run_robustness(spec: ExamSpec, sheets: dict[str, dict[str, AnswerSegment]], 
 
 
 def robustness_table(report: dict) -> str:
+    """Format robustness results as a Markdown table."""
     lines = ["| Perturbation | Cases | Pass rate | Mean mark change |", "|---|---|---|---|"]
     for name, s in report["summary"].items():
         lines.append(f"| {name} | {s['n']} | {s['pass_rate']:.0%} | {s['mean_delta']:+.2f} |")
@@ -299,6 +310,7 @@ def ocr_accuracy(pages_by_sheet: dict[str, list], references: dict[str, str]) ->
 
 
 def read_pages_for_sheets(sheets: list[str], ocr: OCRProvider, language: str | None = None) -> dict[str, list]:
+    """Read each sheet with the configured OCR provider."""
     from autoassess.pipeline import read_sheet
 
     return {Path(s).stem: read_sheet(s, ocr, language=language) for s in sheets}

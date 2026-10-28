@@ -16,6 +16,7 @@ from autoassess.schemas import AnswerSegment, OCRPage
 
 
 def answer_crops(segment: AnswerSegment, pages: list[OCRPage], max_side: int = 1600, margin: int = 40) -> list[bytes]:
+    """Crop the page regions associated with an answer segment for vision grading."""
     from PIL import Image
 
     by_index = {p.page_index: p for p in pages}

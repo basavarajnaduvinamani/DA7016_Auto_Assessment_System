@@ -2,10 +2,10 @@ import pytest
 
 pytest.importorskip("fastapi")
 pytest.importorskip("multipart")
+from conftest import SAMPLE
 from fastapi.testclient import TestClient
 
 from autoassess.api import app
-from conftest import SAMPLE
 
 client = TestClient(app)
 

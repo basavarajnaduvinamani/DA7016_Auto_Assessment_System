@@ -24,9 +24,7 @@ class RubricCriterion(BaseModel):
     id: str = Field(description="Stable id, e.g. 'Q1.c2'.")
     description: str = Field(description="What the answer must show to earn these marks.")
     marks: float = Field(gt=0)
-    allow_partial: bool = Field(
-        default=True, description="Whether part of this criterion's marks can be awarded."
-    )
+    allow_partial: bool = Field(default=True, description="Whether part of this criterion's marks can be awarded.")
     follow_through: bool = Field(
         default=False,
         description="Credit correct working that starts from the student's own earlier wrong value (ECF).",
@@ -41,6 +39,8 @@ class RubricCriterion(BaseModel):
 
 
 class Question(BaseModel):
+    """A question, its reference answer and the rubric that defines its marks."""
+
     id: str = Field(description="Label as printed on the paper, e.g. 'Q1' or 'Q3b'.")
     text: str
     max_marks: float = Field(gt=0)
@@ -64,8 +64,7 @@ class Question(BaseModel):
         total = sum(c.marks for c in self.criteria)
         if abs(total - self.max_marks) > MARK_TOLERANCE:
             raise ValueError(
-                f"{self.id}: rubric criteria add up to {total:g} marks "
-                f"but the question is worth {self.max_marks:g}"
+                f"{self.id}: rubric criteria add up to {total:g} marks but the question is worth {self.max_marks:g}"
             )
         ids = [c.id for c in self.criteria]
         dupes = {i for i in ids if ids.count(i) > 1}
@@ -78,6 +77,8 @@ MARKING_POLICIES = ("standard", "lenient")
 
 
 class ExamSpec(BaseModel):
+    """A validated collection of questions and a shared marking policy."""
+
     exam_id: str
     title: str
     language: str = Field(default="en", description="Main language of the paper (ISO 639-1).")
@@ -117,9 +118,11 @@ class ExamSpec(BaseModel):
 
     @property
     def total_marks(self) -> float:
+        """Sum the maximum marks across the exam's questions."""
         return sum(q.max_marks for q in self.questions)
 
     def question(self, qid: str) -> Question:
+        """Look up a question by ID, raising KeyError when absent."""
         for q in self.questions:
             if q.id == qid:
                 return q
@@ -141,6 +144,8 @@ class BBox(BaseModel):
 
 
 class OCRLine(BaseModel):
+    """Recognised text with optional geometry, confidence and block type."""
+
     text: str
     bbox: BBox | None = None
     confidence: float | None = Field(default=None, ge=0, le=1)
@@ -148,6 +153,8 @@ class OCRLine(BaseModel):
 
 
 class OCRPage(BaseModel):
+    """A recognised page with source image metadata and ordered lines."""
+
     page_index: int = Field(ge=0)
     image_path: str | None = None
     lines: list[OCRLine] = Field(default_factory=list)
@@ -155,6 +162,7 @@ class OCRPage(BaseModel):
 
     @property
     def text(self) -> str:
+        """Join recognised lines in their stored reading order."""
         return "\n".join(line.text for line in self.lines)
 
 
@@ -172,13 +180,17 @@ class AnswerSegment(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class Verdict(str, Enum):
+class Verdict(str, Enum):  # noqa: UP042 - preserve the public Enum string representation
+    """The criterion-level outcome: met, partial or not met."""
+
     MET = "met"
     PARTIAL = "partial"
     NOT_MET = "not_met"
 
 
 class CriterionResult(BaseModel):
+    """A bounded criterion award with evidence, reasoning and review tags."""
+
     criterion_id: str
     verdict: Verdict
     marks_awarded: float = Field(ge=0)
@@ -194,6 +206,8 @@ class CriterionResult(BaseModel):
 
 
 class FeedbackItem(BaseModel):
+    """An earned or lost rubric point with actionable guidance."""
+
     criterion_id: str
     kind: str = Field(description="earned | lost")
     text: str
@@ -208,6 +222,7 @@ class Remark(BaseModel):
     next_step: str = ""
 
     def lines(self) -> list[str]:
+        """Format the strength, correction and next-step remark lines."""
         out = []
         if self.strength:
             out.append(f"Well done: {self.strength}")
@@ -226,6 +241,8 @@ class ErrorMark(BaseModel):
 
 
 class QuestionFeedback(BaseModel):
+    """Verified feedback and annotation suggestions for one question."""
+
     question_id: str
     items: list[FeedbackItem]
     summary: str = ""
@@ -235,6 +252,7 @@ class QuestionFeedback(BaseModel):
 
     def render(self) -> str:
         # Comments before the number: marks next to comments blunt the comments (Butler 1988).
+        """Render earned credit and actionable deductions as plain text."""
         lines = self.remark.lines() if self.remark else []
         earned = [i for i in self.items if i.kind == "earned"]
         lost = [i for i in self.items if i.kind == "lost"]
@@ -250,6 +268,8 @@ class QuestionFeedback(BaseModel):
 
 
 class QuestionGrade(BaseModel):
+    """Criterion awards, feedback and confidence signals for one question."""
+
     question_id: str
     marks_awarded: float = Field(ge=0)
     max_marks: float = Field(gt=0)
@@ -268,6 +288,8 @@ class QuestionGrade(BaseModel):
 
 
 class SheetGrade(BaseModel):
+    """All question grades and feedback for one student's sheet."""
+
     exam_id: str
     student_id: str
     questions: list[QuestionGrade]
@@ -277,4 +299,5 @@ class SheetGrade(BaseModel):
 
     @property
     def total(self) -> float:
+        """Sum the marks awarded across all questions."""
         return sum(q.marks_awarded for q in self.questions)

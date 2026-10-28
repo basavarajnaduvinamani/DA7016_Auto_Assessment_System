@@ -1,3 +1,5 @@
+from conftest import SAMPLE, FakeLLM
+
 from autoassess.feedback import add_feedback, question_feedback, verify_items
 from autoassess.pipeline import run
 from autoassess.providers.base import Translator
@@ -6,7 +8,6 @@ from autoassess.report import find_span, render_html
 from autoassess.schemas import CriterionResult, QuestionGrade, Verdict
 from autoassess.spec_builder import load_spec
 from autoassess.translate import translate_feedback
-from conftest import SAMPLE, FakeLLM
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 Q2 = SPEC.question("Q2")
@@ -14,11 +15,22 @@ ANSWER = "Hallucination is when the model writes confident text that is not true
 
 
 def _grade():
-    return QuestionGrade(question_id="Q2", marks_awarded=1.5, max_marks=4, criteria=[
-        CriterionResult(criterion_id="Q2.c1", verdict=Verdict.MET, marks_awarded=1.5, evidence="confident text that is not true", reason="defined"),
-        CriterionResult(criterion_id="Q2.c2", verdict=Verdict.NOT_MET, marks_awarded=0, reason="no cause given"),
-        CriterionResult(criterion_id="Q2.c3", verdict=Verdict.NOT_MET, marks_awarded=0, reason="no mitigation"),
-    ])
+    return QuestionGrade(
+        question_id="Q2",
+        marks_awarded=1.5,
+        max_marks=4,
+        criteria=[
+            CriterionResult(
+                criterion_id="Q2.c1",
+                verdict=Verdict.MET,
+                marks_awarded=1.5,
+                evidence="confident text that is not true",
+                reason="defined",
+            ),
+            CriterionResult(criterion_id="Q2.c2", verdict=Verdict.NOT_MET, marks_awarded=0, reason="no cause given"),
+            CriterionResult(criterion_id="Q2.c3", verdict=Verdict.NOT_MET, marks_awarded=0, reason="no mitigation"),
+        ],
+    )
 
 
 def test_verifier_drops_unsupported_items():
@@ -29,23 +41,32 @@ def test_verifier_drops_unsupported_items():
             {"criterion_id": "Q9.c1", "text": "Unknown."},
         ],
         "lost": [
-            {"criterion_id": "Q2.c2", "text": "No cause.", "next_step": "Explain that next-token training rewards plausible text."},
+            {
+                "criterion_id": "Q2.c2",
+                "text": "No cause.",
+                "next_step": "Explain that next-token training rewards plausible text.",
+            },
             {"criterion_id": "Q2.c3", "text": 'You wrote "use RAG".', "next_step": "Name a mitigation."},  # misquote
             {"criterion_id": "Q2.c1", "text": "Lost here?", "next_step": "x"},  # full marks, nothing lost
         ],
     }
     items, flags = verify_items(Q2, _grade(), ANSWER, raw)
     assert [(i.kind, i.criterion_id) for i in items] == [("earned", "Q2.c1"), ("lost", "Q2.c2")]
-    assert sorted(flags) == sorted([
-        "feedback_dropped:praise_without_marks:Q2.c2",
-        "feedback_dropped:unknown_criterion:Q9.c1",
-        "feedback_dropped:misquote:Q2.c3",
-        "feedback_dropped:loss_without_deduction:Q2.c1",
-    ])
+    assert sorted(flags) == sorted(
+        [
+            "feedback_dropped:praise_without_marks:Q2.c2",
+            "feedback_dropped:unknown_criterion:Q9.c1",
+            "feedback_dropped:misquote:Q2.c3",
+            "feedback_dropped:loss_without_deduction:Q2.c1",
+        ]
+    )
 
 
 def test_every_lost_criterion_gets_a_next_step():
-    raw = {"earned": [], "lost": [{"criterion_id": "Q2.c2", "text": "No cause.", "next_step": "Explain next-token training."}]}
+    raw = {
+        "earned": [],
+        "lost": [{"criterion_id": "Q2.c2", "text": "No cause.", "next_step": "Explain next-token training."}],
+    }
     fb = question_feedback(Q2, _grade(), ANSWER, FakeLLM([raw]))
     lost = [i for i in fb.items if i.kind == "lost"]
     assert [i.criterion_id for i in lost] == ["Q2.c2", "Q2.c3"]
@@ -100,15 +121,37 @@ def test_report_outlines_evidence_on_page_image(tmp_path):
 
     img = tmp_path / "page_000.png"
     Image.new("RGB", (400, 300), "white").save(img)
-    page = OCRPage(page_index=0, image_path=str(img), lines=[
-        OCRLine(text="Ans 2. Hallucination is when the model writes confident text that is not true.", bbox=BBox(x0=10, y0=20, x1=390, y1=60))])
+    page = OCRPage(
+        page_index=0,
+        image_path=str(img),
+        lines=[
+            OCRLine(
+                text="Ans 2. Hallucination is when the model writes confident text that is not true.",
+                bbox=BBox(x0=10, y0=20, x1=390, y1=60),
+            )
+        ],
+    )
     segs = segment_pages(SPEC, [page])
-    from autoassess.grader import grade_sheet
     from autoassess.schemas import SheetGrade
-    grade = SheetGrade(exam_id="e", student_id="s", questions=[
-        _grade() if q.id == "Q2" else QuestionGrade(question_id=q.id, marks_awarded=0, max_marks=q.max_marks, criteria=[
-            CriterionResult(criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="") for c in q.criteria])
-        for q in SPEC.questions])
+
+    grade = SheetGrade(
+        exam_id="e",
+        student_id="s",
+        questions=[
+            _grade()
+            if q.id == "Q2"
+            else QuestionGrade(
+                question_id=q.id,
+                marks_awarded=0,
+                max_marks=q.max_marks,
+                criteria=[
+                    CriterionResult(criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="")
+                    for c in q.criteria
+                ],
+            )
+            for q in SPEC.questions
+        ],
+    )
     html = render_html(SPEC, grade, segs, [page])
     assert '<rect x="10.0" y="20.0"' in html and "data:image/png;base64," in html
 

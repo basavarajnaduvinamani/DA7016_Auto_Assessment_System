@@ -1,0 +1,36 @@
+{
+  "fetched_at": "2026-10-30T15:08:24.752369+05:30",
+  "refs": {
+    "origin": "d38fb9252a413e206f15febcaf65fcebce73145a 2026-10-28T04:21:59Z",
+    "origin/claude/project-thread-b8zxgz": "a110adc8e0bd9e0031c393053b0c3c4c9e7d4785 2026-10-22T14:04:45Z",
+    "origin/claude/project-thread-khgi40": "e2de70490fa7c0682cf10da6be79a2981249d0f4 2026-10-22T16:25:04Z",
+    "origin/claude/project-thread-sccv50": "bfd7c191be4e49aea57506d98bc44d6546c3b376 2026-10-25T11:36:18Z",
+    "origin/codex/12-code-quality": "56f900832e4706356329560dfbffefed85c5d9f4 2026-10-28T04:27:07Z",
+    "origin/codex/13-indic-robustness-ui": "56280e6f25f8822b0f3fca6cf69c05097fd209d4 2026-10-28T04:45:21Z",
+    "origin/main": "d38fb9252a413e206f15febcaf65fcebce73145a 2026-10-28T04:21:59Z"
+  },
+  "local_folders_checked": [
+    "data/private",
+    "runs",
+    ".cache",
+    "/workspace/shared/downloads",
+    "/workspace/library-files"
+  ],
+  "windows_folder": "UNAVAILABLE in cloud environment",
+  "credentials": {
+    "OPENROUTER_API_KEY": "not set",
+    "GEMINI_API_KEY": "not set",
+    "BODHAN_API_KEY": "not set"
+  },
+  "deployment": {
+    "home": "UNKNOWN: CONNECT tunnel failed, response 403",
+    "healthz": "UNKNOWN: CONNECT tunnel failed, response 403"
+  },
+  "commands": [
+    "git fetch origin +refs/heads/*:refs/remotes/origin/*",
+    "curl -sS -L --max-time 55 https://red-ink-grader.onrender.com/healthz",
+    "curl -sS -L --max-time 55 https://red-ink-grader.onrender.com"
+  ],
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0
+}

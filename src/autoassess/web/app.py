@@ -15,6 +15,7 @@ from autoassess.demo import health_payload
 from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
 from autoassess.web.seed import seed, seed_assignment
 from autoassess.web.jobs import Jobs
+from autoassess.web.landing import CLASSROOM, NUMBERS_URL, REPO_URL, RESULTS, STEPS
 from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.downloads import mount_download_routes
 from autoassess.web.store import Store
@@ -59,15 +60,20 @@ def create_app(data_dir=None, *, reset_demo=False, seed_samples=True):
     def health():
         return health_payload()
 
+    def landing(request, **context):
+        # The public page before sign-in: what it does, results, how it works, then the demo sign-in.
+        return render(request, "sign_in.html", repo_url=REPO_URL, numbers_url=NUMBERS_URL, results=RESULTS,
+                      classroom_results=CLASSROOM, steps=STEPS, **context)
+
     @app.get("/sign-in")
     def sign_in(request: Request):
-        return render(request, "sign_in.html")
+        return landing(request)
 
     @app.post("/sign-in")
     def continue_sign_in(request: Request, email: str = Form("")):
         teacher = store.teacher_by_email(email)
         if teacher is None:
-            response = render(request, "sign_in.html", error="We don't recognise that email. Try the demo teacher below.", email=email)
+            response = landing(request, error="We don't recognise that email. Try the demo teacher below.", email=email)
             response.status_code = 400
             return response
         response = RedirectResponse("/", status_code=303)
@@ -131,7 +137,8 @@ def create_app(data_dir=None, *, reset_demo=False, seed_samples=True):
 
     # Packaging the lab keeps non-editable installations independent of repo app.py.
     import gradio as gr
+    from autoassess.web.brand import CSS, THEME
     from autoassess.web.lab import demo
 
-    return gr.mount_gradio_app(app, demo.queue(default_concurrency_limit=2), path="/lab", show_error=False,
+    return gr.mount_gradio_app(app, demo.queue(default_concurrency_limit=2), path="/lab", show_error=False, theme=THEME, css=CSS,
                               max_file_size=int(float(os.getenv("AUTOASSESS_MAX_UPLOAD_MB", "10")) * 1024 * 1024))

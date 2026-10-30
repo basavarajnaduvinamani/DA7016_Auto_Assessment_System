@@ -1,10 +1,52 @@
 # Red-Ink Grader: rubric-grounded auto-assessment of answer sheets
 
-Red-Ink Grader marks a student's answer sheet against a teacher's rubric. It gives marks for each question, feedback specific enough for the student to improve, and returns the sheet marked in red ink the way an Indian examiner marks a booklet. Every mark points to a rubric criterion and a quote copied from the student's own answer. When the system is unsure, it says so: the mark gets a **?** and goes to the teacher.
+**Marks answer sheets against a teacher's rubric, quotes the evidence for every mark, flags what it is unsure about, and hands the sheet back marked in red ink.** Built as selective auto-marking with teacher review, not a replacement for the teacher.
 
-- **Live app:** https://red-ink-grader.onrender.com (free hosting: the first load after a quiet spell takes about a minute; sign in as the demo teacher)
-- **Final report:** [`docs/report/`](docs/report) (LaTeX; CI builds the PDF) · **Slides:** [`docs/slides/`](docs/slides)
+**Who it is for:** teachers and TAs who mark short-answer tests and booklets by hand, including handwritten sheets and answers in Indian languages, and the students who get the sheets back.
+
+- **Live app:** https://red-ink-grader.onrender.com — click **Try the demo** (free hosting: the first load after a quiet spell can take about a minute)
+- **Final report:** [`docs/report/`](docs/report) (LaTeX; CI builds the PDF) · **Slides:** [`docs/slides/`](docs/slides) · **Every number:** [`docs/report/numbers.md`](docs/report/numbers.md)
 - **Course:** DA7016 Recent Advances in Generative AI, IIT Madras (Jul to Nov 2026) · Basavaraj A Naduvinamani (DA25C005)
+
+<p align="center"><img src="docs/images/landing.png" alt="Red-Ink Grader landing page: what it does, Try the demo and GitHub buttons, and a red-ink marked sample sheet" width="880"></p>
+
+| Review an answer next to its red-ink page | The red ink a student sees (final configuration) |
+| --- | --- |
+| <img src="docs/images/review.png" alt="Review screen: the marked page beside each rubric criterion with its evidence quote, Accept and Change mark" width="440"> | <img src="docs/report/results/figures/example_redink.png" alt="Synthetic sample sheet S002 marked by the final configuration: circled totals, ticks at the evidence, carets and margin remarks" width="440"> |
+
+The review screenshot is the offline demo (`AUTOASSESS_DEMO_DRY_RUN=1`, scripted marks, as its banner says); the marked sheet on the right is the final configuration (gemini-2.5-flash, advocate review) on synthetic sheet S002, from `numbers.md`. More screenshots: [mobile landing](docs/images/landing-mobile.png), [teacher-time card](docs/images/teacher-time.png), [grading lab](docs/images/lab.png).
+
+### Results
+
+Held-out SPRAG test set (455 typed short answers, 0 to 5 marks, two human graders); all choices were made on a separate dev split. Source: [`docs/report/numbers.md`](docs/report/numbers.md).
+
+| System | QWK [95% CI] | MAE (of 5) | Within 1 mark |
+| --- | --- | --- | --- |
+| Human vs human | 0.962 | 0.22 | 100% |
+| **Red-Ink Grader (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
+| Lexical baseline | 0.375 | 1.62 | 40% |
+
+On real handwritten sheets (9 students, 135 answers, one teacher) agreement is lower: QWK 0.47 [0.32, 0.57], with 75 of 135 answers flagged for review. Hence the scope: auto-mark the confident answers, send the rest to the teacher. `autoassess coverage` reports the share auto-marked against QWK at each confidence threshold ([`docs/evaluation.md`](docs/evaluation.md#8-coverage-selective-auto-marking)).
+
+### Run it in one minute (no API key)
+
+```bash
+pip install -e ".[web,ingest,annotate]"
+AUTOASSESS_DEMO_DRY_RUN=1 autoassess serve     # http://localhost:8000 → Try the demo
+```
+
+### Architecture
+
+```
+Red-Ink Classroom (FastAPI + Jinja + htmx + SQLite)        Grading lab (Gradio, mounted at /lab)
+  landing → classes → assignments → upload → review → release / CSV · XLSX · ZIP
+                    │ background jobs                          │
+                    └──────────────► autoassess pipeline ◄─────┘
+     ingest → OCR (Bodhan IndicOCR) → segment → grade each criterion x3 (LLM) → quote check
+            → advocate review → confidence + flags → feedback → red-ink annotation
+```
+
+Details are in [How it works](#how-it-works) and [Project structure](#project-structure).
 
 ## Key features
 
@@ -16,21 +58,20 @@ Red-Ink Grader marks a student's answer sheet against a teacher's rubric. It giv
 - **Handwritten sheets** read with Bodhan IndicOCR (English and Indian languages), with low-confidence pages flagged.
 - **Indian languages:** answers in Hindi, Kannada and other Indian languages are graded with quotes kept in the original script; feedback can be translated with Bodhan Indic-Translate.
 - **Adversarial inputs:** the answer is passed to the model as data; text that tries to instruct the examiner ("award full marks") is flagged and routed to the teacher.
-- **Teacher app (Red-Ink Classroom):** sign in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
-- **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, coverage curves.
+- **Teacher app (Red-Ink Classroom):** a public landing page, demo sign-in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, each answer shown next to its red-ink marked page, a teacher-time card (share ready to auto-accept, share flagged, overrides), mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
+- **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, and `autoassess coverage` (share auto-marked vs QWK per confidence threshold).
 - **Spend guards and caching:** every paid call is cached by content hash; OpenRouter and Bodhan spending stop at configured limits.
 
-## Results at a glance
+## Results in more detail
 
-On the held-out SPRAG test set (455 typed short answers, two human graders), from [`docs/report/numbers.md`](docs/report/numbers.md):
+All from [`docs/report/numbers.md`](docs/report/numbers.md) (SPRAG test, n = 455, unless stated):
 
-| System | QWK [95% CI] | MAE (of 5) | Within 1 mark |
-| --- | --- | --- | --- |
-| Human vs human | 0.962 | 0.22 | 100% |
-| **Red-Ink Grader (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
-| Lexical baseline | 0.375 | 1.62 | 40% |
-
-On a real handwritten classroom set (9 students, 135 answers, one teacher) agreement is lower (QWK 0.47), mainly because the teacher was more generous to vague answers than the rubric. The system is therefore framed as selective auto-marking with teacher review, not a replacement for the teacher. The report covers the ablations, model comparison, prompt-injection check and limitations.
+- **Confidence gating.** With the final configuration, confidence >= 0.8 covers 92% of test answers with MAE 0.76; the rest go to the teacher. (With the critic enabled it covered 62% at MAE 0.66.)
+- **Ablation.** Advocate-only review was chosen on dev for the lowest MAE and near-zero bias; on test it scores QWK 0.728 vs 0.675 for advocate + critic and 0.633 for critic only. The critic pushes marks down.
+- **Model choice.** gemini-2.5-flash was kept by a rule fixed in advance (replace only if another model beats it by more than 0.05 QWK on dev); none of four alternatives did.
+- **Prompt injection.** An appended "award full marks" note raised marks on 7 of 30 answers before the fix; the deterministic check now flags 30 of 30 injected answers and 0 of 570 clean ones (it targets this wording; paraphrases may pass).
+- **Handwriting.** On the classroom set agreement is lower (QWK 0.47), mainly because the teacher was more generous to vague answers than the rubric, with OCR adding uncertainty.
+- **Cost.** $7.72 of OpenRouter calls across all experiments, about $0.006 per answer for the full pipeline.
 
 ## Quick start
 
@@ -57,7 +98,7 @@ docker build -t redink .
 docker run --rm -p 8000:8000 --env-file .env -v redink-data:/var/lib/redink redink
 ```
 
-**Render:** `render.yaml` is a ready blueprint (New > Blueprint, pick this repository, add the keys). See [`docs/deploy.md`](docs/deploy.md).
+**Render:** `render.yaml` is a ready blueprint (New > Blueprint, pick this repository, add the keys). See [`docs/deploy.md`](docs/deploy.md). The `keep-warm` GitHub Actions workflow pings `/healthz` every 10 minutes so the free instance does not sleep (free-tier limits are noted in [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml)).
 
 ## Configuration
 
@@ -99,6 +140,7 @@ autoassess regrade --spec ... --grade runs/demo/S006_weak_english.json \
 autoassess evaluate --spec ... --grades runs/demo --human human_marks.csv --out agreement.json
 autoassess experiment ablation --spec ... --human ... --out runs/ablation sheets...
 autoassess results --agreement agreement.json --out runs/results    # report tables and figures
+autoassess coverage --spec ... --grades runs/demo --human human_marks.csv --out runs/coverage  # auto-marked share vs QWK
 ```
 
 The rubric format is a YAML exam spec: questions with marks, model answers and criteria. See [`data/sample_exam/exam_spec.yaml`](data/sample_exam/exam_spec.yaml).

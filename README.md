@@ -16,7 +16,7 @@ Second Read is an AI co-examiner for teachers. It reads every answer sheet first
 | --- | --- |
 | <img src="docs/images/review.png" alt="Review screen: the marked page beside each rubric criterion with its evidence quote, Accept and Change mark" width="440"> | <img src="docs/report/results/figures/example_redink.png" alt="Synthetic sample sheet S002 marked by the final configuration: circled totals, ticks at the evidence, carets and margin remarks" width="440"> |
 
-The review screenshot is the offline demo (`AUTOASSESS_DEMO_DRY_RUN=1`, scripted marks, as its banner says); the marked sheet on the right is the final configuration (gemini-2.5-flash, advocate review) on synthetic sheet S002, from `numbers.md`. More screenshots: [landing page](docs/images/landing.png), [mobile landing](docs/images/landing-mobile.png), [teacher-time card](docs/images/teacher-time.png), [grading lab](docs/images/lab.png).
+The review screenshot is the offline demo (`AUTOASSESS_DEMO_DRY_RUN=1`, scripted marks, as its banner says); the marked sheet on the right is the final configuration (gemini-2.5-flash, advocate review) on synthetic sheet S002, from `numbers.md`. More screenshots: [landing page](docs/images/landing.png), [mobile landing](docs/images/landing-mobile.png), [teacher-time card](docs/images/teacher-time.png), [usage and cost](docs/images/usage.png), [grading lab](docs/images/lab.png).
 
 ### Results
 
@@ -87,6 +87,8 @@ Worked out from the measured spend in [`docs/report/numbers.md`](docs/report/num
 | Same booklet, feedback translated to Hindi | as above | as above, plus ₹0.20 per 10k translated tokens | **≈ ₹9** |
 
 A class of 40 handwritten booklets costs roughly ₹350 to mark. Cached results are free to re-open, and only answers sent back for an AI re-check cost again.
+
+In the teacher app, the **Usage** page applies these rates to every graded sheet. It shows the estimated cost per assignment and per sheet, the pages read, the feedback language, and the time the teacher spent reviewing ([screenshot](docs/images/usage.png)).
 
 ## Quick start
 

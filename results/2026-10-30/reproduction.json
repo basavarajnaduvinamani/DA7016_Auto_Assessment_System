@@ -1,0 +1,31 @@
+{
+  "provenance": {
+    "executed_at": "2026-10-30T09:52:09.158124+00:00",
+    "command": [
+      "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+      "scripts/study.py",
+      "reproduce",
+      "--out",
+      "results/2026-10-30/reproduction.json"
+    ],
+    "commit": "52de92111939185b9171c4ad184c45cbf2008dc3",
+    "working_tree_dirty": true,
+    "seed": 0,
+    "config": {},
+    "config_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "code_sha256": {
+      "scripts/study.py": "551281feda6d8ce3d506aadd72fd3b302836c7973a608fd25d9016ece6b38122",
+      "src/autoassess/validation_study.py": "8b35e40a8087f6a8dd4209814d48603b3b4a3bfe43982a32f69379229458a12e"
+    },
+    "inputs": {},
+    "paid_api_calls": 0,
+    "session_api_spend_usd": 0,
+    "historical_spend": "UNKNOWN"
+  },
+  "checks": [
+    "historical-lexical: exact aggregate and export-hash equality",
+    "current-lexical: exact aggregate and export-hash equality",
+    "lexical-detector-robustness: exact per-case and aggregate equality"
+  ],
+  "scope": "all new study aggregates; published docs/report/numbers.md remains BLOCKED"
+}

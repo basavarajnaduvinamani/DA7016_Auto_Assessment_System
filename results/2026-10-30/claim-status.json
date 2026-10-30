@@ -1,0 +1,42 @@
+{
+  "resume_sources": "UNKNOWN: no resume files found in accessible repository/workspace folders",
+  "scope": "Fallback ledger for selected published project claims; an exhaustive resume-specific ledger requires the actual resumes",
+  "claims": [
+    {
+      "old_claim": "| Lexical baseline (ablation run) | 0.375 | 1.62 | 40% | -1.41 |",
+      "source": "docs/report/numbers.md:21",
+      "new_status": "DROP from newly verified resume claims until original run evidence is available; historical report unchanged"
+    },
+    {
+      "old_claim": "| **Final config: advocate only, no critic** (chosen on dev, see ablation) | 0.723 [0.667, 0.773] | 0.85 | 76% | +0.24 |",
+      "source": "docs/report/numbers.md:24",
+      "new_status": "DROP from newly verified resume claims until original run evidence is available; historical report unchanged"
+    },
+    {
+      "old_claim": "| QWK vs teacher | 0.47 [0.32, 0.57] (question-clustered bootstrap) |",
+      "source": "docs/report/numbers.md:64",
+      "new_status": "DROP from newly verified resume claims until original run evidence is available; historical report unchanged"
+    }
+  ],
+  "measured_new_lexical": {
+    "dev": {
+      "n": 115,
+      "questions": 23,
+      "qwk": 0.3938195954404695,
+      "mae": 1.6065217391304347,
+      "bias": -1.3239130434782609,
+      "within_1": 0.391304347826087,
+      "exact": 0.13043478260869565
+    },
+    "test": {
+      "n": 455,
+      "questions": 91,
+      "qwk": 0.4063868931918525,
+      "mae": 1.5274725274725274,
+      "bias": -1.3164835164835165,
+      "within_1": 0.42637362637362636,
+      "exact": 0.1076923076923077
+    }
+  },
+  "spend_source": "session manifests only; historical receipts UNKNOWN"
+}

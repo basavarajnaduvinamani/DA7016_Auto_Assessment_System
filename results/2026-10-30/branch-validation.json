@@ -1,0 +1,24 @@
+[
+  {
+    "task": 12,
+    "commit": "56f900832e4706356329560dfbffefed85c5d9f4",
+    "commands": [
+      "PYTHONPATH=/tmp/autoassess-upgrade-task12/src /workspace/DA7016_Auto_Assessment_System/.venv/bin/ruff check .",
+      "PYTHONPATH=/tmp/autoassess-upgrade-task12/src /workspace/DA7016_Auto_Assessment_System/.venv/bin/pytest -q"
+    ],
+    "pytest_summary": "287 passed, 1 warning in 86.30s (0:01:26)",
+    "lint": "All checks passed!",
+    "worktree": "/tmp/autoassess-upgrade-task12"
+  },
+  {
+    "task": 13,
+    "commit": "56280e6f25f8822b0f3fca6cf69c05097fd209d4",
+    "commands": [
+      "PYTHONPATH=/tmp/autoassess-upgrade-task13/src /workspace/DA7016_Auto_Assessment_System/.venv/bin/ruff check .",
+      "PYTHONPATH=/tmp/autoassess-upgrade-task13/src /workspace/DA7016_Auto_Assessment_System/.venv/bin/pytest -q"
+    ],
+    "pytest_summary": "298 passed, 1 warning in 93.78s (0:01:33)",
+    "lint": "All checks passed!",
+    "worktree": "/tmp/autoassess-upgrade-task13"
+  }
+]

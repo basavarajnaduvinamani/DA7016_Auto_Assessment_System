@@ -17,6 +17,7 @@ from pathlib import Path
 
 from autoassess.baseline import grade_question_lexical
 from autoassess.datasets.sprag import import_sprag
+from autoassess.embedding_study import cosine, fit_similarity, similarity_mark
 from autoassess.evaluate import human_consensus, load_human_marks
 from autoassess.providers.text_ocr import PlainTextOCR
 from autoassess.schemas import SheetGrade
@@ -147,6 +148,9 @@ def _export(args: argparse.Namespace) -> None:
         [],
     )
     # Directory content hashes bind original files without publishing identifying filenames.
+    if args.run_manifest:
+        manifest["recorded_run"] = json.loads(args.run_manifest.read_text())
+        manifest["recorded_run_sha256"] = _digest(args.run_manifest)
     manifest["source_directories"] = [str(dataset), str(grades)]
     manifest["source_tree_sha256"] = hashlib.sha256(
         "\n".join(str(p.relative_to(ROOT)) + ":" + _digest(p) for p in used_inputs).encode()
@@ -244,6 +248,65 @@ def _lexical(args: argparse.Namespace) -> None:
             questions=[grade_question_lexical(q, segments[q.id]) for q in questions],
         )
         (args.grades / f"{path.stem}.json").write_text(grade.model_dump_json(indent=2))
+    files = [args.source / name for name in ("Question_data.csv", "MLResponses.csv", "PyResponses.csv")]
+    manifest = _provenance(
+        {
+            "method": "lexical",
+            "provider_model_id": "none: deterministic lexical",
+            "per_question": 5,
+            "dev_share": 0.2,
+            "seed": 0,
+        },
+        files,
+    )
+    manifest["pipeline_code_sha256"] = {
+        name: _digest(ROOT / name)
+        for name in ("src/autoassess/baseline.py", "src/autoassess/datasets/sprag.py", "src/autoassess/segment.py")
+    }
+    _write(args.manifest, manifest)
+
+
+def _embedding(args: argparse.Namespace) -> None:
+    # Embeddings stay private. Only numeric scores and source hashes are exported.
+    from dataclasses import replace
+
+    scores = _load(args.scores)
+    data = json.loads(args.embeddings.read_text())
+    if not all(data.get(k) for k in ("model_id", "revision", "model_sha256", "encoding_command")):
+        raise ValueError("embedding model identity, revision, weights hash and command required")
+    vectors = data["rows"]
+    if len(vectors) != len(scores) or {r["item_id"] for r in vectors} != {r.item_id for r in scores}:
+        raise ValueError("complete unique matched embeddings required")
+    vectors = {r["item_id"]: r for r in vectors}
+    similarities = {r.item_id: cosine(vectors[r.item_id]["answer"], vectors[r.item_id]["reference"]) for r in scores}
+    dev = [r for r in scores if r.split == "dev"]
+    frozen = fit_similarity([similarities[r.item_id] for r in dev], [r.human / r.max_marks for r in dev])
+    predictions = [
+        replace(
+            r,
+            system=similarity_mark(similarities[r.item_id], r.max_marks, frozen, blank=vectors[r.item_id]["blank"]),
+            confidence=1.0,
+            needs_review=False,
+        )
+        for r in scores
+    ]
+    _write(args.out / "scores.json", [asdict(r) for r in predictions])
+    _write(
+        args.out / "embedding-fit.json",
+        {
+            "provenance": _provenance(
+                {
+                    "model_id": data["model_id"],
+                    "revision": data["revision"],
+                    "model_sha256": data["model_sha256"],
+                    "encoding_command": data["encoding_command"],
+                    "mapping": "nonnegative slope, dev-only least squares",
+                },
+                [args.scores, args.embeddings],
+            ),
+            "frozen_dev_fit": frozen,
+        },
+    )
 
 
 def main() -> None:
@@ -254,6 +317,7 @@ def main() -> None:
     for name in ("dataset", "grades", "out"):
         export.add_argument("--" + name, type=Path, required=True)
     export.add_argument("--label", required=True)
+    export.add_argument("--run-manifest", type=Path)
     export.set_defaults(fn=_export)
     aggregate = commands.add_parser("aggregate")
     aggregate.add_argument("--scores", type=Path, required=True)
@@ -277,7 +341,12 @@ def main() -> None:
     lexical = commands.add_parser("lexical")
     for name in ("source", "dataset", "grades"):
         lexical.add_argument("--" + name, type=Path, required=True)
+    lexical.add_argument("--manifest", type=Path, required=True)
     lexical.set_defaults(fn=_lexical)
+    embedding = commands.add_parser("embedding")
+    for name in ("scores", "embeddings", "out"):
+        embedding.add_argument("--" + name, type=Path, required=True)
+    embedding.set_defaults(fn=_embedding)
     args = parser.parse_args()
     args.fn(args)
 

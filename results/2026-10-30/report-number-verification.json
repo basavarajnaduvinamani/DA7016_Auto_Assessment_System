@@ -1,0 +1,1229 @@
+{
+  "provenance": {
+    "executed_at": "2026-10-30T09:41:17.387250+00:00",
+    "command": [
+      "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+      "scripts/study.py",
+      "verify-numbers",
+      "--out",
+      "results/2026-10-30/report-number-verification.json"
+    ],
+    "commit": "5cf1ccd0d56c4632c10e000aee2ee842d457633e",
+    "working_tree_dirty": true,
+    "seed": 0,
+    "config": {},
+    "config_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "code_sha256": {
+      "scripts/study.py": "b972a1764e8c0766694ea9f2f76955a229c767ea040de981c9069937360880d9",
+      "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+    },
+    "inputs": {
+      "/workspace/DA7016_Auto_Assessment_System/docs/report/numbers.md": {
+        "sha256": "3ecb5a9978d6fe82a3fbe0f09150acfb83d0e5abcbc9672afef1df2634861d4b",
+        "modified_at": "2026-10-28T04:15:35.973802+00:00"
+      }
+    },
+    "paid_api_calls": 0,
+    "session_api_spend_usd": 0,
+    "historical_spend": "UNKNOWN"
+  },
+  "status": "BLOCKED",
+  "scope": "numeric literal inventory; includes dates, counts, costs, model IDs and metrics",
+  "reason": "reported private experiment predictions, configs and receipts are not present",
+  "literals": [
+    {
+      "line": 3,
+      "column": 44,
+      "literal": "2026",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 3,
+      "column": 49,
+      "literal": "10",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 3,
+      "column": 52,
+      "literal": "26",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 4,
+      "column": 92,
+      "literal": "95%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 31,
+      "literal": "4.0",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 87,
+      "literal": "0",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 89,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 99,
+      "literal": "570",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 112,
+      "literal": "114",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 154,
+      "literal": "0",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 161,
+      "literal": "115",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 175,
+      "literal": "23",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 194,
+      "literal": "455",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 11,
+      "column": 208,
+      "literal": "91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 63,
+      "literal": "15",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 107,
+      "literal": "100",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 144,
+      "literal": "9",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 157,
+      "literal": "15",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 162,
+      "literal": "135",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 12,
+      "column": 177,
+      "literal": "10",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 16,
+      "column": 34,
+      "literal": "455",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 18,
+      "column": 17,
+      "literal": "95%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 18,
+      "column": 35,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 18,
+      "column": 47,
+      "literal": "1",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 20,
+      "column": 20,
+      "literal": "0.962",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 20,
+      "column": 28,
+      "literal": "0.22",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 20,
+      "column": 35,
+      "literal": "100%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 21,
+      "column": 37,
+      "literal": "0.375",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 21,
+      "column": 45,
+      "literal": "1.62",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 21,
+      "column": 52,
+      "literal": "40%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 21,
+      "column": 58,
+      "literal": "-1.41",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 18,
+      "literal": "3",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 56,
+      "literal": "0.688",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 63,
+      "literal": "0.628",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 70,
+      "literal": "0.745",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 79,
+      "literal": "0.91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 86,
+      "literal": "73%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 22,
+      "column": 92,
+      "literal": "-0.39",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 52,
+      "literal": "+0.53",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 67,
+      "literal": "0.708",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 74,
+      "literal": "0.649",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 81,
+      "literal": "0.760",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 90,
+      "literal": "0.91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 23,
+      "column": 101,
+      "literal": "+0.03",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 78,
+      "literal": "0.723",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 85,
+      "literal": "0.667",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 92,
+      "literal": "0.773",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 101,
+      "literal": "0.85",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 108,
+      "literal": "76%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 24,
+      "column": 114,
+      "literal": "+0.24",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 92,
+      "literal": "0.677",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 99,
+      "literal": "0.547",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 106,
+      "literal": "0.792",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 118,
+      "literal": "0.91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 129,
+      "literal": "+0.01",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 26,
+      "column": 210,
+      "literal": "0.728",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 78,
+      "literal": "0.8",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 93,
+      "literal": "62%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 117,
+      "literal": "0.66",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 229,
+      "literal": "0.8",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 240,
+      "literal": "92%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 28,
+      "column": 269,
+      "literal": "0.76",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 29,
+      "column": 51,
+      "literal": "0.76",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 29,
+      "column": 80,
+      "literal": "0.65",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 30,
+      "column": 56,
+      "literal": "0.66",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 30,
+      "column": 67,
+      "literal": "-0.76",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 30,
+      "column": 86,
+      "literal": "0.68",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 30,
+      "column": 97,
+      "literal": "-0.53",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 32,
+      "column": 41,
+      "literal": "115",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 32,
+      "column": 58,
+      "literal": "455",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 9,
+      "literal": "3",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 38,
+      "literal": "0.675",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 46,
+      "literal": "1.01",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 53,
+      "literal": "-0.59",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 61,
+      "literal": "0.675",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 69,
+      "literal": "0.93",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 36,
+      "column": 76,
+      "literal": "-0.48",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 17,
+      "literal": "0.640",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 25,
+      "literal": "1.06",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 32,
+      "literal": "-0.77",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 40,
+      "literal": "0.633",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 48,
+      "literal": "1.03",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 37,
+      "column": 55,
+      "literal": "-0.74",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 31,
+      "literal": "0.669",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 39,
+      "literal": "0.92",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 46,
+      "literal": "-0.05",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 54,
+      "literal": "0.728",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 62,
+      "literal": "0.81",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 38,
+      "column": 69,
+      "literal": "+0.14",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 25,
+      "literal": "0.681",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 33,
+      "literal": "0.96",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 40,
+      "literal": "-0.54",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 48,
+      "literal": "0.730",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 56,
+      "literal": "0.82",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 39,
+      "column": 63,
+      "literal": "-0.40",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 16,
+      "literal": "0.684",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 24,
+      "literal": "1.02",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 31,
+      "literal": "-0.64",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 39,
+      "literal": "0.700",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 47,
+      "literal": "0.91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 40,
+      "column": 54,
+      "literal": "-0.47",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 22,
+      "literal": "0.675",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 30,
+      "literal": "1.01",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 37,
+      "literal": "-0.59",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 45,
+      "literal": "0.681",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 53,
+      "literal": "0.92",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 41,
+      "column": 60,
+      "literal": "-0.48",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 21,
+      "literal": "0.643",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 29,
+      "literal": "0.99",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 36,
+      "literal": "-0.61",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 44,
+      "literal": "0.674",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 52,
+      "literal": "0.95",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 42,
+      "column": 59,
+      "literal": "-0.40",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 22,
+      "literal": "0.355",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 30,
+      "literal": "1.70",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 37,
+      "literal": "-1.42",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 45,
+      "literal": "0.375",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 53,
+      "literal": "1.62",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 43,
+      "column": 60,
+      "literal": "-1.41",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 44,
+      "column": 20,
+      "literal": "0.973",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 44,
+      "column": 28,
+      "literal": "0.17",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 44,
+      "column": 39,
+      "literal": "0.962",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 44,
+      "column": 47,
+      "literal": "0.22",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 46,
+      "column": 65,
+      "literal": "0.64",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 46,
+      "column": 70,
+      "literal": "0.68",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 48,
+      "column": 71,
+      "literal": "115",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 50,
+      "column": 16,
+      "literal": "95%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 17,
+      "literal": "2.5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 38,
+      "literal": "0.701",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 45,
+      "literal": "0.583",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 52,
+      "literal": "0.802",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 61,
+      "literal": "0.91",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 52,
+      "column": 68,
+      "literal": "-0.47",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 26,
+      "literal": "5.5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 32,
+      "literal": "0.659",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 39,
+      "literal": "0.531",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 46,
+      "literal": "0.778",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 55,
+      "literal": "0.98",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 53,
+      "column": 62,
+      "literal": "-0.39",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 14,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 23,
+      "literal": "0.639",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 30,
+      "literal": "0.470",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 37,
+      "literal": "0.782",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 46,
+      "literal": "0.96",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 54,
+      "column": 53,
+      "literal": "+0.27",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 29,
+      "literal": "1",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 33,
+      "literal": "0.665",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 40,
+      "literal": "0.505",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 47,
+      "literal": "0.788",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 56,
+      "literal": "0.95",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 55,
+      "column": 63,
+      "literal": "-0.42",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 14,
+      "literal": "8",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 24,
+      "literal": "0.634",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 31,
+      "literal": "0.472",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 38,
+      "literal": "0.763",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 47,
+      "literal": "1.03",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 56,
+      "column": 54,
+      "literal": "-0.41",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 58,
+      "column": 39,
+      "literal": "2.5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 58,
+      "column": 93,
+      "literal": "0.05",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 60,
+      "column": 35,
+      "literal": "135",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 60,
+      "column": 40,
+      "literal": "2",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 64,
+      "column": 20,
+      "literal": "0.47",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 64,
+      "column": 26,
+      "literal": "0.32",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 64,
+      "column": 32,
+      "literal": "0.57",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 65,
+      "column": 9,
+      "literal": "0.55",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 65,
+      "column": 17,
+      "literal": "2",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 66,
+      "column": 28,
+      "literal": "1",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 66,
+      "column": 37,
+      "literal": "52%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 66,
+      "column": 43,
+      "literal": "87%",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 67,
+      "column": 33,
+      "literal": "0.59",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 67,
+      "column": 41,
+      "literal": "1.07",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 67,
+      "column": 52,
+      "literal": "-0.49",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 68,
+      "column": 49,
+      "literal": "0.55",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 68,
+      "column": 55,
+      "literal": "0.44",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 68,
+      "column": 61,
+      "literal": "0.65",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 68,
+      "column": 96,
+      "literal": "-0.03",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 69,
+      "column": 32,
+      "literal": "75",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 69,
+      "column": 38,
+      "literal": "135",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 71,
+      "column": 97,
+      "literal": "0",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 73,
+      "column": 28,
+      "literal": "30",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 75,
+      "column": 19,
+      "literal": "7",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 75,
+      "column": 24,
+      "literal": "30",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 75,
+      "column": 54,
+      "literal": "+0.17",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 75,
+      "column": 63,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 75,
+      "column": 67,
+      "literal": "3",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 76,
+      "column": 127,
+      "literal": "30",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 76,
+      "column": 133,
+      "literal": "30",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 76,
+      "column": 157,
+      "literal": "0",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 76,
+      "column": 162,
+      "literal": "570",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 80,
+      "column": 82,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 80,
+      "column": 84,
+      "literal": "5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 84,
+      "column": 101,
+      "literal": "2.5",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 84,
+      "column": 130,
+      "literal": "5.75",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 84,
+      "column": 138,
+      "literal": "15",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 84,
+      "column": 147,
+      "literal": "1",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 88,
+      "column": 42,
+      "literal": "7.72",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 88,
+      "column": 55,
+      "literal": "0.006",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 88,
+      "column": 122,
+      "literal": "6",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    },
+    {
+      "line": 88,
+      "column": 135,
+      "literal": "0.20",
+      "status": "UNKNOWN: raw source evidence unavailable"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "step": 3,
+  "status": "BLOCKED",
+  "required": "advocate-only default dev/test predictions with human marks, confidence, review flags and frozen config metadata",
+  "available": "historical local lexical scores only; no paid-model evaluation records in local run folders or remote branch trees",
+  "implemented": "development-only threshold fitting; test risk/coverage and matched uniform random referral; tests exercise synthetic scores only",
+  "evidence_command": ".venv/bin/pytest -q tests/test_validation_study.py tests/test_docstrings.py",
+  "evidence_result": "13 passed in 0.41s",
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0,
+  "resume_bullet": "UNKNOWN"
+}

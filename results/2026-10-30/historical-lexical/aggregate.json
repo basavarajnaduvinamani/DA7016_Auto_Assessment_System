@@ -1,0 +1,55 @@
+{
+  "provenance": {
+    "executed_at": "2026-10-30T09:41:17.084926+00:00",
+    "command": [
+      "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+      "scripts/study.py",
+      "aggregate",
+      "--scores",
+      "results/2026-10-30/historical-lexical/scores.json",
+      "--out",
+      "results/2026-10-30/historical-lexical/aggregate.json"
+    ],
+    "commit": "5cf1ccd0d56c4632c10e000aee2ee842d457633e",
+    "working_tree_dirty": true,
+    "seed": 0,
+    "config": {
+      "qwk_step": 0.5,
+      "precision": "unrounded"
+    },
+    "config_sha256": "92dd180e5fc70950bbf3cfbec17f88452a4ad97dd03ddb16deced6daf740eccf",
+    "code_sha256": {
+      "scripts/study.py": "b972a1764e8c0766694ea9f2f76955a229c767ea040de981c9069937360880d9",
+      "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+    },
+    "inputs": {
+      "results/2026-10-30/historical-lexical/scores.json": {
+        "sha256": "6adfe5dc9414e8710bff9bdc9cf1565fb8a707713240b6c295a9cc4bfb8b0038",
+        "modified_at": "2026-10-30T09:41:16.612363+00:00"
+      }
+    },
+    "paid_api_calls": 0,
+    "session_api_spend_usd": 0,
+    "historical_spend": "UNKNOWN"
+  },
+  "results": {
+    "dev": {
+      "n": 115,
+      "questions": 23,
+      "qwk": 0.010116210243497958,
+      "mae": 2.6652173913043478,
+      "bias": -2.6652173913043478,
+      "within_1": 0.2608695652173913,
+      "exact": 0.1826086956521739
+    },
+    "test": {
+      "n": 455,
+      "questions": 91,
+      "qwk": 0.002470252936727979,
+      "mae": 2.7054945054945057,
+      "bias": -2.7010989010989013,
+      "within_1": 0.2549450549450549,
+      "exact": 0.14945054945054945
+    }
+  }
+}

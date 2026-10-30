@@ -1,0 +1,55 @@
+{
+  "executed_at": "2026-10-30T09:41:16.616336+00:00",
+  "command": [
+    "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+    "scripts/study.py",
+    "export",
+    "--dataset",
+    "data/private/sprag",
+    "--grades",
+    "data/private/sprag-baseline",
+    "--out",
+    "results/2026-10-30/historical-lexical",
+    "--label",
+    "historical-local-lexical"
+  ],
+  "commit": "5cf1ccd0d56c4632c10e000aee2ee842d457633e",
+  "working_tree_dirty": true,
+  "seed": 0,
+  "config": {
+    "label": "historical-local-lexical",
+    "provider_model_id": "UNKNOWN: historical lexical output; no LLM",
+    "historical_prompt_sha256": "UNKNOWN",
+    "historical_config_sha256": "UNKNOWN",
+    "historical_run_date": "UNKNOWN; file modification times are not execution dates",
+    "consensus": "mean of grader_A and grader_B",
+    "qwk_step": 0.5
+  },
+  "config_sha256": "7abf2a5e68a26186a219990222b452f66fad26c7f8c2c57d1c72dd27b9fe5a14",
+  "code_sha256": {
+    "scripts/study.py": "b972a1764e8c0766694ea9f2f76955a229c767ea040de981c9069937360880d9",
+    "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+  },
+  "inputs": {},
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0,
+  "historical_spend": "UNKNOWN",
+  "source_directories": [
+    "/workspace/DA7016_Auto_Assessment_System/data/private/sprag",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/sprag-baseline"
+  ],
+  "source_tree_sha256": "4e5814c515312527748ad4fb0ef0d9802e08ed2345f07e46a59999519f1deb84",
+  "known_inputs": {
+    "/workspace/DA7016_Auto_Assessment_System/data/private/sprag/sheets.csv": "a01f0ecda6ddce864bb60d6026d6c657e1c9f978a946019f472bf5b53b3a497b",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/sprag/human_marks.csv": "55fb9d716587ea17da7b0cece920f2d469b753c5510466301ace92de50354ea9",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/sprag/exam_spec.yaml": "2a4c4a53d186721bc2c5bd7f3b4454f38ba34f287bfea15e526cf523eb10046b"
+  },
+  "source_grade_mtime_range": [
+    "2026-10-25T22:02:07.572547+00:00",
+    "2026-10-25T22:02:12.234903+00:00"
+  ],
+  "output_sha256": {
+    "scores.json": "6adfe5dc9414e8710bff9bdc9cf1565fb8a707713240b6c295a9cc4bfb8b0038",
+    "split-manifest.json": "476f0232c6234265d5cefb890ff21ae3a4bd95634b960e80007b4c13f9ab0193"
+  }
+}

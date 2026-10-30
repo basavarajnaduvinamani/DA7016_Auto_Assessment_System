@@ -423,7 +423,9 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
     @app.get("/assignments/{assignment_id}/review/{submission_id}/{qid}")
     def answer(request: Request, assignment_id: int, submission_id: int, qid: str) -> Response:
         """Open a marked answer belonging to an owned assignment."""
-        return answer_page(request, assignment_id, submission_id, qid)
+        page = answer_page(request, assignment_id, submission_id, qid)
+        store.log_review_event(submission_id, qid, request.state.teacher["id"], "open")
+        return page
 
     @app.post("/assignments/{assignment_id}/review/{submission_id}/{qid}/accept")
     def accept(request: Request, assignment_id: int, submission_id: int, qid: str) -> Response:
@@ -433,6 +435,7 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             store.accept_question(submission_id, qid, request.state.teacher["id"])
         except ValueError as err:
             raise HTTPException(400, str(err)) from err
+        store.log_review_event(submission_id, qid, request.state.teacher["id"], "accept")
         return RedirectResponse(f"/assignments/{assignment_id}/review", status_code=303)
 
     @app.post("/assignments/{assignment_id}/review/{submission_id}/{qid}/override")
@@ -454,6 +457,7 @@ def mount_assignment_routes(app: FastAPI, store: Store, templates: Jinja2Templat
             )
         except (ValueError, KeyError) as err:
             return answer_page(request, assignment_id, submission_id, qid, status=400, error=str(err))
+        store.log_review_event(submission_id, qid, request.state.teacher["id"], "override")
         return answer_page(
             request,
             assignment_id,

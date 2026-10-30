@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import statistics
 from typing import TYPE_CHECKING, Any
 
 from autoassess.schemas import QuestionGrade, SheetGrade
@@ -60,4 +61,37 @@ def teacher_time(store: Store, assignment_id: int, threshold: float = THRESHOLD)
         "overrides": teacher_changes,
         "overridden_answers": len(changed_answers),
         "rechecks": ai_rechecks,
+        **review_activity(store.review_events(assignment_id)),
+    }
+
+
+# A gap longer than this between opening an answer and deciding it is treated as the teacher stepping away.
+IDLE_SECONDS = 15 * 60
+
+
+def review_activity(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Override rate and time per decided answer, from logged open/accept/override events.
+
+    An answer counts as decided at its first accept or override. Its review time runs from the
+    latest open before that decision; gaps over ``IDLE_SECONDS`` are left out rather than counted.
+    """
+    last_open: dict[tuple[int, str], float] = {}
+    decided: dict[tuple[int, str], str] = {}
+    seconds: list[float] = []
+    for event in events:
+        key = (event["submission_id"], event["question_id"])
+        if event["kind"] == "open":
+            last_open[key] = event["at"]
+        elif key not in decided:
+            decided[key] = event["kind"]
+            if key in last_open and 0 <= event["at"] - last_open[key] <= IDLE_SECONDS:
+                seconds.append(event["at"] - last_open[key])
+        elif event["kind"] == "override":
+            decided[key] = "override"
+    overridden = sum(kind == "override" for kind in decided.values())
+    return {
+        "decided": len(decided),
+        "override_rate_pct": round(100 * overridden / len(decided)) if decided else None,
+        "median_review_seconds": round(statistics.median(seconds)) if seconds else None,
+        "review_minutes": round(sum(seconds) / 60, 1) if seconds else None,
     }

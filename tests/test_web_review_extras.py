@@ -75,10 +75,44 @@ def test_teacher_time_counts_auto_accepted_flagged_and_overrides(seeded):
     assert stats["overrides"] == 1 and stats["overridden_answers"] == 1 and stats["rechecks"] == 0
     assert stats["auto_pct"] == round(100 * expected_auto / answers)
     page = client.get("/assignments/1").text
-    assert "Where your review time goes" in page and f"{stats['auto_pct']}%" in page and "No time-saved figure" in page
+    assert (
+        "Where your review time goes" in page
+        and f"{stats['auto_pct']}%" in page
+        and "pauses over 15 minutes are left out" in page
+    )
 
 
 def test_teacher_time_before_grading(tmp_path, monkeypatch):
     monkeypatch.setenv("AUTOASSESS_DEMO_DRY_RUN", "1")
     app = create_app(tmp_path / "app", seed_samples=False)
     assert teacher_time(app.state.store, 1)["auto_pct"] is None
+
+
+def test_review_activity_counts_overrides_and_time():
+    from autoassess.web.teacher_time import review_activity
+
+    events = [
+        {"submission_id": 1, "question_id": "Q1", "kind": "open", "at": 100.0},
+        {"submission_id": 1, "question_id": "Q1", "kind": "accept", "at": 130.0},
+        {"submission_id": 1, "question_id": "Q2", "kind": "open", "at": 200.0},
+        {"submission_id": 1, "question_id": "Q2", "kind": "override", "at": 290.0},
+        # Opened, then left for an hour: decided but not timed.
+        {"submission_id": 2, "question_id": "Q1", "kind": "open", "at": 1000.0},
+        {"submission_id": 2, "question_id": "Q1", "kind": "accept", "at": 4600.0},
+        # Opened but never decided.
+        {"submission_id": 2, "question_id": "Q2", "kind": "open", "at": 5000.0},
+    ]
+    activity = review_activity(events)
+    assert activity["decided"] == 3 and activity["override_rate_pct"] == 33
+    assert activity["median_review_seconds"] == 60 and activity["review_minutes"] == 2.0
+    assert review_activity([])["override_rate_pct"] is None
+
+
+def test_opening_and_accepting_an_answer_is_logged_and_shown(seeded):
+    app, client = seeded
+    assert client.get("/assignments/1/review/2/Q1").status_code == 200
+    assert client.post("/assignments/1/review/2/Q1/accept").status_code == 200
+    kinds = [e["kind"] for e in app.state.store.review_events(1)]
+    assert kinds == ["open", "accept"]
+    page = client.get("/assignments/1").text
+    assert "Override rate" in page and "Answers you decided" in page

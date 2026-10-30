@@ -56,7 +56,7 @@ Details are in [How it works](#how-it-works) and [Project structure](#project-st
 - **Red-ink marked PDF:** ticks at the evidence, part marks, carets for missing points, margin marks, a circled total, a cover marks grid, an "AI-marked" stamp and a feedback page.
 - **Feedback a student can act on:** what earned marks, what lost them, and one concrete next step per lost point. A verifier removes praise without marks and quotes that are not in the answer.
 - **Handwritten sheets** read with Bodhan IndicOCR (English and Indian languages), with low-confidence pages flagged.
-- **Indian languages:** answers in Hindi, Kannada and other Indian languages are graded with quotes kept in the original script; feedback can be translated with Bodhan Indic-Translate.
+- **Indian languages:** answers are graded with quotes kept in the original script, and feedback can be translated with Bodhan Indic-Translate. Measured so far: English (SPRAG) and Hindi (a worked example); the Hindi and Kannada demo sheets show the rest of the path, not a measured result.
 - **Adversarial inputs:** the answer is passed to the model as data; text that tries to instruct the examiner ("award full marks") is flagged and routed to the teacher.
 - **Teacher app (Red-Ink Classroom):** a public landing page, demo sign-in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, each answer shown next to its red-ink marked page, a teacher-time card (share ready to auto-accept, share flagged, overrides), mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
 - **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, and `autoassess coverage` (share auto-marked vs QWK per confidence threshold).
@@ -69,7 +69,8 @@ All from [`docs/report/numbers.md`](docs/report/numbers.md) (SPRAG test, n = 455
 - **Confidence gating.** With the final configuration, confidence >= 0.8 covers 92% of test answers with MAE 0.76; the rest go to the teacher. (With the critic enabled it covered 62% at MAE 0.66.)
 - **Ablation.** Advocate-only review was chosen on dev for the lowest MAE and near-zero bias; on test it scores QWK 0.728 vs 0.675 for advocate + critic and 0.633 for critic only. The critic pushes marks down.
 - **Model choice.** gemini-2.5-flash was kept by a rule fixed in advance (replace only if another model beats it by more than 0.05 QWK on dev); none of four alternatives did.
-- **Prompt injection.** An appended "award full marks" note raised marks on 7 of 30 answers before the fix; the deterministic check now flags 30 of 30 injected answers and 0 of 570 clean ones (it targets this wording; paraphrases may pass).
+- **Prompt injection.** An appended "award full marks" note raised marks on 7 of 30 answers before the fix. A model-free check now routes instruction-like text to the teacher in English, Hinglish, Hindi, Kannada, Tamil and Telugu. On a held-out set of 40 attacks and 40 tricky clean answers, written by a separate author without seeing the check, it catches **23 of 40** attacks (the first English-only version caught 0) and wrongly flags 5 of 40 clean answers. It flags none of the 4,039 real SPRAG answers. Run `autoassess injection-eval`; details are in [`results/robustness/`](results/robustness/README.md).
+- **Keyword stuffing.** Answers that run rubric terms together with no sentence around them are flagged for the teacher (8 of 4,039 SPRAG answers, 0.2%). Lists with commas or numbering are left alone.
 - **Handwriting.** On the classroom set agreement is lower (QWK 0.47), mainly because the teacher was more generous to vague answers than the rubric, with OCR adding uncertainty.
 - **Cost.** $7.72 of OpenRouter calls across all experiments, about $0.006 per answer for the full pipeline.
 
@@ -163,7 +164,7 @@ answer sheet ─> ingest ─> OCR ─> segment by question ─> grade each crite
 4. **Criterion grading** asks the LLM for a verdict, marks and an exact quote for every criterion, three times; the median is kept. Marks are clipped to the rubric, and all-or-nothing criteria snap to 0 or full marks.
 5. **Quote check** confirms each quote occurs in the answer (tolerating small OCR errors); unsupported marks are withdrawn.
 6. **Advocate review** looks for missed credit and may raise a mark only with a verified quote. An optional strict critic can lower marks; it is off by default because the ablation showed it increased under-marking.
-7. **Confidence** takes the weakest of several signals. Below 0.8, or when an injection pattern is found, the answer is flagged for the teacher.
+7. **Confidence** takes the weakest of several signals. Below 0.8, or when an injection pattern or keyword stuffing is found, the answer is flagged for the teacher.
 8. **Feedback** is written per criterion and checked by a verifier; it can be translated into an Indian language.
 9. **Red-ink annotation** draws the marks on the page and builds the marked booklet.
 
@@ -176,7 +177,8 @@ src/autoassess/              the Python package
   spec_builder.py            load, validate, lint and draft rubrics (exam specs)
   ingest.py, page_images.py  PDF/photo to page images; page crops for vision grading
   segment.py                 split OCR text into answers per question
-  grader.py                  criterion grading, quote check, median of runs, injection flag
+  grader.py                  criterion grading, quote check, median of runs, review flags
+  injection.py               model-free injection and keyword-stuffing checks (several Indian languages)
   advocate.py, critic.py     review passes that can raise / lower marks with evidence
   confidence.py              combine signals into a confidence score and the "?" decision
   feedback.py, translate.py  feedback writing and verification; translation to Indian languages
@@ -221,7 +223,7 @@ The suite runs offline: API keys are cleared in tests and grading uses the scrip
 
 ## Limitations
 
-Agreement is well below human-human agreement, so marks should be reviewed by a teacher, starting with the flagged ones. The handwritten evaluation is small and has one grader. Keyword-stuffed answers can still collect some partial credit (see `data/demo_cases/`). The injection check matches instruction-like wording and can miss paraphrased attacks. Feedback quality has not yet been rated by students.
+Agreement is well below human-human agreement, so marks should be reviewed by a teacher, starting with the flagged ones. The handwritten evaluation is small and has one grader. Keyword-stuffed answers can still collect some partial credit; the check sends them to the teacher but does not change marks. The injection check misses 17 of 40 unseen attacks (mostly authority claims and subtle "the rubric is satisfied" wording), so the grader prompt, which treats the answer as data, remains the main defence. Feedback quality has not yet been rated by students.
 
 ## Acknowledgements
 

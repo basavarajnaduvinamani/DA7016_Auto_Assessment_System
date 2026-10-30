@@ -1,0 +1,14 @@
+/* Review screen: the red-ink marked page beside the answer. */
+.marked-page{margin:0 0 24px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.marked-page .section-heading{margin-bottom:12px}
+.marked-frame{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fffdf8}
+.marked-frame img{display:block;width:100%;height:auto}
+.marked-page figcaption{margin-top:10px}
+@media(max-width:900px){.marked-frame{max-height:480px}}
+/* Assignment page: teacher time card. */
+.teacher-time .section-heading{align-items:flex-end}
+.teacher-time .eyebrow{margin-bottom:6px}
+.teacher-time-grid{grid-template-columns:repeat(3,1fr);margin-bottom:14px}
+.teacher-time-grid small{display:block;margin-top:6px;line-height:1.45}
+.teacher-time>p:last-child{margin:0}
+@media(max-width:700px){.teacher-time-grid{grid-template-columns:1fr}.teacher-time .section-heading{flex-direction:column;align-items:flex-start;gap:6px}}

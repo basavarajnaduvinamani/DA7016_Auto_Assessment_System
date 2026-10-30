@@ -84,7 +84,9 @@ def test_end_to_end_form_upload_grade_review_override_release(classroom_app):
     first = rows[0]
     sid, qid = first['submission']['id'], first['question'].question_id
     answer_page = client.get(f'/assignments/{aid}/review/{sid}/{qid}')
-    assert answer_page.status_code == 200 and '<img ' not in answer_page.text
+    # A typed sheet has no scan to show; the red-ink marked page is shown instead.
+    assert answer_page.status_code == 200 and '/artifact/page' not in answer_page.text
+    assert '/artifact/marked?index=' in answer_page.text
     assert client.get(f'/assignments/{aid}/submissions/{sid}/artifact/page').status_code == 404
     assert client.post(f'/assignments/{aid}/review/{sid}/{qid}/accept').status_code == 200
     other = next(r for r in rows if r['question'].criteria and r['submission']['id'] != sid)

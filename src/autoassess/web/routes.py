@@ -17,10 +17,12 @@ from starlette.concurrency import run_in_threadpool
 from autoassess.demo import demo_settings, llm_available, validate_upload
 from autoassess.providers import make_llm
 from autoassess.regrade import regrade
-from autoassess.schemas import ExamSpec
+from autoassess.schemas import ExamSpec, SheetGrade
 from autoassess.spec_builder import draft_spec, lint_spec, load_spec
 from autoassess.web.forms import build_spec, question_values
 from autoassess.web.grading import match_student, rebuild_artifacts
+from autoassess.web.marked import marked_page, marked_pngs
+from autoassess.web.teacher_time import teacher_time
 
 
 def mount_assignment_routes(app, store, templates, jobs):
@@ -52,7 +54,7 @@ def mount_assignment_routes(app, store, templates, jobs):
         spec = ExamSpec.model_validate_json(row['spec_json'])
         return {'assignment': row, 'classroom': classroom(request, row['class_id']), 'spec': spec,
                 'summary': store.assignment_summary(assignment_id), 'submissions': store.submissions(assignment_id),
-                'warnings': lint_spec(spec)}
+                'warnings': lint_spec(spec), 'teacher_time': teacher_time(store, assignment_id)}
 
     def assignment_page(request, assignment_id, *, error=None, message=None, status=200):
         return render(request, 'assignment.html', status=status, **page_context(request, assignment_id), error=error, message=message)
@@ -233,6 +235,7 @@ def mount_assignment_routes(app, store, templates, jobs):
         return render(request, 'answer.html', **context, submission=row, question=qg,
                       rubric=context['spec'].question(qid), answer=saved['segments'].get(qid, {}).get('text', ''),
                       image=next((i for i, p in enumerate(saved['pages']) if Path(p.get('image_path') or '').suffix.lower() in ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.webp')), None),
+                      marked=marked_page(row, store.root, qg, next((q for q in SheetGrade.model_validate_json(row['grade_json']).questions if q.question_id == qid), None)),
                       changes=[c for c in changes if c['question_id'] == qid], notes=saved.get('notes', []),
                       version=changes[-1]['id'] if changes else 0, accepted=qid in store.accepted_questions(submission_id),
                       previous=link(index - 1), next=link(index + 1), **kwargs)
@@ -312,6 +315,9 @@ def mount_assignment_routes(app, store, templates, jobs):
             path = saved['pages'][index].get('image_path') if index < len(saved['pages']) else None
             if Path(path or '').suffix.lower() not in ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.webp'):
                 path = None
+        elif kind == 'marked':
+            pngs = marked_pngs(row, store.root)
+            path = str(pngs[index]) if index < len(pngs) else None
         elif kind == 'pdf':
             path = artifacts.get('pdf')
         elif kind == 'html':

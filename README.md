@@ -6,7 +6,7 @@ Second Read is an AI co-examiner for teachers. It reads every answer sheet first
 
 **Who it is for:** teachers and TAs who mark short-answer tests and handwritten booklets, including answers in Indian languages, and the students who get the sheets back.
 
-- **Live app:** https://red-ink-grader.onrender.com — click **Try the demo** (free hosting: the first load after a quiet spell can take about a minute)
+- **Live app:** https://second-read.onrender.com — click **Try the demo** (free hosting: the first load after a quiet spell can take about a minute)
 - **Every number:** [`docs/report/numbers.md`](docs/report/numbers.md) · **Robustness:** [`results/robustness/`](results/robustness/README.md)
 - **Course:** DA7016 Recent Advances in Generative AI, IIT Madras (Jul to Nov 2026) · Basavaraj A Naduvinamani (DA25C005)
 

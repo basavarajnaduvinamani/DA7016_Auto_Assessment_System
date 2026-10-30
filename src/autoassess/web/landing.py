@@ -4,7 +4,7 @@ REPO_URL = "https://github.com/basavarajnaduvinamani/DA7016_Auto_Assessment_Syst
 
 NAME = "Second Read"
 TAGLINE = "A little less checking, a little more teaching."
-PROMISE = "The AI reads every answer first. You give the second read to the ones that need you."
+PROMISE = "The AI reads every answer first. You give the second read."
 
 # The teacher's workflow in three steps; the order mirrors the app's assignment page.
 STEPS = [

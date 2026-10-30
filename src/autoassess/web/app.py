@@ -18,7 +18,7 @@ from autoassess.demo import health_payload
 from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
 from autoassess.web.downloads import mount_download_routes
 from autoassess.web.jobs import Jobs
-from autoassess.web.landing import CLASSROOM, NUMBERS_URL, REPO_URL, RESULTS, STEPS
+from autoassess.web.landing import FEATURES, LANGUAGE_NAMES, NAME, PROMISE, REPO_URL, STEPS, TAGLINE
 from autoassess.web.presentation import flag_chips
 from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.seed import seed, seed_assignment
@@ -54,10 +54,12 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
             jobs.close()
 
     serializer = signer()
-    app = FastAPI(title="Red-Ink Classroom", lifespan=lifespan)
+    app = FastAPI(title=NAME, lifespan=lifespan)
     app.state.jobs = jobs
     app.state.store = store
     templates = Jinja2Templates(directory=HERE / "templates")
+    # One product name for every page, so a rename touches landing.NAME only.
+    templates.env.globals["product_name"] = NAME
     app.state.templates = templates
     templates.env.globals["flag_chips"] = flag_chips
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -82,15 +84,16 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
         return health_payload()
 
     def landing(request: Request, **context: Any) -> Response:
-        """Render the public page shown before sign-in: what it does, results, how it works, then demo sign-in."""
+        """Render the public page shown before sign-in: the product, how it works, languages, then demo sign-in."""
         return render(
             request,
             "sign_in.html",
             repo_url=REPO_URL,
-            numbers_url=NUMBERS_URL,
-            results=RESULTS,
-            classroom_results=CLASSROOM,
+            tagline=TAGLINE,
+            promise=PROMISE,
+            features=FEATURES,
             steps=STEPS,
+            languages=LANGUAGE_NAMES,
             **context,
         )
 

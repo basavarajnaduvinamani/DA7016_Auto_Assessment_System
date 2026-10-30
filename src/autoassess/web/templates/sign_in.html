@@ -1,67 +1,48 @@
 {% extends 'base.html' %}
-{% block title %}Red-Ink Grader · rubric-grounded marking with teacher review{% endblock %}
-{% block head %}<meta name="description" content="Red-Ink Grader marks answer sheets against a teacher's rubric, quotes the evidence for every mark, flags what it is unsure about and returns the sheet in red ink. Selective auto-marking with teacher review.">
+{% block title %}{{ product_name }} · {{ tagline }}{% endblock %}
+{% block head %}<meta name="description" content="{{ product_name }} is an AI co-examiner for teachers. It marks answer sheets against your rubric, shows the student's own words as evidence for every mark, and hands the answers that need you back for your sign-off.">
   <link rel="stylesheet" href="{{ url_for('static', path='landing.css') }}">{% endblock %}
-{% block public_nav %}<a href="#how">How it works</a><a href="#results">Results</a><a href="{{ repo_url }}" rel="noopener">GitHub</a>{% endblock %}
+{% block public_nav %}<a href="#how">How it works</a><a href="#languages">Languages</a><a href="{{ repo_url }}" rel="noopener">GitHub</a>{% endblock %}
 {% block main_class %}container landing{% endblock %}
 {% block content %}
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-copy">
-    <p class="eyebrow">RED-INK GRADER · FOR TEACHERS WHO MARK BY HAND</p>
-    <h1 id="hero-title">Mark the clear answers in minutes. Spend your time on the hard ones.</h1>
-    <p class="lede">Upload answer sheets and a rubric. Red-Ink Grader marks each criterion, quotes the student's own words as evidence, flags the answers it is unsure about, and hands back the sheet marked in red ink.</p>
+    <p class="eyebrow">AI CO-EXAMINER FOR TEACHERS</p>
+    <h1 id="hero-title">{{ tagline }}</h1>
+    <p class="lede">Upload a rubric and a stack of answer sheets. {{ product_name }} reads every answer first, marks each criterion with the student's own words as evidence and writes feedback in the margin. You read the answers that need your judgement, and see where your class is stuck.</p>
     <div class="hero-actions">
       <form action="/sign-in" method="post"><input type="hidden" name="email" value="demo@redink.local"><button class="button">Try the demo <span aria-hidden="true">→</span></button></form>
-      <a class="button secondary" href="{{ repo_url }}" rel="noopener">View on GitHub</a>
+      <a class="button secondary" href="#how">How it works</a>
     </div>
-    <p class="scope-line"><span aria-hidden="true">✓</span> Selective auto-marking with teacher review. You keep the final say on every mark.</p>
+    <p class="scope-line"><span aria-hidden="true">✓</span> {{ promise }}</p>
   </div>
   <figure class="hero-sheet">
-    <img src="{{ url_for('static', path='example-redink.webp') }}" width="960" height="821" alt="A synthetic answer sheet marked by Red-Ink Grader: circled question totals, ticks at the evidence, carets where points are missing and short margin remarks.">
-    <figcaption>Real output on a synthetic sample sheet, final configuration.</figcaption>
+    <img src="{{ url_for('static', path='example-redink.webp') }}" width="960" height="821" alt="An answer sheet marked by {{ product_name }}: circled question totals, ticks at the evidence, carets where points are missing and short margin remarks.">
+    <figcaption>A sample sheet, marked by {{ product_name }}.</figcaption>
   </figure>
 </section>
 
-<section class="audience" aria-label="Who it is for">
-  <div class="panel"><span class="subject-icon" aria-hidden="true">✎</span><h2>Teachers and TAs</h2><p class="muted">Short-answer tests and booklets, marked against your rubric. The review queue puts flagged answers first.</p></div>
-  <div class="panel"><span class="subject-icon" aria-hidden="true">✓</span><h2>Students</h2><p class="muted">Ticks where they earned marks, a caret where a point is missing, and one concrete next step per lost point.</p></div>
-  <div class="panel"><span class="subject-icon" aria-hidden="true">अ</span><h2>Indian classrooms</h2><p class="muted">Handwritten sheets and answers in Hindi, Kannada and other Indian languages, with quotes kept in the original script.</p></div>
-</section>
-
-<section id="results" class="landing-section" aria-labelledby="results-title">
-  <div class="section-intro"><p class="eyebrow">MEASURED, NOT CLAIMED</p><h2 id="results-title">How close it gets to a human marker</h2><p class="muted">Held-out SPRAG test set: 455 typed short answers, 0 to 5 marks, two independent human graders. Prompts and settings were chosen on a separate dev split.</p></div>
-  <div class="panel table-scroll results-panel"><table><thead><tr><th scope="col">System</th><th scope="col">Agreement (QWK) [95% CI]</th><th scope="col">Mean error (of 5)</th><th scope="col">Within 1 mark</th></tr></thead><tbody>{% for row in results %}<tr class="row-{{ row.kind }}"><th scope="row">{{ row.system }}</th><td><strong>{{ row.qwk }}</strong>{% if row.ci %} <span class="muted small">{{ row.ci }}</span>{% endif %}</td><td>{{ row.mae }}</td><td>{{ row.within_1 }}</td></tr>{% endfor %}</tbody></table></div>
-  <div class="results-notes">
-    <p><strong>On real handwriting it is weaker.</strong> On {{ classroom_results.students }} students' handwritten sheets ({{ classroom_results.answers }} answers, one teacher) agreement is QWK {{ classroom_results.qwk }} {{ classroom_results.ci }}, and {{ classroom_results.flagged }} answers were flagged for review. The teacher was more generous to vague answers than the rubric.</p>
-    <p class="small muted">QWK is quadratic weighted kappa (1 = perfect agreement). Intervals are question-clustered bootstrap. Source: <a href="{{ numbers_url }}" rel="noopener">docs/report/numbers.md</a>.</p>
-  </div>
+<section class="audience" aria-label="Why teachers use it">
+  {% for title, body in features %}<div class="panel"><span class="subject-icon" aria-hidden="true">{{ ['❝', '?', '✓'][loop.index0] }}</span><h2>{{ title }}</h2><p class="muted">{{ body }}</p></div>{% endfor %}
 </section>
 
 <section id="how" class="landing-section" aria-labelledby="how-title">
-  <div class="section-intro"><p class="eyebrow">HOW IT WORKS</p><h2 id="how-title">Five steps from a pile of sheets to released marks</h2></div>
-  <ol class="steps">{% for title, body in steps %}<li class="panel"><span class="step-number" aria-hidden="true">{{ loop.index }}</span><h3>{{ title }}</h3><p class="muted">{{ body }}</p></li>{% endfor %}</ol>
+  <div class="section-intro"><p class="eyebrow">HOW IT WORKS</p><h2 id="how-title">The AI reads first. You read what matters.</h2></div>
+  <ol class="steps steps-3">{% for title, body in steps %}<li class="panel"><span class="step-number" aria-hidden="true">{{ loop.index }}</span><h3>{{ title }}</h3><p class="muted">{{ body }}</p></li>{% endfor %}</ol>
 </section>
 
-<section class="landing-section" aria-labelledby="scope-title">
-  <div class="panel scope-panel">
-    <div><p class="eyebrow">HONEST SCOPE</p><h2 id="scope-title">An assistant that knows when to ask you</h2><p>Agreement is well below human-to-human agreement, so Red-Ink Grader is built for <strong>selective auto-marking with teacher review</strong>, not as a replacement for the teacher.</p></div>
-    <ul class="scope-list">
-      <li><span class="yes" aria-hidden="true">✓</span>Every awarded mark cites a rubric criterion and a verified quote from the answer.</li>
-      <li><span class="yes" aria-hidden="true">✓</span>Low-confidence answers and text that tries to instruct the grader are flagged for you.</li>
-      <li><span class="yes" aria-hidden="true">✓</span>Your overrides are recorded with a reason; the original AI mark is kept.</li>
-      <li><span class="no" aria-hidden="true">✕</span>Evaluated on short answers only; the handwritten set is small and has one grader.</li>
-      <li><span class="no" aria-hidden="true">✕</span>The demo sign-in is not real authentication. Do not upload real student data here.</li>
-    </ul>
-  </div>
+<section id="languages" class="landing-section languages" aria-labelledby="languages-title">
+  <div class="section-intro"><p class="eyebrow">BUILT FOR INDIAN CLASSROOMS</p><h2 id="languages-title">Reads handwriting and gives feedback in the student's language</h2><p class="muted">Handwritten pages are read with Bodhan IndicOCR. Evidence stays in the original script, and feedback can be returned in eleven languages with Bodhan Indic-Translate.</p></div>
+  <ul class="language-strip">{% for label, code in languages %}<li lang="{{ code }}">{{ label }}</li>{% endfor %}</ul>
 </section>
 
 <section id="sign-in" class="landing-section sign-in-band" aria-labelledby="sign-in-title">
-  <div><p class="eyebrow">SEE IT ON A SAMPLE CLASS</p><h2 id="sign-in-title">Open the demo classroom</h2><p class="muted">A synthetic class of ten students and a pre-graded quiz are ready: the review queue, each answer next to its red-ink page, overrides with reasons, release and exports.</p></div>
+  <div><p class="eyebrow">TRY IT ON A SAMPLE CLASS</p><h2 id="sign-in-title">Open the demo classroom</h2><p class="muted">A sample class and a marked quiz are ready for you: the review queue, each answer beside its marked page, changing a mark with a reason, release and exports.</p></div>
   <div class="panel sign-in"><span class="eyebrow">TEACHER SIGN-IN</span>
     <form action="/sign-in" method="post"><input type="hidden" name="email" value="demo@redink.local"><button class="button full">Sign in as demo teacher</button></form>
     <div class="divider">or use a seeded email</div>
     <form action="/sign-in" method="post" class="stack"><label>Email address<input type="email" name="email" value="{{ email|default('') }}" placeholder="you@school.edu" required autocomplete="email"></label><button class="button secondary">Continue <span aria-hidden="true">→</span></button></form>
-    <p class="small muted">No password needed. This is a demonstration workspace.</p>
+    <p class="small muted">No password needed in the demo workspace. Please use sample data only.</p>
   </div>
 </section>
 {% endblock %}

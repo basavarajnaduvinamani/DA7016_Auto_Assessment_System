@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="htmx-config" content='{"selfRequestsOnly":true}'>
-  <title>{% block title %}Red-Ink Classroom{% endblock %}</title>
+  <title>{% block title %}{{ product_name }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
   <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
   {% block head %}{% endblock %}
@@ -11,7 +11,7 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
-  <a class="brand" href="/" aria-label="Red-Ink Classroom home"><span class="brand-icon">R<span>✓</span></span><span>Red-Ink <strong>Classroom</strong></span></a>
+  <a class="brand" href="/" aria-label="{{ product_name }} home"><span class="brand-icon">{{ product_name[0] }}<span>✓</span></span><span><strong>{{ product_name }}</strong></span></a>
   <nav aria-label="Account">{% if teacher %}<span class="teacher">{{ teacher.name }}</span><a href="/lab/">Grading lab</a><form action="/sign-out" method="post"><button class="link-button">Sign out</button></form>{% else %}{% block public_nav %}<span>Teacher workspace</span>{% endblock %}{% endif %}</nav>
 </header>
 <main id="main" class="{% block main_class %}container{% endblock %}">
@@ -20,6 +20,6 @@
 {% if message %}<div role="status" class="notice">{{ message }}</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
-<footer><span class="footer-brand">RED-INK CLASSROOM</span><span>Demo sign-in. Not for real student data.</span></footer>
+<footer><span class="footer-brand">{{ product_name|upper }}</span><span>Demo workspace. Please use sample data only.</span></footer>
 </body>
 </html>

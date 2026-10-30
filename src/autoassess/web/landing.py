@@ -1,44 +1,54 @@
-"""Public landing page content. Every number is copied from docs/report/numbers.md (checked by a test)."""
+"""Public landing page content: the product story, how it works and the supported languages."""
 
 REPO_URL = "https://github.com/basavarajnaduvinamani/DA7016_Auto_Assessment_System"
-NUMBERS_URL = REPO_URL + "/blob/main/docs/report/numbers.md"
 
-# SPRAG test set, n = 455 typed short answers, 0-5 marks, two human graders.
-RESULTS = [
-    {"system": "Human vs human", "qwk": "0.962", "ci": "", "mae": "0.22", "within_1": "100%", "kind": "ceiling"},
-    {
-        "system": "Red-Ink Grader (final configuration)",
-        "qwk": "0.723",
-        "ci": "[0.667, 0.773]",
-        "mae": "0.85",
-        "within_1": "76%",
-        "kind": "ours",
-    },
-    {"system": "Lexical baseline", "qwk": "0.375", "ci": "", "mae": "1.62", "within_1": "40%", "kind": "baseline"},
-]
+NAME = "Second Read"
+TAGLINE = "A little less checking, a little more teaching."
+PROMISE = "The AI reads every answer first. You give the second read to the ones that need you."
 
-# Handwritten classroom set: 9 students x 15 two-mark questions, one teacher.
-CLASSROOM = {"qwk": "0.47", "ci": "[0.32, 0.57]", "students": "9", "answers": "135", "flagged": "75 of 135"}
-
+# The teacher's workflow in three steps; the order mirrors the app's assignment page.
 STEPS = [
     (
-        "Write the rubric",
-        "Questions, marks, a model answer and checkable criteria. A rubric check warns about vague points.",
+        "Upload the rubric and the sheets",
+        "Questions, marks and a model answer, then typed text, PDFs or phone photos of handwritten booklets.",
     ),
     (
-        "Upload the sheets",
-        "Typed text, PDFs or phone photos. Handwriting is read with Bodhan IndicOCR, including Indian languages.",
+        "Every criterion marked with evidence",
+        "Each mark quotes the student's own words, and the quote is checked against the answer. No quote, no mark.",
     ),
     (
-        "Grade every criterion with evidence",
-        "Three grading runs, median marks. Each mark must quote the student's own words; code checks the quote is really there.",
+        "You give the second read, then countersign",
+        "Unsure answers and the gaps your class shares come to you first. Change any mark with a reason, then release.",
+    ),
+]
+
+# What sets the product apart, in the order a teacher asks about it.
+FEATURES = [
+    (
+        "Evidence for every mark",
+        "Students see the exact words that earned each point, and a concrete next step for each point they missed.",
     ),
     (
-        "Flag what it is unsure about",
-        "Run spread, OCR confidence and reviewer changes give a confidence. Low-confidence and suspicious answers go to you first.",
+        "Knows when to ask you",
+        "Low confidence, unclear handwriting, attempts to instruct the grader and keyword lists are handed back to you.",
     ),
     (
-        "Review, then release",
-        "Accept or change a mark with a reason; the original AI mark is kept. Release red-ink marked sheets and export grades.",
+        "Your decision is final",
+        "Every change is recorded with your reason, the original AI mark is kept, and each booklet is stamped AI-marked.",
     ),
+]
+
+# English plus the Indian languages offered for feedback (autoassess.demo.LANGUAGES), in their own scripts.
+LANGUAGE_NAMES = [
+    ("English", "en"),
+    ("हिन्दी", "hi"),
+    ("ಕನ್ನಡ", "kn"),
+    ("தமிழ்", "ta"),
+    ("తెలుగు", "te"),
+    ("मराठी", "mr"),
+    ("বাংলা", "bn"),
+    ("മലയാളം", "ml"),
+    ("ગુજરાતી", "gu"),
+    ("ଓଡ଼ିଆ", "or"),
+    ("ਪੰਜਾਬੀ", "pa"),
 ]

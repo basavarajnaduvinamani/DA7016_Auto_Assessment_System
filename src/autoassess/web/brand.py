@@ -1,8 +1,10 @@
-"""Red-Ink brand for the Gradio lab, matching the Classroom app's app.css tokens."""
+"""Product brand for the Gradio lab, matching the teacher app's app.css tokens."""
 
 from __future__ import annotations
 
 import gradio as gr
+
+from autoassess.web.landing import NAME
 
 RED = gr.themes.Color(
     c50="#fbebeb",
@@ -59,5 +61,5 @@ CSS = """
 button.secondary{border:1px solid #e5e4df !important}
 """
 
-HEADER = """<div class="redink-bar"><a class="redink-brand" href="/" aria-label="Red-Ink Classroom home"><span class="redink-icon">R<span>✓</span></span><span>Red-Ink <strong>Grader lab</strong></span></a><a class="redink-back" href="/">← Back to Red-Ink Classroom</a></div>
+HEADER = f"""<div class="redink-bar"><a class="redink-brand" href="/" aria-label="{NAME} home"><span class="redink-icon">{NAME[0]}<span>✓</span></span><span>{NAME} <strong>lab</strong></span></a><a class="redink-back" href="/">← Back to {NAME}</a></div>
 <p class="redink-lede">Upload an answer sheet and get it back marked, with marks a student can check and feedback they can act on.</p>"""

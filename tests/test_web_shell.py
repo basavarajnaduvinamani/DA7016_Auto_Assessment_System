@@ -35,7 +35,7 @@ def test_session_guard_and_demo_sign_in(teacher_app):
     for path in ["/", "/classes/1", "/classes/new", "/lab/", "/lab/config", "/docs"]:
         response = client.get(path, follow_redirects=False)
         assert response.status_code == 303 and response.headers["location"] == "/sign-in"
-    assert "Demo sign-in. Not for real student data." in client.get("/sign-in").text
+    assert "Demo workspace. Please use sample data only." in client.get("/sign-in").text
     assert client.get("/static/htmx.min.js").status_code == 200
     assert client.get("/healthz").json() == {"ok": True, "llm": "fake", "ocr": "text"}
     response = login(client)

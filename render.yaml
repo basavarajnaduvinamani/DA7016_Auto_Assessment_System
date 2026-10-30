@@ -3,7 +3,7 @@
 # marked sync: false under the service's Environment tab. See docs/deploy.md.
 services:
   - type: web
-    # The service name sets the onrender.com address: https://second-read.onrender.com
+    # The service name sets the onrender.com address. Render adds a suffix when the name is taken: the live app is https://second-read-v4a8.onrender.com
     name: second-read
     runtime: python
     plan: free

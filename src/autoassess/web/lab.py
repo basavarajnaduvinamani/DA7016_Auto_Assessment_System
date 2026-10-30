@@ -30,6 +30,7 @@ from autoassess.demo import (
 from autoassess.schemas import ExamSpec
 from autoassess.spec_builder import lint_spec, load_spec
 from autoassess.web.brand import CSS, HEADER, THEME
+from autoassess.web.landing import NAME
 
 INPUTS = {"OCR text": "text", "Page image": "image", "Both (hybrid)": "hybrid"}
 
@@ -167,7 +168,7 @@ settings = demo_settings()
 llm_enabled = llm_available(settings)
 grader_choices = ["LLM grader", "Lexical baseline"] if llm_enabled else ["Lexical baseline"]
 
-with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
+with gr.Blocks(title=f"{NAME} lab", analytics_enabled=False) as demo:
     gr.HTML(HEADER)
     last_result = gr.State(value=None)
     status = gr.Markdown(status_markdown())

@@ -1,14 +1,16 @@
-# Red-Ink Grader: rubric-grounded auto-assessment of answer sheets
+# Second Read
 
-**Marks answer sheets against a teacher's rubric, quotes the evidence for every mark, flags what it is unsure about, and hands the sheet back marked in red ink.** Built as selective auto-marking with teacher review, not a replacement for the teacher.
+**A little less checking, a little more teaching.**
 
-**Who it is for:** teachers and TAs who mark short-answer tests and booklets by hand, including handwritten sheets and answers in Indian languages, and the students who get the sheets back.
+Second Read is an AI co-examiner for teachers. It reads every answer sheet first, marks each rubric criterion only when it can quote the student's own words as evidence, writes feedback in the margin, and hands the answers that need the teacher's judgement back for a second read. The teacher countersigns every release.
+
+**Who it is for:** teachers and TAs who mark short-answer tests and handwritten booklets, including answers in Indian languages, and the students who get the sheets back.
 
 - **Live app:** https://red-ink-grader.onrender.com — click **Try the demo** (free hosting: the first load after a quiet spell can take about a minute)
-- **Final report:** [`docs/report/`](docs/report) (LaTeX; CI builds the PDF) · **Slides:** [`docs/slides/`](docs/slides) · **Every number:** [`docs/report/numbers.md`](docs/report/numbers.md)
+- **Every number:** [`docs/report/numbers.md`](docs/report/numbers.md) · **Robustness:** [`results/robustness/`](results/robustness/README.md)
 - **Course:** DA7016 Recent Advances in Generative AI, IIT Madras (Jul to Nov 2026) · Basavaraj A Naduvinamani (DA25C005)
 
-<p align="center"><img src="docs/images/landing.png" alt="Red-Ink Grader landing page: what it does, Try the demo and GitHub buttons, and a red-ink marked sample sheet" width="880"></p>
+<p align="center"><img src="docs/images/landing.png" alt="Second Read landing page: the tagline, Try the demo, and a marked sample sheet" width="880"></p>
 
 | Review an answer next to its red-ink page | The red ink a student sees (final configuration) |
 | --- | --- |
@@ -23,7 +25,7 @@ Held-out SPRAG test set (455 typed short answers, 0 to 5 marks, two human grader
 | System | QWK [95% CI] | MAE (of 5) | Within 1 mark |
 | --- | --- | --- | --- |
 | Human vs human | 0.962 | 0.22 | 100% |
-| **Red-Ink Grader (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
+| **Second Read (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
 | Lexical baseline | 0.375 | 1.62 | 40% |
 
 On real handwritten sheets (9 students, 135 answers, one teacher) agreement is lower: QWK 0.47 [0.32, 0.57], with 75 of 135 answers flagged for review. Hence the scope: auto-mark the confident answers, send the rest to the teacher. `autoassess coverage` reports the share auto-marked against QWK at each confidence threshold ([`docs/evaluation.md`](docs/evaluation.md#8-coverage-selective-auto-marking)).
@@ -38,7 +40,7 @@ AUTOASSESS_DEMO_DRY_RUN=1 autoassess serve     # http://localhost:8000 → Try t
 ### Architecture
 
 ```
-Red-Ink Classroom (FastAPI + Jinja + htmx + SQLite)        Grading lab (Gradio, mounted at /lab)
+Teacher app (FastAPI + Jinja + htmx + SQLite)                  Grading lab (Gradio, mounted at /lab)
   landing → classes → assignments → upload → review → release / CSV · XLSX · ZIP
                     │ background jobs                          │
                     └──────────────► autoassess pipeline ◄─────┘
@@ -58,7 +60,7 @@ Details are in [How it works](#how-it-works) and [Project structure](#project-st
 - **Handwritten sheets** read with Bodhan IndicOCR (English and Indian languages), with low-confidence pages flagged.
 - **Indian languages:** answers are graded with quotes kept in the original script, and feedback can be translated with Bodhan Indic-Translate. Measured so far: English (SPRAG) and Hindi (a worked example); the Hindi and Kannada demo sheets show the rest of the path, not a measured result.
 - **Adversarial inputs:** the answer is passed to the model as data; text that tries to instruct the examiner ("award full marks") is flagged and routed to the teacher.
-- **Teacher app (Red-Ink Classroom):** a public landing page, demo sign-in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, each answer shown next to its red-ink marked page, a teacher-time card (share ready to auto-accept, share flagged, overrides), mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
+- **Teacher app:** a public landing page, demo sign-in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, each answer shown next to its red-ink marked page, a teacher-time card (share ready to auto-accept, share flagged, overrides), mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
 - **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, and `autoassess coverage` (share auto-marked vs QWK per confidence threshold).
 - **Spend guards and caching:** every paid call is cached by content hash; OpenRouter and Bodhan spending stop at configured limits.
 
@@ -193,7 +195,7 @@ src/autoassess/              the Python package
   experiments.py, results.py ablation and robustness experiments; report tables and figures
   datasets/sprag.py          importer for the public SPRAG dataset
   providers/                 LLM (OpenAI-compatible), Bodhan, IndicOCR, vision and offline scripted providers
-  web/                       Red-Ink Classroom teacher app (FastAPI, Jinja templates, htmx, SQLite)
+  web/                       teacher app (FastAPI, Jinja templates, htmx, SQLite)
   sample_exam/               packaged copy of the sample quiz for installed apps
 app.py                       standalone Gradio grading lab (also mounted at /lab in the teacher app)
 data/sample_exam/            sample quiz rubric and three typed answer sheets

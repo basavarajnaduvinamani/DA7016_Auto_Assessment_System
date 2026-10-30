@@ -394,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="autoassess")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("serve", help="start the Red-Ink Classroom teacher app")
+    p = sub.add_parser("serve", help="start the teacher web app")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--data-dir")

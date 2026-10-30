@@ -30,7 +30,10 @@ Return ONLY JSON:
 {"proposals": [{"criterion_id": str, "decision": "keep" | "raise", "marks": number, "evidence": str|null, "reason": str}]}"""
 
 
-def build_advocate_prompt(question: Question, answer: str, results: list[CriterionResult], context: str | None = None) -> str:
+def build_advocate_prompt(
+    question: Question, answer: str, results: list[CriterionResult], context: str | None = None
+) -> str:
+    """Build a review prompt that looks for missed credit using answer evidence."""
     crit = {c.id: c for c in question.criteria}
     short = [
         {

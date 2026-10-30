@@ -2,9 +2,9 @@ import pytest
 
 cv2 = pytest.importorskip("cv2")
 pymupdf = pytest.importorskip("pymupdf")
-import numpy as np
+import numpy as np  # noqa: E402 - preserve optional dependency gating
 
-from autoassess.ingest import ingest
+from autoassess.ingest import ingest  # noqa: E402 - requires the optional imports above
 
 
 def test_pdf_to_clean_pages(tmp_path):

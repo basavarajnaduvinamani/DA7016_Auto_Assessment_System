@@ -9,14 +9,25 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import gradio as gr
 from fastapi import FastAPI
 
 from autoassess.demo import (
-    LANGUAGES, SAMPLE, UPLOAD_EXTENSIONS, Options, demo_settings, health_payload,
-    llm_available, mark_class, mark_sheet, status_markdown,
+    LANGUAGES,
+    SAMPLE,
+    UPLOAD_EXTENSIONS,
+    Options,
+    SheetResult,
+    demo_settings,
+    health_payload,
+    llm_available,
+    mark_class,
+    mark_sheet,
+    status_markdown,
 )
+from autoassess.schemas import ExamSpec
 from autoassess.spec_builder import lint_spec, load_spec
 from autoassess.web.brand import CSS, HEADER, THEME
 
@@ -27,14 +38,29 @@ def _spec(spec_file):
     return load_spec(spec_file or SAMPLE / "exam_spec.yaml")
 
 
-def do_mark(spec_file, sheet_file, grader, input_mode, advocate_review, language, strict_critic=False):
+def do_mark(
+    spec_file: str | Path | None,
+    sheet_file: str | Path | None,
+    grader: str,
+    input_mode: str,
+    advocate_review: bool,
+    language: str,
+    strict_critic: bool = False,
+) -> tuple[list[str], str, str | None, str, dict[str, Any], str, tuple[ExamSpec, SheetResult, str | Path]]:
+    """Grade an uploaded sheet and return report components plus visitor state."""
     if sheet_file is None:
         raise gr.Error("Upload an answer sheet: a PDF, a photo, or a .txt file.")
     try:
         spec = _spec(spec_file)
     except Exception:
         raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
-    opts = Options(use_llm=grader == "LLM grader", input_mode=INPUTS[input_mode], advocate_review=advocate_review, strict_critic=strict_critic, language=language)
+    opts = Options(
+        use_llm=grader == "LLM grader",
+        input_mode=INPUTS[input_mode],
+        advocate_review=advocate_review,
+        strict_critic=strict_critic,
+        language=language,
+    )
     try:
         r = mark_sheet(spec, sheet_file, opts)
     except ValueError as err:
@@ -42,7 +68,9 @@ def do_mark(spec_file, sheet_file, grader, input_mode, advocate_review, language
     except Exception:
         raise gr.Error("The sheet could not be marked. Try the sample sheet or a valid typed .txt file.") from None
     notes = "\n".join(f"> {n}" for n in r.notes + [f"Rubric check: {w}" for w in lint_spec(spec)])
-    choices = [f"{q.question_id} / {c.criterion_id} ({c.marks_awarded:g})" for q in r.grade.questions for c in q.criteria]
+    choices = [
+        f"{q.question_id} / {c.criterion_id} ({c.marks_awarded:g})" for q in r.grade.questions for c in q.criteria
+    ]
     return (
         [str(p) for p in r.pages],
         (notes + "\n\n" if notes else "") + r.summary_md,
@@ -54,7 +82,8 @@ def do_mark(spec_file, sheet_file, grader, input_mode, advocate_review, language
     )
 
 
-def do_regrade(choice, reason, last):
+def do_regrade(choice: str | None, reason: str, last: tuple[ExamSpec, SheetResult, str | Path] | None) -> str:
+    """Recheck the selected criterion while preserving the original mark on service failure."""
     from autoassess.providers import make_llm
     from autoassess.regrade import regrade
 
@@ -72,19 +101,30 @@ def do_regrade(choice, reason, last):
         if not any(q.question_id == qid and any(c.criterion_id == cid for c in q.criteria) for q in r.grade.questions):
             raise ValueError("Unknown criterion")
     except (AttributeError, KeyError, TypeError, ValueError):
-        raise gr.Error("That answer or mark is unavailable. Mark the sheet again and choose a mark to review.") from None
+        raise gr.Error(
+            "That answer or mark is unavailable. Mark the sheet again and choose a mark to review."
+        ) from None
     settings = demo_settings()
     if not llm_available(settings):
         raise gr.Error("Regrade requests need the LLM grader (no key is set).")
     try:
-        new, rec = regrade(spec, r.grade, answer, qid, cid, reason, make_llm(settings), log=Path(settings.cache_dir) / "regrades.jsonl")
+        new, rec = regrade(
+            spec, r.grade, answer, qid, cid, reason, make_llm(settings), log=Path(settings.cache_dir) / "regrades.jsonl"
+        )
     except Exception:
         return "Regrade service unavailable. The original mark is unchanged; ask a teacher to review it."
     r.grade = new
     return f"**{cid}: {rec.old_marks:g} → {rec.new_marks:g}** ({rec.decision})\n\n{rec.response or rec.reason}"
 
 
-def do_class(spec_file, files, grader, advocate_review, strict_critic=False):
+def do_class(
+    spec_file: str | Path | None,
+    files: list[str | Path] | None,
+    grader: str,
+    advocate_review: bool,
+    strict_critic: bool = False,
+) -> tuple[str, str, str, str]:
+    """Grade validated class uploads and return reports with safe provider notices."""
     if not files:
         raise gr.Error("Upload two or more answer sheets.")
     try:
@@ -92,7 +132,11 @@ def do_class(spec_file, files, grader, advocate_review, strict_critic=False):
     except Exception:
         raise gr.Error("The exam spec could not be read. Check the YAML/JSON or use the sample quiz.") from None
     try:
-        rpath, zpath, notes = mark_class(spec, files, Options(use_llm=grader == "LLM grader", advocate_review=advocate_review, strict_critic=strict_critic))
+        rpath, zpath, notes = mark_class(
+            spec,
+            files,
+            Options(use_llm=grader == "LLM grader", advocate_review=advocate_review, strict_critic=strict_critic),
+        )
     except ValueError as err:
         raise gr.Error(str(err)) from None
     except Exception:
@@ -100,7 +144,10 @@ def do_class(spec_file, files, grader, advocate_review, strict_critic=False):
     return rpath.read_text(encoding="utf-8"), str(zpath), "\n".join(f"> {n}" for n in notes), status_markdown()
 
 
-def do_sample():
+def do_sample() -> tuple[
+    list[str], str, str | None, str, dict[str, Any], str, tuple[ExamSpec, SheetResult, str | Path]
+]:
+    """Mark the packaged partial-answer sample using the available grader."""
     grader = "LLM grader" if llm_available(demo_settings()) else "Lexical baseline"
     return do_mark(None, str(SAMPLE / "answer_sheets" / "S002.txt"), grader, "OCR text", True, "English")
 
@@ -126,8 +173,14 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
     status = gr.Markdown(status_markdown())
     with gr.Tab("Mark a sheet"):
         with gr.Row():
-            sheet_in = gr.File(label="Answer sheet (PDF, photo or .txt)", type="filepath", file_types=list(UPLOAD_EXTENSIONS))
-            spec_in = gr.File(label="Exam spec (YAML/JSON). Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath")
+            sheet_in = gr.File(
+                label="Answer sheet (PDF, photo or .txt)", type="filepath", file_types=list(UPLOAD_EXTENSIONS)
+            )
+            spec_in = gr.File(
+                label="Exam spec (YAML/JSON). Empty = sample quiz",
+                file_types=[".yaml", ".yml", ".json"],
+                type="filepath",
+            )
         with gr.Row():
             grader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
             input_in = gr.Radio(list(INPUTS), value="OCR text", label="What the grader reads")
@@ -147,14 +200,26 @@ with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
             reason_in = gr.Textbox(label="Why should it change?", lines=2)
             rg = gr.Button("Request regrade")
             rg_out = gr.Markdown()
-        gr.Examples([[str(SAMPLE / "answer_sheets" / name)] for name in ("S001.txt", "S002.txt", "S003.txt", "S002_scan.pdf")], inputs=[sheet_in], label="Sample sheets")
-        go.click(do_mark, [spec_in, sheet_in, grader_in, input_in, advocate_in, lang_in, critic_in], [gallery, summary, pdf, report, crit_in, status, last_result])
+        gr.Examples(
+            [[str(SAMPLE / "answer_sheets" / name)] for name in ("S001.txt", "S002.txt", "S003.txt", "S002_scan.pdf")],
+            inputs=[sheet_in],
+            label="Sample sheets",
+        )
+        go.click(
+            do_mark,
+            [spec_in, sheet_in, grader_in, input_in, advocate_in, lang_in, critic_in],
+            [gallery, summary, pdf, report, crit_in, status, last_result],
+        )
         sample.click(do_sample, outputs=[gallery, summary, pdf, report, crit_in, status, last_result])
         rg.click(do_regrade, [crit_in, reason_in, last_result], [rg_out])
     with gr.Tab("Mark a class"):
         with gr.Row():
-            files_in = gr.File(label="Answer sheets", file_count="multiple", type="filepath", file_types=list(UPLOAD_EXTENSIONS))
-            cspec_in = gr.File(label="Exam spec. Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath")
+            files_in = gr.File(
+                label="Answer sheets", file_count="multiple", type="filepath", file_types=list(UPLOAD_EXTENSIONS)
+            )
+            cspec_in = gr.File(
+                label="Exam spec. Empty = sample quiz", file_types=[".yaml", ".yml", ".json"], type="filepath"
+            )
         with gr.Row():
             cgrader_in = gr.Radio(grader_choices, value=grader_choices[0], label="Grader", interactive=llm_enabled)
             cadvocate_in = gr.Checkbox(value=True, label="Advocate review")
@@ -173,11 +238,17 @@ app = FastAPI()
 
 
 @app.get("/healthz")
-def healthz():
+def healthz() -> dict[str, Any]:
+    """Return lab readiness metadata without calling providers."""
     return health_payload()
 
 
 app = gr.mount_gradio_app(
-    app, demo.queue(default_concurrency_limit=2), path="/", show_error=False, theme=THEME, css=CSS,
+    app,
+    demo.queue(default_concurrency_limit=2),
+    path="/",
+    show_error=False,
+    theme=THEME,
+    css=CSS,
     max_file_size=int(float(os.getenv("AUTOASSESS_MAX_UPLOAD_MB", "10")) * 1024 * 1024),
 )

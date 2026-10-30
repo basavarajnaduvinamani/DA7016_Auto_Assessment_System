@@ -99,8 +99,24 @@ def test_baseline_evaluate_and_results_end_to_end(tmp_path, monkeypatch):
     sheets = sorted(str(path) for path in (out / "sheets").glob("*.txt"))
     assert main(["grade", "--baseline", "--spec", spec, "--out", str(grades), *sheets]) == 0
     agreement = tmp_path / "agreement.json"
-    assert main(["evaluate", "--spec", spec, "--grades", str(grades), "--human", str(out / "human_marks.csv"),
-                 "--meta", str(out / "sheets.csv"), "--out", str(agreement)]) == 0
+    assert (
+        main(
+            [
+                "evaluate",
+                "--spec",
+                spec,
+                "--grades",
+                str(grades),
+                "--human",
+                str(out / "human_marks.csv"),
+                "--meta",
+                str(out / "sheets.csv"),
+                "--out",
+                str(agreement),
+            ]
+        )
+        == 0
+    )
     report = json.loads(agreement.read_text())
     assert report["human_vs_human"]["n"] == 17
     assert report["vs_consensus"]["n"] == 19
@@ -146,7 +162,10 @@ def test_subject_filter_and_stable_source_ids(tmp_path, subject):
 def test_large_exam_uses_recognizable_aliases_without_changing_segmenter(tmp_path):
     source, out = tmp_path / "source", tmp_path / "out"
     source.mkdir()
-    questions = [(f"BasicML{i:03d}", f"Invented fruit question {i}", "Explain", "A measured fruit feature.") for i in range(1, 115)]
+    questions = [
+        (f"BasicML{i:03d}", f"Invented fruit question {i}", "Explain", "A measured fruit feature.")
+        for i in range(1, 115)
+    ]
     with (source / "Question_data.csv").open("w", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(["QuestionID", "QuestionText", "QuestionType", "Reference Answer"])
@@ -165,8 +184,10 @@ def test_large_exam_uses_recognizable_aliases_without_changing_segmenter(tmp_pat
         assert sum(bool(a.text) for a in answers.values()) == 1
 
 
-@pytest.mark.parametrize("kwargs", [{"per_question": -1}, {"dev_share": -0.1}, {"dev_share": 1.1},
-                                    {"dev_share": float("nan")}, {"subject": "other"}])
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"per_question": -1}, {"dev_share": -0.1}, {"dev_share": 1.1}, {"dev_share": float("nan")}, {"subject": "other"}],
+)
 def test_invalid_options_do_not_create_output(tmp_path, kwargs):
     with pytest.raises(ValueError):
         import_sprag(FIXTURE, tmp_path / "out", **kwargs)
@@ -204,8 +225,9 @@ def test_seed_controls_selection_within_score_strata(tmp_path):
     with (source / "MLResponses.csv").open("w", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(["QuestionID", "StudentAnswer", "Score1", "Score2"])
-        writer.writerows(("BasicML010", f"Invented berry response {i}", score, score)
-                         for score in (0, 5) for i in range(5))
+        writer.writerows(
+            ("BasicML010", f"Invented berry response {i}", score, score) for score in (0, 5) for i in range(5)
+        )
     choices = set()
     for seed in range(5):
         out = tmp_path / f"sample-{seed}"

@@ -1,6 +1,6 @@
 # 12: Code quality and repository cleanup for submission
 
-Status: todo
+Status: in review
 Depends on: none (start now; due 29 Oct)
 
 ## Why

@@ -15,6 +15,8 @@ from pathlib import Path
 
 
 class BudgetExceeded(RuntimeError):
+    """A paid operation would exceed the configured provider budget."""
+
     pass
 
 
@@ -29,6 +31,7 @@ class Ledger:
 
     @property
     def symbol(self) -> str:
+        """Return the display prefix for this ledger's currency."""
         return "$" if self.currency == "usd" else "Rs "
 
     def _read(self) -> dict:
@@ -38,12 +41,15 @@ class Ledger:
         return json.loads(text) if text.strip() else {}
 
     def spent(self) -> float:
+        """Read the provider's cumulative recorded spend."""
         return float(self._read().get(f"spent_{self.currency}", 0.0))
 
     def calls(self) -> int:
+        """Read the number of paid calls recorded in the ledger."""
         return int(self._read().get("calls", 0))
 
     def check(self, cost: float = 0.0) -> None:
+        """Raise BudgetExceeded if the proposed cost would cross the budget."""
         if self.budget is not None and self.spent() + cost > self.budget + 1e-9:
             raise BudgetExceeded(
                 f"budget of {self.symbol}{self.budget:g} reached (spent {self.symbol}{self.spent():.2f}); "
@@ -52,6 +58,7 @@ class Ledger:
 
     def add(self, cost: float) -> None:
         # Several grading processes can share one ledger: lock, then replace the file atomically.
+        """Record a paid call under a process-shared file lock."""
         import fcntl
         import os
 
@@ -66,15 +73,18 @@ class Ledger:
             os.replace(tmp, self.path)
 
     def summary(self) -> str:
+        """Format current spend, budget and paid-call count for display."""
         budget = f" of {self.symbol}{self.budget:g}" if self.budget is not None else ""
         return f"{self.symbol}{self.spent():.2f}{budget} ({self.calls()} paid calls)"
 
 
 def bodhan_ledger(cache_dir: Path, budget_inr: float | None) -> Ledger:
+    """Create a rupee-denominated ledger for Bodhan calls."""
     return Ledger(Path(cache_dir) / "bodhan_ledger.json", budget_inr, "inr", "BODHAN_BUDGET_INR")
 
 
 def openrouter_ledger(cache_dir: Path, budget_usd: float | None) -> Ledger:
+    """Create a dollar-denominated ledger for OpenRouter calls."""
     return Ledger(Path(cache_dir) / "openrouter_ledger.json", budget_usd, "usd", "OPENROUTER_BUDGET_USD")
 
 

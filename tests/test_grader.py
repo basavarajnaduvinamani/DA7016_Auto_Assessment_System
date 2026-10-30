@@ -1,7 +1,8 @@
+from conftest import SAMPLE, FakeLLM
+
 from autoassess.grader import evidence_in_answer, grade_question, grade_sheet
 from autoassess.schemas import AnswerSegment, Verdict
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE, FakeLLM
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 Q2 = SPEC.question("Q2")
@@ -9,11 +10,19 @@ ANSWER = "Hallucination is when the model writes confident text that is not true
 
 
 def _reply(c1=(1.5, "confident text that is not true"), c2=(1.25, "training rewards likely tokens"), c3=(0, None)):
-    return {"criteria": [
-        {"criterion_id": "Q2.c1", "verdict": "met", "marks_awarded": c1[0], "evidence": c1[1], "reason": "r1"},
-        {"criterion_id": "Q2.c2", "verdict": "met", "marks_awarded": c2[0], "evidence": c2[1], "reason": "r2"},
-        {"criterion_id": "Q2.c3", "verdict": "not_met", "marks_awarded": c3[0], "evidence": c3[1], "reason": "no mitigation"},
-    ]}
+    return {
+        "criteria": [
+            {"criterion_id": "Q2.c1", "verdict": "met", "marks_awarded": c1[0], "evidence": c1[1], "reason": "r1"},
+            {"criterion_id": "Q2.c2", "verdict": "met", "marks_awarded": c2[0], "evidence": c2[1], "reason": "r2"},
+            {
+                "criterion_id": "Q2.c3",
+                "verdict": "not_met",
+                "marks_awarded": c3[0],
+                "evidence": c3[1],
+                "reason": "no mitigation",
+            },
+        ]
+    }
 
 
 def seg(text=ANSWER):
@@ -67,9 +76,9 @@ def test_missing_criterion_triggers_repair():
 def test_all_or_nothing_criterion_snaps():
     q1 = SPEC.question("Q1")
     answer = "a softmax turns the scores into weights"
-    reply = {"criteria": [
-        {"criterion_id": c.id, "marks_awarded": 0, "evidence": None, "reason": ""} for c in q1.criteria
-    ]}
+    reply = {
+        "criteria": [{"criterion_id": c.id, "marks_awarded": 0, "evidence": None, "reason": ""} for c in q1.criteria]
+    }
     reply["criteria"][2].update(marks_awarded=0.7, evidence="softmax turns the scores into weights")
     g = grade_question(q1, AnswerSegment(question_id="Q1", text=answer), FakeLLM([reply]), runs=1)
     assert g.criteria[2].marks_awarded == 1.0
@@ -87,6 +96,7 @@ def test_runs_use_distinct_seeds():
         def complete_json(self, system, user, *, temperature=0.0, seed=None):
             self.calls.append(seed)
             return _reply()
+
     llm = SeedLLM([])
     grade_question(Q2, seg(), llm, runs=3)
     assert llm.calls == [0, 1, 2]
@@ -114,10 +124,16 @@ def test_grade_sheet_covers_every_question():
 
 
 def test_critic_can_only_lower_marks():
-    critic = FakeLLM([{"audits": [
-        {"criterion_id": "Q2.c1", "decision": "reduce", "marks": 0.5, "reason": "only half the definition"},
-        {"criterion_id": "Q2.c2", "decision": "reduce", "marks": 5, "reason": "tries to raise"},
-    ]}])
+    critic = FakeLLM(
+        [
+            {
+                "audits": [
+                    {"criterion_id": "Q2.c1", "decision": "reduce", "marks": 0.5, "reason": "only half the definition"},
+                    {"criterion_id": "Q2.c2", "decision": "reduce", "marks": 5, "reason": "tries to raise"},
+                ]
+            }
+        ]
+    )
     g = grade_question(Q2, seg(), FakeLLM([_reply()]), runs=1, critic=critic)
     assert g.criteria[0].marks_awarded == 0.5 and g.criteria[0].verdict == Verdict.PARTIAL
     assert "Critic: only half the definition" in g.criteria[0].reason

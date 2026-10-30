@@ -11,6 +11,7 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp"}
 
 
 def pdf_to_images(pdf_path: str | Path, out_dir: str | Path, dpi: int = 200) -> list[Path]:
+    """Rasterise PDF pages into a stable sequence of image paths."""
     import pymupdf
 
     out_dir = Path(out_dir)
@@ -94,6 +95,7 @@ def ink_share(image_path: str | Path, dark: int = 140) -> float:
 
 
 def is_blank(image_path: str | Path, threshold: float | None = None) -> bool:
+    """Estimate whether a page contains too little ink to need OCR."""
     import os
 
     if threshold is None:

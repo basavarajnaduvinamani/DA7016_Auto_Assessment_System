@@ -9,6 +9,7 @@ from autoassess.providers.text_ocr import PlainTextOCR
 
 
 def make_ocr(settings: Settings) -> OCRProvider:
+    """Construct the configured OCR adapter, loading optional backends lazily."""
     if settings.ocr_provider == "text":
         return PlainTextOCR()
     if settings.ocr_provider == "indic-local":
@@ -51,15 +52,23 @@ def make_llm(settings: Settings, critic: bool = False, model: str | None = None)
     check_provider_for_real_sheets(settings.llm_base_url, settings.real_sheets, settings.gemini_paid)
     model = model or ((settings.critic_model or settings.llm_model) if critic else settings.llm_model)
     return OpenAICompatibleLLM(
-        settings.llm_base_url, model, settings.llm_api_key, DiskCache(settings.cache_dir, "llm"), ledger=settings.llm_ledger()
+        settings.llm_base_url,
+        model,
+        settings.llm_api_key,
+        DiskCache(settings.cache_dir, "llm"),
+        ledger=settings.llm_ledger(),
     )
 
 
 def make_translator(settings: Settings) -> Translator:
+    """Construct the configured translation adapter when credentials are available."""
     from autoassess.providers.bodhan import BodhanTranslate
 
     return BodhanTranslate(
-        settings.translate_key, settings.bodhan_base_url, DiskCache(settings.cache_dir, "translate"), settings.bodhan_budget_inr
+        settings.translate_key,
+        settings.bodhan_base_url,
+        DiskCache(settings.cache_dir, "translate"),
+        settings.bodhan_budget_inr,
     )
 
 

@@ -1,5 +1,6 @@
 """Red-ink annotation: planning marks from a grade, and rendering them."""
 
+from conftest import SAMPLE
 from PIL import Image
 
 from autoassess.annotate import annotate_sheet, fmt_marks, locate, plan_annotations, typeset
@@ -9,7 +10,6 @@ from autoassess.providers.text_ocr import PlainTextOCR
 from autoassess.schemas import BBox, ErrorMark, OCRLine, Remark
 from autoassess.segment import segment_pages
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 
@@ -61,7 +61,9 @@ def test_no_praise_on_a_weak_answer(tmp_path):
 
 def test_annotate_sheet_writes_cover_pages_notes_and_pdf(tmp_path):
     r = _graded()
-    r.grade.questions[0].remark = Remark(strength="clear softmax step", fix="", next_step="say why we scale by sqrt(d_k)")
+    r.grade.questions[0].remark = Remark(
+        strength="clear softmax step", fix="", next_step="say why we scale by sqrt(d_k)"
+    )
     a = annotate_sheet(SPEC, r.grade, r.segments, r.pages, tmp_path)
     assert a.pdf.exists() and a.pdf.read_bytes()[:4] == b"%PDF"
     assert len(a.pngs) >= 3  # cover, at least one answer page, notes
@@ -86,6 +88,20 @@ def test_scanned_page_with_boxes_is_annotated_in_place(tmp_path):
 
 def test_cli_grade_annotate(tmp_path, capsys):
     sheet = str(SAMPLE / "answer_sheets" / "S002.txt")
-    assert main(["grade", "--spec", str(SAMPLE / "exam_spec.yaml"), "--out", str(tmp_path), "--baseline", "--annotate", sheet]) == 0
+    assert (
+        main(
+            [
+                "grade",
+                "--spec",
+                str(SAMPLE / "exam_spec.yaml"),
+                "--out",
+                str(tmp_path),
+                "--baseline",
+                "--annotate",
+                sheet,
+            ]
+        )
+        == 0
+    )
     assert (tmp_path / "marked" / "S002_marked.pdf").exists()
     assert "marked sheet:" in capsys.readouterr().out

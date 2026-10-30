@@ -43,7 +43,7 @@ def test_session_guard_and_demo_sign_in(teacher_app):
     cookie = response.history[0].headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=lax" in cookie
     assert "DA7016 Generative AI, Section A" in response.text
-    assert "10</strong> students" in response.text
+    assert "12</strong> students" in response.text
     assert client.get("/lab/").status_code == 200
     assert client.get("/lab/config").status_code == 200
     client.post("/sign-out")
@@ -114,13 +114,13 @@ def test_seed_is_idempotent_and_persists(tmp_path):
     store = Store(tmp_path / "store")
     seed(store)
     seed(store)
-    assert len(store.classes(1)) == 1 and len(store.students(1)) == 10
-    store.add_student(1, "S011", "Synthetic Eleven")
+    assert len(store.classes(1)) == 1 and len(store.students(1)) == 12
+    store.add_student(1, "S013", "Synthetic Thirteen")
     reopened = Store(tmp_path / "store")
     seed(reopened)
-    assert len(reopened.students(1)) == 11
+    assert len(reopened.students(1)) == 13
     seed(reopened, reset=True)
-    assert len(reopened.students(1)) == 10
+    assert len(reopened.students(1)) == 12
     with store.connect() as db:
         assert [r[0] for r in db.execute("SELECT version FROM schema_version")] == [3]
     assert (store.root / "files").is_dir()

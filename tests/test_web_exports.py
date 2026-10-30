@@ -60,7 +60,7 @@ def test_grade_sheet_applies_override_and_preserves_ungraded_blanks(export_app, 
         rows = list(book.active.values)
         assert book.active.freeze_panes == "C2"
     assert list(rows[0]) == ["roll_no", "name", "Q1", "Q2", "Q3", "total", "percentage", "reviewed_by_teacher"]
-    assert len(rows) == 11  # every roster student, not only uploaded sheets
+    assert len(rows) == 13  # every roster student, not only uploaded sheets
     first = rows[1]
     assert list(first[:2]) == ["S001", "Sample Student 01"]
     assert float(first[2]) == expected.questions[0].marks_awarded

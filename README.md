@@ -197,7 +197,8 @@ src/autoassess/              the Python package
   sample_exam/               packaged copy of the sample quiz for installed apps
 app.py                       standalone Gradio grading lab (also mounted at /lab in the teacher app)
 data/sample_exam/            sample quiz rubric and three typed answer sheets
-data/demo_cases/             six test sheets: strong, weak, Hindi, Kannada, prompt injection, off-topic
+data/demo_cases/             eight test sheets: strong, weak, Hindi, Kannada, Tamil, injection (English, Hindi), off-topic
+data/robustness/             labelled injection sets: dev (tuned on) and held-out test
 docs/report/                 final report (LaTeX) and numbers.md, the source of every reported number
 docs/slides/                 presentation (Beamer)
 docs/evaluation.md           evaluation protocol; docs/deploy.md: local, Docker and Render

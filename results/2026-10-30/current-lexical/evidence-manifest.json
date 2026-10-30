@@ -1,0 +1,111 @@
+{
+  "executed_at": "2026-10-30T09:43:33.159324+00:00",
+  "command": [
+    "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+    "scripts/study.py",
+    "export",
+    "--dataset",
+    "data/private/upgrade-2026-10-30/sprag-current",
+    "--grades",
+    "data/private/upgrade-2026-10-30/lexical-current",
+    "--out",
+    "results/2026-10-30/current-lexical",
+    "--label",
+    "current-importer-lexical",
+    "--run-manifest",
+    "results/2026-10-30/lexical-run.json"
+  ],
+  "commit": "93b3a7f0e7d367f7de216e0041e90d07f7f5c8f9",
+  "working_tree_dirty": true,
+  "seed": 0,
+  "config": {
+    "label": "current-importer-lexical",
+    "provider_model_id": "UNKNOWN: historical lexical output; no LLM",
+    "historical_prompt_sha256": "UNKNOWN",
+    "historical_config_sha256": "UNKNOWN",
+    "historical_run_date": "UNKNOWN; file modification times are not execution dates",
+    "consensus": "mean of grader_A and grader_B",
+    "qwk_step": 0.5
+  },
+  "config_sha256": "f4f896decc6340424179e6a9ae50766fddde49c2f89fadae714a8b5a025aea39",
+  "code_sha256": {
+    "scripts/study.py": "8380f21854d41d77f00943c2d45739453ea6a1b4e45b11e860eb4c4a997ee038",
+    "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+  },
+  "inputs": {},
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0,
+  "historical_spend": "UNKNOWN",
+  "recorded_run": {
+    "executed_at": "2026-10-30T09:43:09.188606+00:00",
+    "command": [
+      "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+      "scripts/study.py",
+      "lexical",
+      "--source",
+      "data/private/SPRAG/Data",
+      "--dataset",
+      "data/private/upgrade-2026-10-30/sprag-current",
+      "--grades",
+      "data/private/upgrade-2026-10-30/lexical-current",
+      "--manifest",
+      "results/2026-10-30/lexical-run.json"
+    ],
+    "commit": "93b3a7f0e7d367f7de216e0041e90d07f7f5c8f9",
+    "working_tree_dirty": false,
+    "seed": 0,
+    "config": {
+      "method": "lexical",
+      "provider_model_id": "none: deterministic lexical",
+      "per_question": 5,
+      "dev_share": 0.2,
+      "seed": 0
+    },
+    "config_sha256": "6c846fc0b27762c8bb5225f2a050ae2e40355a167d07eaa2b160eb8cf9b4c542",
+    "code_sha256": {
+      "scripts/study.py": "8380f21854d41d77f00943c2d45739453ea6a1b4e45b11e860eb4c4a997ee038",
+      "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+    },
+    "inputs": {
+      "data/private/SPRAG/Data/Question_data.csv": {
+        "sha256": "2bd3eff535bfbc7165e2435fd47d7d64f7870796641a73bd02956e48d5dc86f5",
+        "modified_at": "2026-10-25T21:59:28.136792+00:00"
+      },
+      "data/private/SPRAG/Data/MLResponses.csv": {
+        "sha256": "fefcc9f32ef5bd43cc6fea8a2aef81de0e229e7c89314b202cfa854c74b55fe6",
+        "modified_at": "2026-10-25T21:59:28.132423+00:00"
+      },
+      "data/private/SPRAG/Data/PyResponses.csv": {
+        "sha256": "86f41c22f994cd5a9cadfeff23c081794de3913317908c4a1c4c0215710f9dc8",
+        "modified_at": "2026-10-25T21:59:28.136792+00:00"
+      }
+    },
+    "paid_api_calls": 0,
+    "session_api_spend_usd": 0,
+    "historical_spend": "UNKNOWN",
+    "pipeline_code_sha256": {
+      "src/autoassess/baseline.py": "9af97b6d206cbcb94d715f6b2514cf42728d6d5bfa4a42d795007b2461d89d19",
+      "src/autoassess/datasets/sprag.py": "8142b37801f5d24cd465e03a07fa1237542c80c3fd343882a47a7b9b912035d0",
+      "src/autoassess/segment.py": "c16198c3efb4f0ca04ec1a8b5c2613391ba2a12314e8d798ff24c635c998c60e"
+    }
+  },
+  "recorded_run_sha256": "c5bb33ea245fcab251103990a268f1eba1d9cf3339ac3e728300e3401ac88e0c",
+  "source_directories": [
+    "/workspace/DA7016_Auto_Assessment_System/data/private/upgrade-2026-10-30/sprag-current",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/upgrade-2026-10-30/lexical-current"
+  ],
+  "source_tree_sha256": "1cd5218623f1391bf615f124807f3e602109276f99c01253a26de9ab843ee1b8",
+  "known_inputs": {
+    "/workspace/DA7016_Auto_Assessment_System/data/private/upgrade-2026-10-30/sprag-current/sheets.csv": "a01f0ecda6ddce864bb60d6026d6c657e1c9f978a946019f472bf5b53b3a497b",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/upgrade-2026-10-30/sprag-current/human_marks.csv": "55fb9d716587ea17da7b0cece920f2d469b753c5510466301ace92de50354ea9",
+    "/workspace/DA7016_Auto_Assessment_System/data/private/upgrade-2026-10-30/sprag-current/exam_spec.yaml": "673fd800e047db98644acd7afae10f6e3b4bc73d6399e6c54e4bec4f814a089a"
+  },
+  "source_grade_mtime_range": [
+    "2026-10-30T09:43:08.442293+00:00",
+    "2026-10-30T09:43:09.188274+00:00"
+  ],
+  "output_sha256": {
+    "scores.json": "05b951dff0c9056a28206b7a70f3ae51139918193f183f4fe4b9d7446571a3cb",
+    "split-manifest.json": "476f0232c6234265d5cefb890ff21ae3a4bd95634b960e80007b4c13f9ab0193"
+  }
+}

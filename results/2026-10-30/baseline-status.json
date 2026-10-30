@@ -1,0 +1,11 @@
+{
+  "step": 4,
+  "status": "PARTIAL",
+  "current_lexical": "executed with current importer; same anonymised item IDs, question IDs, splits and human scores as historical export",
+  "embedding": "BLOCKED: no local sentence-embedding model weights or frozen answer/reference vectors; torch, transformers and sentence_transformers not installed",
+  "single_pass": "BLOCKED: grading credentials and paid-model outputs absent",
+  "default_comparison": "BLOCKED: advocate-only default predictions unavailable",
+  "implemented": "cosine baseline with dev-only fitted score mapping; paired question-cluster bootstrap; no embedding-model accuracy result claimed",
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0
+}

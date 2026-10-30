@@ -1,0 +1,53 @@
+{
+  "executed_at": "2026-10-30T09:43:09.188606+00:00",
+  "command": [
+    "/workspace/DA7016_Auto_Assessment_System/.venv/bin/python",
+    "scripts/study.py",
+    "lexical",
+    "--source",
+    "data/private/SPRAG/Data",
+    "--dataset",
+    "data/private/upgrade-2026-10-30/sprag-current",
+    "--grades",
+    "data/private/upgrade-2026-10-30/lexical-current",
+    "--manifest",
+    "results/2026-10-30/lexical-run.json"
+  ],
+  "commit": "93b3a7f0e7d367f7de216e0041e90d07f7f5c8f9",
+  "working_tree_dirty": false,
+  "seed": 0,
+  "config": {
+    "method": "lexical",
+    "provider_model_id": "none: deterministic lexical",
+    "per_question": 5,
+    "dev_share": 0.2,
+    "seed": 0
+  },
+  "config_sha256": "6c846fc0b27762c8bb5225f2a050ae2e40355a167d07eaa2b160eb8cf9b4c542",
+  "code_sha256": {
+    "scripts/study.py": "8380f21854d41d77f00943c2d45739453ea6a1b4e45b11e860eb4c4a997ee038",
+    "src/autoassess/validation_study.py": "8ace8e1870d83cb59e0f47410f56e95c5feec5d8b1fb7707cc0d49676ac6f741"
+  },
+  "inputs": {
+    "data/private/SPRAG/Data/Question_data.csv": {
+      "sha256": "2bd3eff535bfbc7165e2435fd47d7d64f7870796641a73bd02956e48d5dc86f5",
+      "modified_at": "2026-10-25T21:59:28.136792+00:00"
+    },
+    "data/private/SPRAG/Data/MLResponses.csv": {
+      "sha256": "fefcc9f32ef5bd43cc6fea8a2aef81de0e229e7c89314b202cfa854c74b55fe6",
+      "modified_at": "2026-10-25T21:59:28.132423+00:00"
+    },
+    "data/private/SPRAG/Data/PyResponses.csv": {
+      "sha256": "86f41c22f994cd5a9cadfeff23c081794de3913317908c4a1c4c0215710f9dc8",
+      "modified_at": "2026-10-25T21:59:28.136792+00:00"
+    }
+  },
+  "paid_api_calls": 0,
+  "session_api_spend_usd": 0,
+  "historical_spend": "UNKNOWN",
+  "pipeline_code_sha256": {
+    "src/autoassess/baseline.py": "9af97b6d206cbcb94d715f6b2514cf42728d6d5bfa4a42d795007b2461d89d19",
+    "src/autoassess/datasets/sprag.py": "8142b37801f5d24cd465e03a07fa1237542c80c3fd343882a47a7b9b912035d0",
+    "src/autoassess/segment.py": "c16198c3efb4f0ca04ec1a8b5c2613391ba2a12314e8d798ff24c635c998c60e"
+  }
+}

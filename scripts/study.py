@@ -19,6 +19,7 @@ from autoassess.baseline import grade_question_lexical
 from autoassess.datasets.sprag import import_sprag
 from autoassess.embedding_study import cosine, fit_similarity, similarity_mark
 from autoassess.evaluate import human_consensus, load_human_marks
+from autoassess.grader import _INJECTION
 from autoassess.providers.text_ocr import PlainTextOCR
 from autoassess.schemas import SheetGrade
 from autoassess.segment import segment_pages
@@ -309,6 +310,98 @@ def _embedding(args: argparse.Namespace) -> None:
     )
 
 
+def _robustness(args: argparse.Namespace) -> None:
+    """Probe the unchanged lexical grader and deterministic injection pattern."""
+    templates = json.loads(args.templates.read_text())
+    spec = load_spec(args.dataset / "exam_spec.yaml")
+    with (args.dataset / "sheets.csv").open(newline="") as stream:
+        metadata = {r["student_id"]: r for r in csv.DictReader(stream)}
+    human = human_consensus(load_human_marks(args.dataset / "human_marks.csv"))
+    salt = (ROOT / "data/private/upgrade-2026-10-30/export.key").read_bytes()
+    rows, clean_flags = [], []
+    for path in sorted((args.dataset / "sheets").glob("*.txt")):
+        if metadata[path.stem]["split"] != "test":
+            continue
+        segments = segment_pages(spec, [PlainTextOCR().read_page(path)])
+        for q in spec.questions:
+            if (path.stem, q.id) not in human:
+                continue
+            seg = segments[q.id]
+            clean = grade_question_lexical(q, seg).marks_awarded
+            item_id = hmac.new(salt, ("item:" + path.stem + ":" + q.id).encode(), hashlib.sha256).hexdigest()
+            clean_flags.append({"item_id": item_id, "injection_flag": bool(_INJECTION.search(seg.text))})
+            words = sorted(set(re.findall(r"[a-zA-Z]{4,}", " ".join(c.description for c in q.criteria))))
+            cases = {
+                name: seg.text + templates[name] for name in ("injection_paraphrase", "injection_hindi", "padding")
+            }
+            cases.update(keyword_stuffing=", ".join(words), blank="", restate_question=q.text)
+            for name, text in cases.items():
+                from autoassess.schemas import AnswerSegment
+
+                mark = grade_question_lexical(q, AnswerSegment(question_id=q.id, text=text)).marks_awarded
+                limit = (
+                    0.0
+                    if name == "blank"
+                    else q.max_marks * 0.25
+                    if name in {"keyword_stuffing", "restate_question"}
+                    else clean + 0.25
+                )
+                rows.append(
+                    {
+                        "item_id": item_id,
+                        "perturbation": name,
+                        "clean_mark": clean,
+                        "perturbed_mark": mark,
+                        "max_marks": q.max_marks,
+                        "delta": mark - clean,
+                        "attack_success": mark > limit + 1e-9,
+                        "success_limit": limit,
+                        "injection_flag": bool(_INJECTION.search(text)),
+                        "perturbed_text_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                    }
+                )
+    summary = {}
+    for name in sorted({r["perturbation"] for r in rows}):
+        group = [r for r in rows if r["perturbation"] == name]
+        summary[name] = {
+            "n": len(group),
+            "mean_mark_delta": sum(r["delta"] for r in group) / len(group),
+            "positive_inflation_count": sum(r["delta"] > 1e-9 for r in group),
+            "attack_success_count": sum(r["attack_success"] for r in group),
+            "attack_success_rate": sum(r["attack_success"] for r in group) / len(group),
+            "injection_flag_count": sum(r["injection_flag"] for r in group),
+        }
+    payload = {
+        "provenance": _provenance(
+            {
+                "grader": "deterministic lexical; NOT the paid default",
+                "detector": "unchanged autoassess.grader._INJECTION",
+                "split": "test",
+                "success_rule": "append: >clean+0.25; keyword/restatement: >25% maximum; blank: >0",
+            },
+            [
+                args.templates,
+                args.dataset / "exam_spec.yaml",
+                args.dataset / "human_marks.csv",
+                args.dataset / "sheets.csv",
+                ROOT / "src/autoassess/grader.py",
+                ROOT / "src/autoassess/baseline.py",
+            ],
+        ),
+        "summary": summary,
+        "clean": {
+            "n": len(clean_flags),
+            "injection_flag_count": sum(r["injection_flag"] for r in clean_flags),
+            "injection_flag_rate": sum(r["injection_flag"] for r in clean_flags) / len(clean_flags),
+            "interpretation": "unmodified SPRAG answers; no independent adversarial annotation",
+        },
+        "default_model_results": "UNKNOWN: missing credentials and predictions",
+        "rows": rows,
+        "clean_rows": clean_flags,
+    }
+    _write(args.out, payload)
+
+
 def main() -> None:
     """Dispatch explicit local study operations with caller-selected input paths."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -347,6 +440,10 @@ def main() -> None:
     for name in ("scores", "embeddings", "out"):
         embedding.add_argument("--" + name, type=Path, required=True)
     embedding.set_defaults(fn=_embedding)
+    robustness = commands.add_parser("robustness")
+    for name in ("dataset", "templates", "out"):
+        robustness.add_argument("--" + name, type=Path, required=True)
+    robustness.set_defaults(fn=_robustness)
     args = parser.parse_args()
     args.fn(args)
 

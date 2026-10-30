@@ -110,17 +110,19 @@ def risk_coverage(test: Sequence[Score], frozen: dict, *, seed: int = 0, draws: 
     validate_split(test)
     rng = random.Random(seed)
     points = []
+    errors = [abs(r.system - r.human) for r in test]
+    random_expected_mae = sum(errors) / len(errors)
     for threshold in sorted({0.0, frozen["threshold"], *(r.confidence for r in test)}):
         accepted = [r for r in test if r.confidence >= threshold and not r.needs_review]
         k = len(accepted)
-        samples = sorted(score_metrics(rng.sample(list(test), k))["mae"] for _ in range(draws)) if k else []
+        samples = sorted(sum(rng.sample(errors, k)) / k for _ in range(draws)) if k else []
         points.append(
             {
                 "threshold": threshold,
                 "accepted": k,
                 "coverage": k / len(test),
                 "accepted_mae": score_metrics(accepted)["mae"] if k else None,
-                "random_expected_mae": score_metrics(test)["mae"] if k else None,
+                "random_expected_mae": random_expected_mae if k else None,
                 "random_selection_mae_p025_p975": [samples[int(p * (draws - 1))] for p in (0.025, 0.975)]
                 if k
                 else None,

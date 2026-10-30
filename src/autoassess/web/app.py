@@ -23,6 +23,7 @@ from autoassess.web.presentation import flag_chips
 from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.seed import seed, seed_assignment
 from autoassess.web.store import Store
+from autoassess.web.usage import usage
 
 HERE = Path(__file__).resolve().parent
 
@@ -132,6 +133,11 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
     def dashboard(request: Request) -> Response:
         """Show class cards and current review counts for this teacher."""
         return render(request, "dashboard.html", classes=store.classes(request.state.teacher["id"]))
+
+    @app.get("/usage")
+    def usage_page(request: Request) -> Response:
+        """Show estimated AI cost and teacher review time for every class and assignment."""
+        return render(request, "usage.html", usage=usage(store, request.state.teacher["id"]))
 
     @app.get("/classes/new")
     def new_class(request: Request) -> Response:

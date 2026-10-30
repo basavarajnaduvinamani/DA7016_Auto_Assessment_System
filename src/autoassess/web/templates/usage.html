@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', path='review.css') }}">{% endblock %}
+{% block breadcrumb %}<span>/</span><span>Usage and cost</span>{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">USAGE AND COST</p><h1>What marking has cost so far</h1><p class="muted">Every graded sheet across your classes, with the AI cost and the time you spent giving the second read.</p></div></div>
+<div class="stats-grid usage-grid">
+<div class="panel"><span>Estimated cost</span><strong>₹{{ '%.2f'|format(usage.total_inr) }}</strong><small>about ${{ '%.2f'|format(usage.total_usd) }}</small></div>
+<div class="panel"><span>Per sheet</span><strong>{% if usage.per_sheet_inr is not none %}₹{{ '%.2f'|format(usage.per_sheet_inr) }}{% else %}–{% endif %}</strong><small>average across {{ usage.sheets }} sheet{{ '' if usage.sheets == 1 else 's' }}</small></div>
+<div class="panel"><span>Answers marked</span><strong>{{ usage.answers }}</strong><small>{{ usage.pages }} handwritten or scanned page{{ '' if usage.pages == 1 else 's' }} read</small></div>
+<div class="panel"><span>Your review time</span><strong>{% if usage.decided %}{{ usage.review_minutes }} min{% else %}–{% endif %}</strong><small>{% if usage.decided %}on {{ usage.decided }} answer{{ '' if usage.decided == 1 else 's' }} you decided{% else %}starts when you accept or change an answer{% endif %}</small></div>
+</div>
+{% for c in usage.classes %}<section class="panel assignment-section" aria-labelledby="usage-class-{{ c.id }}"><div class="section-heading"><h2 id="usage-class-{{ c.id }}">{{ c.name }}</h2><a href="/classes/{{ c.id }}">Open class →</a></div>
+{% if c.assignments %}<div class="table-scroll"><table class="usage-table"><thead><tr><th>Assignment</th><th>Sheets</th><th>Answers</th><th>Pages read</th><th>Feedback</th><th>Cost</th><th>Per sheet</th><th>Review time</th></tr></thead><tbody>{% for a in c.assignments %}<tr><td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td><td>{{ a.sheets }}</td><td>{{ a.answers }}{% if a.rechecks %} <small class="muted">+{{ a.rechecks }} re-check{{ '' if a.rechecks == 1 else 's' }}</small>{% endif %}</td><td>{{ a.pages }}</td><td>{{ a.language }}</td><td>₹{{ '%.2f'|format(a.total_inr) }}</td><td>{% if a.per_sheet_inr is not none %}₹{{ '%.2f'|format(a.per_sheet_inr) }}{% else %}–{% endif %}</td><td>{% if a.decided %}{{ a.review_minutes }} min{% else %}–{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="muted">No assignments yet.</p>{% endif %}</section>{% endfor %}
+<section class="panel assignment-section" aria-labelledby="rates-title"><h2 id="rates-title">How cost is worked out</h2><div class="table-scroll"><table class="rate-table"><tbody>{% for label, rate in usage.rates %}<tr><td>{{ label }}</td><td>{{ rate }}</td></tr>{% endfor %}</tbody></table></div><p class="small muted">Rates are measured averages from the evaluation runs, at about ₹88 to the US dollar, so treat the totals as close estimates. Your provider's bill is the final figure. Review time runs from opening an answer to accepting or changing it; pauses over 15 minutes are left out.</p></section>
+{% endblock %}

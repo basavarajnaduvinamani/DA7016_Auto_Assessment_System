@@ -30,6 +30,7 @@ import re
 import statistics
 from dataclasses import dataclass
 
+from autoassess.injection import injection_signals, looks_keyword_stuffed
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import (
     AnswerSegment,
@@ -39,14 +40,6 @@ from autoassess.schemas import (
     QuestionGrade,
     SheetGrade,
     Verdict,
-)
-
-# Instructions inside answer data can influence the model; matching text must trigger teacher review.
-_INJECTION = re.compile(
-    r"\b(ignore|disregard)\b.{0,40}\b(rubric|instructions?|model answer|marking scheme)\b"
-    r"|\b(award|give|assign)\b.{0,20}\b(full|maximum|max|all)\s+marks\b"
-    r"|\bnote to the (grader|examiner|marker)\b",
-    re.IGNORECASE | re.DOTALL,
 )
 
 GRADER_SYSTEM = """You are a fair, careful examiner grading one answer against a rubric.
@@ -364,8 +357,12 @@ def grade_question(
             flags.append("low_ocr_confidence")
     if any(line.kind == "diagram" for line in segment.lines):
         flags.append("contains_diagram")
-    if _INJECTION.search(answer):
+    # Instructions inside answer data can influence the model, and a bare keyword list can collect
+    # partial credit from evidence quotes; both go to the teacher, marks are left to the grader.
+    if injection_signals(answer):
         flags.append("possible_prompt_injection")
+    if looks_keyword_stuffed(answer):
+        flags.append("possible_keyword_stuffing")
     if mode == "image":
         require_evidence = False
     kw = dict(require_evidence=require_evidence, context=context, images=images, mode=mode)
@@ -422,7 +419,8 @@ def grade_question(
         confidence_signals={k: round(max(0.0, min(1.0, v)), 3) for k, v in signals.items()},
         needs_review=confidence < low_confidence
         or "low_ocr_confidence" in flags
-        or "possible_prompt_injection" in flags,
+        or "possible_prompt_injection" in flags
+        or "possible_keyword_stuffing" in flags,
         flags=flags,
     )
 

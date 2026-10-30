@@ -327,6 +327,27 @@ def _coverage(args: argparse.Namespace) -> int:
     return 0
 
 
+def _injection_eval(args: argparse.Namespace) -> int:
+    import json
+
+    from autoassess.injection import evaluate_detector
+
+    reports = [evaluate_detector(path) for path in args.files]
+    for r in reports:
+        print(
+            f"{r['file']}: caught {r['recall']:.0%} of {r['attacks']} attacks, "
+            f"flagged {r['false_positive_rate']:.0%} of {r['benign']} benign answers"
+        )
+        for lang, s in r["by_language"].items():
+            print(f"  {lang:9} attacks {s['caught']}/{s['attacks']}  false alarms {s['flagged']}/{s['benign']}")
+        if r["missed"] or r["false_alarms"]:
+            print(f"  missed: {', '.join(r['missed']) or '-'}; false alarms: {', '.join(r['false_alarms']) or '-'}")
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(json.dumps(reports, indent=2, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
 def _import_sprag(args: argparse.Namespace) -> int:
     import csv
 
@@ -496,6 +517,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-ci", action="store_true", help="skip the question-clustered bootstrap intervals")
     p.add_argument("--source", help="label for the table, e.g. 'SPRAG test, final config'")
     p.set_defaults(func=_coverage)
+
+    p = sub.add_parser("injection-eval", help="score the prompt-injection check on labelled attack/benign sets")
+    p.add_argument(
+        "files",
+        nargs="*",
+        default=["data/robustness/injection_dev.jsonl", "data/robustness/injection_test.jsonl"],
+        help="JSONL files with id, lang, label (attack/benign) and text",
+    )
+    p.add_argument("--out", help="optional JSON report path")
+    p.set_defaults(func=_injection_eval)
 
     p = sub.add_parser("import-sprag", help="convert local SPRAG CSVs into evaluation inputs")
     p.add_argument("--src", required=True, help="SPRAG checkout's Data directory")

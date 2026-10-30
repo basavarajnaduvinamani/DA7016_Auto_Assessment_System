@@ -337,7 +337,14 @@ class AssignmentStore:
             accepted = self.accepted_questions(submission["id"])
             for q in grade.questions:
                 flagged = q.needs_review or any(
-                    f.startswith(("low_ocr_confidence", "possible_prompt_injection", "inconsistent_with:"))
+                    f.startswith(
+                        (
+                            "low_ocr_confidence",
+                            "possible_prompt_injection",
+                            "possible_keyword_stuffing",
+                            "inconsistent_with:",
+                        )
+                    )
                     for f in q.flags
                 )
                 rows.append(

@@ -11,7 +11,12 @@ if TYPE_CHECKING:
 
 # grader.grade_question flags an answer for review below this confidence.
 THRESHOLD = 0.8
-REVIEW_FLAGS = ("low_ocr_confidence", "possible_prompt_injection", "inconsistent_with:")
+REVIEW_FLAGS = (
+    "low_ocr_confidence",
+    "possible_prompt_injection",
+    "possible_keyword_stuffing",
+    "inconsistent_with:",
+)
 
 
 def _flagged(question: QuestionGrade) -> bool:

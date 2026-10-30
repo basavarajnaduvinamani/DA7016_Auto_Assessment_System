@@ -21,7 +21,12 @@ from autoassess.metrics import bootstrap_ci, mean_absolute_error, quadratic_weig
 from autoassess.schemas import ExamSpec, SheetGrade
 
 THRESHOLDS = (0.0, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0)
-REVIEW_FLAGS = ("low_ocr_confidence", "possible_prompt_injection", "inconsistent_with:")
+REVIEW_FLAGS = (
+    "low_ocr_confidence",
+    "possible_prompt_injection",
+    "possible_keyword_stuffing",
+    "inconsistent_with:",
+)
 HEADLINE = 0.8  # the grader's default review threshold
 COLUMNS = ("threshold", "auto_n", "auto_share", "review_n", "qwk", "qwk_ci95", "mae", "within_1", "bias")
 

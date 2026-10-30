@@ -1,4 +1,5 @@
 import pytest
+from conftest import SAMPLE, FakeLLM
 
 from autoassess.cli import main
 from autoassess.experiments import (
@@ -15,7 +16,6 @@ from autoassess.providers.text_ocr import PlainTextOCR
 from autoassess.schemas import OCRLine, OCRPage
 from autoassess.segment import segment_pages
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE, FakeLLM
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 
@@ -58,7 +58,11 @@ class EchoLLM(FakeLLM):
         if "AWARDS TO AUDIT" in user:
             return {"audits": []}
         quote = " ".join(answer.split()[:5]) or None
-        return {"criteria": [{"criterion_id": i, "marks_awarded": 99 if quote else 0, "evidence": quote, "reason": "r"} for i in ids]}
+        return {
+            "criteria": [
+                {"criterion_id": i, "marks_awarded": 99 if quote else 0, "evidence": quote, "reason": "r"} for i in ids
+            ]
+        }
 
 
 def test_ablation_runs_every_config_and_tables():
@@ -87,6 +91,20 @@ def test_robustness_catches_a_gameable_grader():
 
 def test_cli_robustness_baseline(tmp_path, capsys):
     sheets = [str(SAMPLE / "answer_sheets" / f"S00{i}.txt") for i in (1, 2, 3)]
-    assert main(["experiment", "robustness", "--spec", str(SAMPLE / "exam_spec.yaml"), "--out", str(tmp_path), "--baseline-only", *sheets]) == 0
+    assert (
+        main(
+            [
+                "experiment",
+                "robustness",
+                "--spec",
+                str(SAMPLE / "exam_spec.yaml"),
+                "--out",
+                str(tmp_path),
+                "--baseline-only",
+                *sheets,
+            ]
+        )
+        == 0
+    )
     assert (tmp_path / "robustness.md").exists()
     assert "| injection |" in capsys.readouterr().out

@@ -15,8 +15,7 @@ then on a GPU machine (a free Colab or Kaggle notebook is enough):
 Two providers live here:
 - IndicOCRLocal runs the model in-process (needs the GPU machine).
 - PrecomputedOCR reads page JSON files that IndicOCR already wrote, so OCR
-  can run once in a notebook and grading can run anywhere afterwards
-  (notebooks/indic_ocr_colab.ipynb does the first half).
+  can run once on a GPU and grading can run anywhere afterwards.
 """
 
 from __future__ import annotations
@@ -34,7 +33,9 @@ _SKIP_TYPES = {"pageheader", "pagefooter", "pagenumber", "header", "footer", "ad
 _DIAGRAM_TYPES = {"figure", "picture", "image", "chart", "diagram"}
 
 
-def blocks_to_page(parsed: dict[str, Any], page_index: int, image_path: str | None = None, provider: str = "indic-ocr") -> OCRPage:
+def blocks_to_page(
+    parsed: dict[str, Any], page_index: int, image_path: str | None = None, provider: str = "indic-ocr"
+) -> OCRPage:
     """Convert IndicOCR's parse() output into an OCRPage, one line per text line."""
     blocks = sorted(parsed.get("blocks", []), key=lambda b: b.get("order", 0))
     lines: list[OCRLine] = []
@@ -57,6 +58,8 @@ def blocks_to_page(parsed: dict[str, Any], page_index: int, image_path: str | No
 
 
 class IndicOCRLocal(OCRProvider):
+    """Run gated IndicOCR weights locally through an injected or loaded parser."""
+
     name = "indic-ocr-local"
 
     def __init__(self, repo_dir: str | Path | None = None, parser: Any = None):
@@ -73,6 +76,7 @@ class IndicOCRLocal(OCRProvider):
         self.parser = parser
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
+        """Convert local or precomputed IndicOCR blocks into a page contract."""
         return blocks_to_page(self.parser.parse(str(image_path)), page_index, str(image_path), self.name)
 
 
@@ -85,6 +89,7 @@ class PrecomputedOCR(OCRProvider):
         self.json_dir = Path(json_dir)
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
+        """Convert local or precomputed IndicOCR blocks into a page contract."""
         path = self.json_dir / f"{Path(image_path).stem}.json"
         if not path.exists():
             raise FileNotFoundError(f"no precomputed OCR for {image_path} (expected {path})")

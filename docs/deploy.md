@@ -1,4 +1,4 @@
-# Running Red-Ink Classroom
+# Running Second Read
 
 The teacher app and its Gradio lab run in one process. **Demo sign-in. Not for real student data.** Accounts are seeded local records without passwords; signed cookies are not real authentication. The app is for a synthetic demonstration, not public collection of student work.
 

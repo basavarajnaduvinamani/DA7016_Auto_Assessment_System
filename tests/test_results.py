@@ -30,10 +30,20 @@ def without_matplotlib(monkeypatch):
 
 
 def all_args(out):
-    return ["results", "--agreement", str(FIXTURES / "agreement.json"),
-            "--ablation", str(FIXTURES / "ablation.json"),
-            "--robustness", str(FIXTURES / "robustness.json"),
-            "--ocr", str(FIXTURES / "ocr_bodhan.json"), str(FIXTURES / "ocr_text.json"), "--out", str(out)]
+    return [
+        "results",
+        "--agreement",
+        str(FIXTURES / "agreement.json"),
+        "--ablation",
+        str(FIXTURES / "ablation.json"),
+        "--robustness",
+        str(FIXTURES / "robustness.json"),
+        "--ocr",
+        str(FIXTURES / "ocr_bodhan.json"),
+        str(FIXTURES / "ocr_text.json"),
+        "--out",
+        str(out),
+    ]
 
 
 def test_pack_tables_summary_and_escaping(tmp_path, without_matplotlib):
@@ -42,8 +52,11 @@ def test_pack_tables_summary_and_escaping(tmp_path, without_matplotlib):
     summary = json.loads((tmp_path / "summary.json").read_text())
     metrics = agreement["vs_consensus"]
     assert summary == {
-        "qwk": metrics["qwk"], "human_qwk": agreement["human_vs_human"]["qwk"],
-        "mae": metrics["mae"], "within_1": metrics["within_1"], "bias": metrics["bias"],
+        "qwk": metrics["qwk"],
+        "human_qwk": agreement["human_vs_human"]["qwk"],
+        "mae": metrics["mae"],
+        "within_1": metrics["within_1"],
+        "bias": metrics["bias"],
         "coverage_at_0_8": agreement["coverage_curve"][1]["coverage"],
         "robustness_pass_rate": sum(r["passed"] for r in robustness["rows"]) / len(robustness["rows"]),
     }

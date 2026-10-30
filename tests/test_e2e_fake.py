@@ -4,6 +4,7 @@ import socket
 
 import fitz
 import pytest
+from conftest import SAMPLE
 
 from autoassess import cli
 from autoassess.advocate import ADVOCATE_SYSTEM, build_advocate_prompt
@@ -17,7 +18,6 @@ from autoassess.regrade import regrade
 from autoassess.schemas import Question, QuestionGrade, SheetGrade
 from autoassess.segment import segment_with_llm
 from autoassess.spec_builder import draft_spec, load_spec
-from conftest import SAMPLE
 
 
 @pytest.fixture(autouse=True)
@@ -32,10 +32,15 @@ def no_network(monkeypatch):
 
 @pytest.fixture
 def question():
-    return Question(id="Q1", text="Explain attention", max_marks=3, criteria=[
-        {"id": "Q1.c1", "description": "attention", "marks": 2},
-        {"id": "Q1.c2", "description": "softmax", "marks": 1},
-    ])
+    return Question(
+        id="Q1",
+        text="Explain attention",
+        max_marks=3,
+        criteria=[
+            {"id": "Q1.c1", "description": "attention", "marks": 2},
+            {"id": "Q1.c2", "description": "softmax", "marks": 1},
+        ],
+    )
 
 
 def test_cli_fake_full_pipeline(monkeypatch, tmp_path, sample_spec_path):
@@ -50,8 +55,22 @@ def test_cli_fake_full_pipeline(monkeypatch, tmp_path, sample_spec_path):
         return original(self, system, user, **kwargs)
 
     monkeypatch.setattr(ScriptedLLM, "complete_json", record)
-    assert cli.main(["grade", "--spec", str(sample_spec_path), "--out", str(out),
-                     "--critic", "--advocate", "--annotate", *map(str, sheets)]) == 0
+    assert (
+        cli.main(
+            [
+                "grade",
+                "--spec",
+                str(sample_spec_path),
+                "--out",
+                str(out),
+                "--critic",
+                "--advocate",
+                "--annotate",
+                *map(str, sheets),
+            ]
+        )
+        == 0
+    )
     grades = {}
     for sheet in sheets:
         sid = sheet.stem
@@ -98,16 +117,27 @@ def test_grader_exact_words_determinism_and_zero_credit(question):
     assert all(r["marks_awarded"] == 0 for r in empty["criteria"])
 
 
-@pytest.mark.parametrize(("description", "answer", "expected_marks"), [
-    ("Attention with that this from which their when what into each does have been more than also such used uses",
-     "WITH THAT THIS FROM WHICH THEIR WHEN WHAT INTO EACH DOES HAVE BEEN MORE THAN ALSO SUCH USED USES", 0),
-    ("Attention to the key", "The key to it", 0),
-    ("Names each head", "HEAD", 1),
-])
+@pytest.mark.parametrize(
+    ("description", "answer", "expected_marks"),
+    [
+        (
+            "Attention with that this from which their when what into each does have been more than also such used uses",
+            "WITH THAT THIS FROM WHICH THEIR WHEN WHAT INTO EACH DOES HAVE BEEN MORE THAN ALSO SUCH USED USES",
+            0,
+        ),
+        ("Attention to the key", "The key to it", 0),
+        ("Names each head", "HEAD", 1),
+    ],
+)
 def test_grader_matches_only_content_words(description, answer, expected_marks):
-    question = Question(id="Q1", text="Explain attention", max_marks=1, criteria=[
-        {"id": "Q1.c1", "description": description, "marks": 1},
-    ])
+    question = Question(
+        id="Q1",
+        text="Explain attention",
+        max_marks=1,
+        criteria=[
+            {"id": "Q1.c1", "description": description, "marks": 1},
+        ],
+    )
     results, flags = grade_once(question, answer, ScriptedLLM())
     assert not flags
     assert results[0].marks_awarded == expected_marks
@@ -136,7 +166,9 @@ def test_reviews_and_feedback_pass_verifiers(question):
 def test_feedback_full_and_zero_marks(question, answer):
     llm = ScriptedLLM()
     results, _ = grade_once(question, answer, llm)
-    grade = QuestionGrade(question_id="Q1", max_marks=3, marks_awarded=sum(r.marks_awarded for r in results), criteria=results)
+    grade = QuestionGrade(
+        question_id="Q1", max_marks=3, marks_awarded=sum(r.marks_awarded for r in results), criteria=results
+    )
     raw = llm.complete_json(FEEDBACK_SYSTEM, build_feedback_prompt(question, grade, answer))
     assert verify_items(question, grade, answer, raw)[1] == []
     remark, flags = verify_remark(grade, answer, raw)
@@ -161,9 +193,13 @@ def test_draft_and_regrade_schemas():
     assert spec.questions[0].criteria[0].description == "attention"
     assert draft_spec("Define attention.", "attention", "Attention weights values.", llm, exam_id="offline") == spec
     results, _ = grade_once(spec.questions[0], "unrelated", llm)
-    grade = SheetGrade(exam_id="offline", student_id="s", questions=[
-        QuestionGrade(question_id="Q1", marks_awarded=0, max_marks=1, criteria=results),
-    ])
+    grade = SheetGrade(
+        exam_id="offline",
+        student_id="s",
+        questions=[
+            QuestionGrade(question_id="Q1", marks_awarded=0, max_marks=1, criteria=results),
+        ],
+    )
     updated, record = regrade(spec, grade, "Attention weights values.", "Q1", "Q1.c1", "Please check", llm)
     assert updated.total == 1 and record.decision == "raised"
     assert record.evidence == "Attention weights values."
@@ -172,10 +208,17 @@ def test_draft_and_regrade_schemas():
 
 
 def test_stopword_only_overlap_scores_zero():
-    q = Question(id="Q1", text="Explain", max_marks=1, criteria=[
-        {"id": "Q1.c1", "description": "the model uses attention with the values", "marks": 1},
-    ])
-    reply = ScriptedLLM().complete_json(GRADER_SYSTEM, build_prompt(q, "It is the one that uses what we have with them."))
+    q = Question(
+        id="Q1",
+        text="Explain",
+        max_marks=1,
+        criteria=[
+            {"id": "Q1.c1", "description": "the model uses attention with the values", "marks": 1},
+        ],
+    )
+    reply = ScriptedLLM().complete_json(
+        GRADER_SYSTEM, build_prompt(q, "It is the one that uses what we have with them.")
+    )
     assert reply["criteria"][0]["marks_awarded"] == 0
 
 

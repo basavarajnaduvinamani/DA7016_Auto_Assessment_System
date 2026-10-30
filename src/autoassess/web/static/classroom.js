@@ -47,3 +47,28 @@ document.querySelectorAll('[data-drop-zone]').forEach(zone => {
     if (!input.disabled) { input.files = event.dataTransfer.files; input.dispatchEvent(new Event('change', { bubbles:true })); }
   });
 });
+
+function checkRubricTotals() {
+  const imported = document.querySelector('[data-rubric-import]');
+  let valid = true;
+  document.querySelectorAll('[data-question]').forEach(question => {
+    const maximum = Number(question.querySelector('[name$="_max_marks"]').value);
+    const fields = [...question.querySelectorAll('[name$="_criterion_marks"]')];
+    const total = fields.reduce((sum, input) => sum + Number(input.value), 0);
+    const mismatch = maximum > 0 && fields.every(input => input.value !== '') && Math.abs(total - maximum) > 0.000001;
+    const warning = question.querySelector('.rubric-total-warning');
+    warning.hidden = !mismatch || Boolean(imported?.files.length);
+    warning.textContent = `Criteria total ${total} marks, but the question is worth ${maximum}. Adjust the rubric before saving.`;
+    if (!warning.hidden) valid = false;
+  });
+  return valid;
+}
+document.addEventListener('input', event => {
+  if (event.target.closest('[data-question]')) checkRubricTotals();
+});
+document.querySelector('#assignment-form')?.addEventListener('submit', event => {
+  if (!checkRubricTotals()) {
+    event.preventDefault();
+    document.querySelector('.rubric-total-warning:not([hidden])')?.scrollIntoView({block:'center'});
+  }
+});

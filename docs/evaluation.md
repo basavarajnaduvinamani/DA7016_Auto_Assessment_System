@@ -140,3 +140,13 @@ The unchanged evaluator matches human marks by `(student_id, question_id)` and r
 ### Confidence interval sampling
 
 `evaluate` resamples whole question IDs with replacement for per-grader, consensus and metadata-group confidence intervals, keeping every matched answer of each drawn question together. These reports record `ci_method: cluster:question`; point estimates are unchanged. `bootstrap_ci` keeps item resampling (`ci_method: item`) when no groups are supplied; per-grader intervals are clustered too because a single-grader dataset reports only those. With only one question, the clustered interval is degenerate and cannot estimate variation across questions.
+
+## Indic evaluation data (search of 30 Oct 2026)
+
+There is no public dataset of handwritten Indian-language answer sheets with teacher marks. The closest resources:
+
+- **ScAA** (Agarwal et al., ICON 2020): typed children's science answers, 10,988 in Hindi and 1,955 in Marathi, for 32 questions, each labelled correct or incorrect against a model answer. It is binary rather than rubric marks, and the licence is CC BY-NC-SA. [ACL Anthology](https://aclanthology.org/2020.icon-main.58/)
+- **IIIT-HW / IIIT Hyderabad Indic handwriting benchmarks**: handwritten word and line images in several Indic scripts, with no marks. These are useful for OCR error rates only. [ilocr.iiit.ac.in](https://ilocr.iiit.ac.in/cfb/)
+- **FERMAT** (AI4Bharat): handwritten maths error detection, with no marks.
+
+Planned next step: translate a stratified subset of SPRAG test answers (CC BY 4.0) into Hindi, Kannada and Tamil with native speakers, keeping the original human marks. Only the language changes, so the agreement drop attributable to language can be measured directly. Machine translation (IndicTrans2) is the baseline. ScAA's Hindi set can serve as a second, binary check.

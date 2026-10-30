@@ -30,6 +30,7 @@ import re
 import statistics
 from dataclasses import dataclass
 
+from autoassess.injection import injection_signals, looks_keyword_stuffed
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import (
     AnswerSegment,
@@ -39,14 +40,6 @@ from autoassess.schemas import (
     QuestionGrade,
     SheetGrade,
     Verdict,
-)
-
-# Text that addresses the examiner rather than the question, e.g. "award full marks".
-_INJECTION = re.compile(
-    r"\b(ignore|disregard)\b.{0,40}\b(rubric|instructions?|model answer|marking scheme)\b"
-    r"|\b(award|give|assign)\b.{0,20}\b(full|maximum|max|all)\s+marks\b"
-    r"|\bnote to the (grader|examiner|marker)\b",
-    re.IGNORECASE | re.DOTALL,
 )
 
 GRADER_SYSTEM = """You are a fair, careful examiner grading one answer against a rubric.
@@ -130,6 +123,7 @@ def evidence_in_answer(evidence: str | None, answer: str, fuzzy: float | None = 
     return False
 
 
+# Tolerate small OCR substitutions while still requiring textual evidence for every AI award.
 FUZZY_QUOTE = 0.9
 
 
@@ -159,14 +153,20 @@ LENIENT_NOTE = (
 
 
 def policy_note(question: Question) -> str:
+    """Resolve the question's standard or lenient marking guidance."""
     return f"{LENIENT_NOTE}\n\n" if question.marking == "lenient" else ""
 
 
 def build_prompt(question: Question, answer: str, context: str | None = None, mode: str = "text") -> str:
+    """Build a criterion-grading prompt with the answer treated as untrusted data."""
     rubric = "\n".join(_criterion_line(c) for c in question.criteria) + "\n\n" + policy_note(question).strip()
     rubric = rubric.rstrip()
     model = question.model_answer or "(none given)"
-    earlier = f"EARLIER ANSWERS (context only, not graded here):\n<earlier_answers>\n{context}\n</earlier_answers>\n\n" if context else ""
+    earlier = (
+        f"EARLIER ANSWERS (context only, not graded here):\n<earlier_answers>\n{context}\n</earlier_answers>\n\n"
+        if context
+        else ""
+    )
     if mode == "image":
         return (
             f"QUESTION {question.id} ({question.max_marks:g} marks): {question.text}\n\n"
@@ -200,7 +200,9 @@ def _enforce(question: Question, raw: dict, answer: str, require_evidence: bool 
         item = by_id.get(c.id)
         if item is None:
             problems.append(f"{c.id}: missing from your reply")
-            results.append(CriterionResult(criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="Not assessed."))
+            results.append(
+                CriterionResult(criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="Not assessed.")
+            )
             continue
         try:
             marks = float(item.get("marks_awarded", 0) or 0)
@@ -263,6 +265,7 @@ def grade_once(
     images: list[bytes] | None = None,
     mode: str = "text",
 ) -> tuple[list[CriterionResult], list[str]]:
+    """Parse and validate one model verdict, repairing unsupported quotes once."""
     if mode not in INPUT_MODES:
         raise ValueError(f"input mode must be one of {INPUT_MODES}")
     if mode != "text" and not images:
@@ -272,6 +275,7 @@ def grade_once(
     user = build_prompt(question, answer, context, mode)
 
     def ask(prompt: str) -> dict:
+        """Request a structured verdict with page images when available."""
         if mode == "text":
             return llm.complete_json(GRADER_SYSTEM, prompt, temperature=temperature, seed=seed)
         return llm.complete_json_images(GRADER_SYSTEM, prompt, images, temperature=temperature, seed=seed)
@@ -293,7 +297,7 @@ def grade_once(
 def _combine(question: Question, runs: list[list[CriterionResult]]) -> tuple[list[CriterionResult], float]:
     """Median marks per criterion; keep the run whose marks sit closest to it. Returns (results, total spread)."""
     combined, spread = [], 0.0
-    for i, c in enumerate(question.criteria):
+    for i, _criterion in enumerate(question.criteria):
         options = [run[i] for run in runs]
         marks = [o.marks_awarded for o in options]
         med = statistics.median(marks)
@@ -325,6 +329,7 @@ def grade_question(
     images: list[bytes] | None = None,
     mode: str = "text",
 ) -> QuestionGrade:
+    """Combine repeated criterion grades and evidence-checked reviews for one answer."""
     from autoassess.confidence import combine_signals
 
     answer = segment.text.strip()
@@ -334,7 +339,9 @@ def grade_question(
             marks_awarded=0,
             max_marks=question.max_marks,
             criteria=[
-                CriterionResult(criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="No answer written.")
+                CriterionResult(
+                    criterion_id=c.id, verdict=Verdict.NOT_MET, marks_awarded=0, reason="No answer written."
+                )
                 for c in question.criteria
             ],
             confidence=1.0,
@@ -350,13 +357,19 @@ def grade_question(
             flags.append("low_ocr_confidence")
     if any(line.kind == "diagram" for line in segment.lines):
         flags.append("contains_diagram")
-    if _INJECTION.search(answer):
+    # Instructions inside answer data can influence the model, and a bare keyword list can collect
+    # partial credit from evidence quotes; both go to the teacher, marks are left to the grader.
+    if injection_signals(answer):
         flags.append("possible_prompt_injection")
+    if looks_keyword_stuffed(answer):
+        flags.append("possible_keyword_stuffing")
     if mode == "image":
         require_evidence = False
     kw = dict(require_evidence=require_evidence, context=context, images=images, mode=mode)
     for k in range(runs):
-        results, run_flags = grade_once(question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0, **kw)
+        results, run_flags = grade_once(
+            question, answer, llm, seed=k, temperature=temperature if runs > 1 else 0.0, **kw
+        )
         all_runs.append(results)
         flags.extend(f for f in run_flags if f not in flags)
 
@@ -404,14 +417,19 @@ def grade_question(
         criteria=criteria,
         confidence=confidence,
         confidence_signals={k: round(max(0.0, min(1.0, v)), 3) for k, v in signals.items()},
-        needs_review=confidence < low_confidence or "low_ocr_confidence" in flags or "possible_prompt_injection" in flags,
+        needs_review=confidence < low_confidence
+        or "low_ocr_confidence" in flags
+        or "possible_prompt_injection" in flags
+        or "possible_keyword_stuffing" in flags,
         flags=flags,
     )
 
 
 def dependency_context(question: Question, segments: dict[str, AnswerSegment]) -> str | None:
     """The student's answers to the questions this one builds on, for follow-through marking."""
-    parts = [f"{d}: {segments[d].text.strip()}" for d in question.depends_on if d in segments and segments[d].text.strip()]
+    parts = [
+        f"{d}: {segments[d].text.strip()}" for d in question.depends_on if d in segments and segments[d].text.strip()
+    ]
     return "\n\n".join(parts) or None
 
 
@@ -425,6 +443,7 @@ def grade_sheet(
     mode: str = "text",
     **kwargs,
 ) -> SheetGrade:
+    """Grade all questions with dependency context and configured review passes."""
     grades = []
     for q in spec.questions:
         seg = segments.get(q.id) or AnswerSegment(question_id=q.id, text="")
@@ -434,7 +453,13 @@ def grade_sheet(
 
             images = answer_crops(seg, pages or []) or None
         g = grade_question(
-            q, seg, llm, context=dependency_context(q, segments), images=images, mode=mode if images else "text", **kwargs
+            q,
+            seg,
+            llm,
+            context=dependency_context(q, segments),
+            images=images,
+            mode=mode if images else "text",
+            **kwargs,
         )
         if mode != "text" and not images and seg.text.strip():
             g = g.model_copy(update={"flags": [*g.flags, "no_page_image"]})

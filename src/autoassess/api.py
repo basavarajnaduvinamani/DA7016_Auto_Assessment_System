@@ -19,11 +19,14 @@ from autoassess.pipeline import read_sheet, run
 from autoassess.providers import make_llm, make_ocr, make_translator
 from autoassess.schemas import ExamSpec
 
-app = FastAPI(title="Auto-Assessment", version=__version__, description="Rubric-grounded grading with evidence-linked feedback.")
+app = FastAPI(
+    title="Auto-Assessment", version=__version__, description="Rubric-grounded grading with evidence-linked feedback."
+)
 
 
 @app.get("/health")
 def health() -> dict:
+    """Report process readiness and configured provider metadata without grading."""
     s = Settings.load()
     return {"status": "ok", "version": __version__, "ocr": s.ocr_provider, "llm_configured": bool(s.llm_model)}
 
@@ -38,6 +41,7 @@ async def grade(
     critic: bool = Form(False),
     feedback_language: str | None = Form(None),
 ) -> dict:
+    """Grade uploaded documents and return validated marks with an HTML report."""
     try:
         exam = ExamSpec.model_validate(yaml.safe_load(await spec.read()))
     except (ValidationError, yaml.YAMLError) as err:

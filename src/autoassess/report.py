@@ -119,7 +119,10 @@ ul{margin:4px 0 4px 20px;padding:0}
 """
 
 
-def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSegment], pages: list[OCRPage] | None = None) -> str:
+def render_html(
+    spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSegment], pages: list[OCRPage] | None = None
+) -> str:
+    """Render escaped marks, evidence, feedback and optional page imagery as HTML."""
     pages = pages or []
     esc = html.escape
     rows = "".join(
@@ -139,7 +142,9 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
         seg = segments.get(q.question_id) or AnswerSegment(question_id=q.question_id, text="")
         crit = {c.id: c for c in question.criteria}
         quotes = [(r.evidence or "", r.criterion_id) for r in q.criteria if r.marks_awarded > 0]
-        parts.append(f'<h2 id="{esc(q.question_id)}">{esc(q.question_id)} &middot; {q.marks_awarded:g} / {q.max_marks:g}</h2>')
+        parts.append(
+            f'<h2 id="{esc(q.question_id)}">{esc(q.question_id)} &middot; {q.marks_awarded:g} / {q.max_marks:g}</h2>'
+        )
         parts.append(f"<p class=quiet>{esc(question.text)}</p>")
         if q.remark and q.remark.lines():
             # The remark comes before the marks table: comments first, numbers second.
@@ -147,9 +152,9 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
         answer_html = _highlight(seg.text, quotes) if seg.text else "<em>No answer found.</em>"
         parts.append(f"<div class=card>{answer_html}</div>")
         crit_rows = "".join(
-            f'<tr><td>{esc(r.criterion_id)}</td><td>{esc(crit[r.criterion_id].description)}</td>'
+            f"<tr><td>{esc(r.criterion_id)}</td><td>{esc(crit[r.criterion_id].description)}</td>"
             f'<td class="{r.verdict.value}">{r.verdict.value.replace("_", " ")}</td><td class=num>{r.marks_awarded:g} / {crit[r.criterion_id].marks:g}{_tags(r.tags)}</td>'
-            f'<td>{("&ldquo;" + esc(r.evidence) + "&rdquo; ") if r.evidence else ""}<span class=quiet>{esc(r.reason)}</span></td></tr>'
+            f"<td>{('&ldquo;' + esc(r.evidence) + '&rdquo; ') if r.evidence else ''}<span class=quiet>{esc(r.reason)}</span></td></tr>"
             for r in q.criteria
         )
         parts.append(
@@ -160,11 +165,22 @@ def render_html(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSeg
         if earned or lost:
             fb = ""
             if earned:
-                fb += "<p><strong>What earned marks</strong></p><ul>" + "".join(f"<li>{esc(i.text)}</li>" for i in earned) + "</ul>"
+                fb += (
+                    "<p><strong>What earned marks</strong></p><ul>"
+                    + "".join(f"<li>{esc(i.text)}</li>" for i in earned)
+                    + "</ul>"
+                )
             if lost:
-                fb += "<p><strong>Where marks were lost</strong></p><ul>" + "".join(
-                    f"<li>{esc(i.text)}" + (f"<br><strong>Next time:</strong> {esc(i.next_step)}" if i.next_step else "") + "</li>" for i in lost
-                ) + "</ul>"
+                fb += (
+                    "<p><strong>Where marks were lost</strong></p><ul>"
+                    + "".join(
+                        f"<li>{esc(i.text)}"
+                        + (f"<br><strong>Next time:</strong> {esc(i.next_step)}" if i.next_step else "")
+                        + "</li>"
+                        for i in lost
+                    )
+                    + "</ul>"
+                )
             parts.append(f"<div class=card>{fb}</div>")
         elif q.feedback:
             parts.append(f"<div class=card>{esc(q.feedback).replace(chr(10), '<br>')}</div>")

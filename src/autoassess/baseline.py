@@ -32,6 +32,7 @@ def _sentences(text: str) -> list[str]:
 
 
 def grade_question_lexical(question: Question, segment: AnswerSegment) -> QuestionGrade:
+    """Award bounded criterion marks using lexical overlap with the answer."""
     answer = segment.text.strip()
     answer_words = _content_words(answer)
     sentences = _sentences(answer)
@@ -72,6 +73,7 @@ def grade_question_lexical(question: Question, segment: AnswerSegment) -> Questi
 
 
 def grade_sheet_lexical(spec: ExamSpec, segments: dict[str, AnswerSegment], student_id: str) -> SheetGrade:
+    """Grade all question segments with the deterministic lexical baseline."""
     return SheetGrade(
         exam_id=spec.exam_id,
         student_id=student_id,

@@ -30,6 +30,8 @@ OK, FAIL, SKIP = "ok", "FAIL", "skip"
 
 @dataclass
 class Check:
+    """A provider diagnostic result with status and a readable explanation."""
+
     name: str
     status: str
     detail: str
@@ -37,6 +39,7 @@ class Check:
 
 
 def mask(key: str) -> str:
+    """Hide the middle of a configured credential for diagnostic output."""
     if not key:
         return "(not set)"
     return f"{key[:4]}…{key[-4:]}" if len(key) > 12 else "set (short)"
@@ -84,6 +87,7 @@ KEY_HELP = {
 
 
 def check_llm(settings: Settings, role: str = "LLM grader") -> Check:
+    """Run a small live language-model diagnostic and report its status."""
     from autoassess.providers.llm import OpenAICompatibleLLM
 
     name = f"{role} [{settings.llm_provider}] ({settings.llm_model or 'no model'})"
@@ -93,7 +97,12 @@ def check_llm(settings: Settings, role: str = "LLM grader") -> Check:
         var, hint = KEY_HELP.get(settings.llm_provider, KEY_HELP["custom"])
         return Check(name, SKIP, f"{var} is not set", hint)
     llm = OpenAICompatibleLLM(
-        settings.llm_base_url, settings.llm_model, settings.llm_api_key, cache=None, timeout=60, ledger=settings.llm_ledger()
+        settings.llm_base_url,
+        settings.llm_model,
+        settings.llm_api_key,
+        cache=None,
+        timeout=60,
+        ledger=settings.llm_ledger(),
     )
     try:
         # Same request shape as grading: JSON mode and a seed.
@@ -132,6 +141,7 @@ def _test_page_png() -> bytes:
         raw = b"".join(b"\x00" + b"\xff" * w for _ in range(h))
 
         def chunk(tag: bytes, data: bytes) -> bytes:
+            """Encode one PNG chunk with its length and checksum."""
             return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
 
         ihdr = struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0)
@@ -139,12 +149,15 @@ def _test_page_png() -> bytes:
 
 
 def check_bodhan_ocr(settings: Settings) -> Check:
+    """Check hosted OCR with a small synthetic page."""
     from autoassess.providers.bodhan import BodhanOCR
 
     name = "Bodhan IndicOCR"
     if not settings.ocr_key:
         return Check(name, SKIP, "BODHAN_API_KEY / BODHAN_OCR_API_KEY not set", "create a key at console.bodhan.ai")
-    ocr = BodhanOCR(settings.ocr_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=90)
+    ocr = BodhanOCR(
+        settings.ocr_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=90
+    )
     ocr.client.ledger = bodhan_ledger(settings.cache_dir, settings.bodhan_budget_inr)
     with tempfile.TemporaryDirectory() as tmp:
         img = Path(tmp) / "doctor.png"
@@ -159,12 +172,17 @@ def check_bodhan_ocr(settings: Settings) -> Check:
 
 
 def check_bodhan_translate(settings: Settings) -> Check:
+    """Check hosted translation with a short diagnostic sentence."""
     from autoassess.providers.bodhan import BodhanTranslate
 
     name = "Bodhan Indic-Translate"
     if not settings.translate_key:
-        return Check(name, SKIP, "BODHAN_API_KEY / BODHAN_TRANSLATE_API_KEY not set", "create a key at console.bodhan.ai")
-    tr = BodhanTranslate(settings.translate_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=60)
+        return Check(
+            name, SKIP, "BODHAN_API_KEY / BODHAN_TRANSLATE_API_KEY not set", "create a key at console.bodhan.ai"
+        )
+    tr = BodhanTranslate(
+        settings.translate_key, settings.bodhan_base_url, cache=None, budget_inr=settings.bodhan_budget_inr, timeout=60
+    )
     tr.client.ledger = bodhan_ledger(settings.cache_dir, settings.bodhan_budget_inr)
     try:
         out = tr.translate("Good answer.", "Hindi")
@@ -178,7 +196,9 @@ def check_openrouter_credit(settings: Settings, timeout: float = 30) -> Check:
     name = "OpenRouter credit"
     if not settings.openrouter_api_key:
         return Check(name, SKIP, "OPENROUTER_API_KEY not set", KEY_HELP["openrouter"][1])
-    req = urllib.request.Request(f"{OPENROUTER_BASE_URL}/key", headers={"Authorization": f"Bearer {settings.openrouter_api_key}"})
+    req = urllib.request.Request(
+        f"{OPENROUTER_BASE_URL}/key", headers={"Authorization": f"Bearer {settings.openrouter_api_key}"}
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())["data"]
@@ -186,7 +206,9 @@ def check_openrouter_credit(settings: Settings, timeout: float = 30) -> Check:
         return Check(name, FAIL, str(err)[:300], explain(err, _host(OPENROUTER_BASE_URL)))
     usage, limit, left = data.get("usage") or 0.0, data.get("limit"), data.get("limit_remaining")
     parts = [f"used ${usage:.2f}"]
-    parts.append(f"of ${limit:.2f} limit, ${left:.2f} left" if limit is not None and left is not None else "no key limit")
+    parts.append(
+        f"of ${limit:.2f} limit, ${left:.2f} left" if limit is not None and left is not None else "no key limit"
+    )
     if data.get("limit_reset"):
         parts.append(f"limit resets {data['limit_reset']}")
     parts.append(f"expires {data['expires_at']}" if data.get("expires_at") else "no expiry date on the key")
@@ -204,11 +226,16 @@ def _standby_llms(settings: Settings) -> list[Settings]:
             continue
         base, model, key = llm_endpoint(provider)
         if key:
-            out.append(dataclasses.replace(settings, llm_provider=provider, llm_base_url=base, llm_model=model, llm_api_key=key))
+            out.append(
+                dataclasses.replace(
+                    settings, llm_provider=provider, llm_base_url=base, llm_model=model, llm_api_key=key
+                )
+            )
     return out
 
 
 def run_doctor(settings: Settings, paid: bool = True) -> list[Check]:
+    """Run configured provider checks, optionally including paid Bodhan calls."""
     checks = [check_llm(settings)]
     checks += [check_llm(s, role="standby LLM") for s in _standby_llms(settings)]
     if settings.openrouter_api_key:
@@ -221,6 +248,7 @@ def run_doctor(settings: Settings, paid: bool = True) -> list[Check]:
 
 
 def report(settings: Settings, checks: list[Check]) -> str:
+    """Format diagnostic checks and spending summaries as readable text."""
     lines = [
         "Configuration",
         f"  LLM          [{settings.llm_provider}] {settings.llm_base_url}  model={settings.llm_model or '(not set)'}  key={mask(settings.llm_api_key)}",

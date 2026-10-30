@@ -73,18 +73,18 @@ _STRUCK = re.compile(r"~~[^~]*~~|\[crossed[ -]out[^\]]*\]|<s>.*?</s>|<del>.*?</d
 
 
 def strip_crossed_out(text: str) -> str:
+    """Remove supported crossed-out spans before interpreting an answer."""
     return re.sub(r"[ \t]{2,}", " ", _STRUCK.sub("", text)).strip()
 
 
 def segment_pages(spec: ExamSpec, pages: list[OCRPage]) -> dict[str, AnswerSegment]:
+    """Assign OCR lines to recognised question labels and aliases."""
     variants = _label_variants(spec)
     parts: dict[str, list[tuple[int, OCRLine, str]]] = {}
     current: str | None = None
     # Students label consistently: if any "Q2"/"Ans 2" label appears, bare
     # numbers on this sheet are list items, not answer labels.
-    prefixed_sheet = any(
-        (hit := _find_label(line.text, variants)) and hit[2] for page in pages for line in page.lines
-    )
+    prefixed_sheet = any((hit := _find_label(line.text, variants)) and hit[2] for page in pages for line in page.lines)
     for page in pages:
         for line in page.lines:
             raw = strip_crossed_out(line.text)
@@ -118,15 +118,14 @@ Copy the student's words exactly; do not fix spelling or add anything."""
 
 
 def segment_with_llm(spec: ExamSpec, sheet_text: str, llm: LLMClient) -> dict[str, AnswerSegment]:
+    """Request a grounded re-split when labelled segmentation misses answers."""
     questions = "\n".join(f"{q.id}: {q.text}" for q in spec.questions)
     from autoassess.privacy import anonymise
 
     sheet_text = anonymise(strip_crossed_out(sheet_text))
     reply = llm.complete_json(SEGMENT_SYSTEM, f"Questions:\n{questions}\n\n<sheet>\n{sheet_text}\n</sheet>")
     answers = reply.get("answers", {})
-    return {
-        q.id: AnswerSegment(question_id=q.id, text=str(answers.get(q.id, "")).strip()) for q in spec.questions
-    }
+    return {q.id: AnswerSegment(question_id=q.id, text=str(answers.get(q.id, "")).strip()) for q in spec.questions}
 
 
 def _line_key(text: str) -> str:
@@ -150,7 +149,7 @@ def ground_segments(
         for line in page.lines:
             raw = strip_crossed_out(line.text)
             hit = _find_label(raw, variants)
-            body = raw[hit[1]:].strip() if hit else raw
+            body = raw[hit[1] :].strip() if hit else raw
             k = _line_key(body)
             if len(k) < 2:
                 continue
@@ -190,4 +189,5 @@ def segment(spec: ExamSpec, pages: list[OCRPage], llm: LLMClient | None = None) 
 
 
 def segments_to_json(segments: dict[str, AnswerSegment]) -> str:
+    """Serialise question segments with text, pages and line metadata."""
     return json.dumps({k: v.text for k, v in segments.items()}, indent=2, ensure_ascii=False)

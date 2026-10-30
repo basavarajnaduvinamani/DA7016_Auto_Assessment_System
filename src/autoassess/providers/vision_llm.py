@@ -28,6 +28,8 @@ Return only the transcription."""
 
 
 class VisionLLMOCR(OCRProvider):
+    """Transcribe page images using a vision-capable language model."""
+
     def __init__(
         self,
         base_url: str,
@@ -65,7 +67,10 @@ class VisionLLMOCR(OCRProvider):
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})},
+            headers={
+                "Content-Type": "application/json",
+                **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            },
         )
         if self.ledger:
             self.ledger.check()
@@ -75,12 +80,15 @@ class VisionLLMOCR(OCRProvider):
         return response["choices"][0]["message"]["content"]
 
     def read_page(self, image_path: Path, page_index: int, language_hint: str | None = None) -> OCRPage:
+        """Transcribe a page and convert its structured reply into OCR lines."""
         image = Path(image_path).read_bytes()
         mime = mimetypes.guess_type(str(image_path))[0] or "image/png"
         if self.cache is None:
             text = self._transcribe(image, mime)
         else:
-            text = self.cache.get_or_compute(content_key("vision-ocr", self.model, image), lambda: self._transcribe(image, mime))
+            text = self.cache.get_or_compute(
+                content_key("vision-ocr", self.model, image), lambda: self._transcribe(image, mime)
+            )
         lines = [
             OCRLine(text=t, kind="diagram" if t.strip() == "[diagram]" else "text")
             for t in text.splitlines()

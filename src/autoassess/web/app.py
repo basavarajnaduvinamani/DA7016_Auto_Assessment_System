@@ -137,7 +137,8 @@ def create_app(data_dir=None, *, reset_demo=False, seed_samples=True):
 
     # Packaging the lab keeps non-editable installations independent of repo app.py.
     import gradio as gr
+    from autoassess.web.brand import CSS, THEME
     from autoassess.web.lab import demo
 
-    return gr.mount_gradio_app(app, demo.queue(default_concurrency_limit=2), path="/lab", show_error=False,
+    return gr.mount_gradio_app(app, demo.queue(default_concurrency_limit=2), path="/lab", show_error=False, theme=THEME, css=CSS,
                               max_file_size=int(float(os.getenv("AUTOASSESS_MAX_UPLOAD_MB", "10")) * 1024 * 1024))

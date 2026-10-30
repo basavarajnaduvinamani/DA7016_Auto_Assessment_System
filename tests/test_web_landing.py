@@ -54,3 +54,11 @@ def test_landing_is_public_and_leads_to_the_demo(client):
 def test_failed_sign_in_keeps_the_landing_page(client):
     response = client.post('/sign-in', data={'email': 'nobody@example.org'})
     assert response.status_code == 400 and 'recognise that email' in response.text and 'How it works' in response.text
+
+
+def test_grading_lab_uses_the_red_ink_brand(client):
+    client.post('/sign-in', data={'email': 'demo@redink.local'})
+    assert '#ad343b' in client.get('/lab/theme.css').text
+    config = client.get('/lab/config').json()
+    assert 'redink-bar' in config['css']
+    assert 'Back to Red-Ink Classroom' in str(config['components'])

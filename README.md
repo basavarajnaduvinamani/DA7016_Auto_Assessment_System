@@ -10,13 +10,13 @@ Second Read is an AI co-examiner for teachers. It reads every answer sheet first
 - **Every number:** [`docs/report/numbers.md`](docs/report/numbers.md) · **Robustness:** [`results/robustness/`](results/robustness/README.md)
 - **Course:** DA7016 Recent Advances in Generative AI, IIT Madras (Jul to Nov 2026) · Basavaraj A Naduvinamani (DA25C005)
 
-<p align="center"><img src="docs/images/landing.png" alt="Second Read landing page: the tagline, Try the demo, and a marked sample sheet" width="880"></p>
+<p align="center"><img src="docs/images/tour.gif" alt="A 25-second tour of Second Read: the landing page, how it works, the eleven feedback languages, the demo classroom, an assignment, the review queue, an answer beside its marked page, and the class report" width="880"></p>
 
 | Review an answer next to its red-ink page | The red ink a student sees (final configuration) |
 | --- | --- |
 | <img src="docs/images/review.png" alt="Review screen: the marked page beside each rubric criterion with its evidence quote, Accept and Change mark" width="440"> | <img src="docs/report/results/figures/example_redink.png" alt="Synthetic sample sheet S002 marked by the final configuration: circled totals, ticks at the evidence, carets and margin remarks" width="440"> |
 
-The review screenshot is the offline demo (`AUTOASSESS_DEMO_DRY_RUN=1`, scripted marks, as its banner says); the marked sheet on the right is the final configuration (gemini-2.5-flash, advocate review) on synthetic sheet S002, from `numbers.md`. More screenshots: [mobile landing](docs/images/landing-mobile.png), [teacher-time card](docs/images/teacher-time.png), [grading lab](docs/images/lab.png).
+The review screenshot is the offline demo (`AUTOASSESS_DEMO_DRY_RUN=1`, scripted marks, as its banner says); the marked sheet on the right is the final configuration (gemini-2.5-flash, advocate review) on synthetic sheet S002, from `numbers.md`. More screenshots: [landing page](docs/images/landing.png), [mobile landing](docs/images/landing-mobile.png), [teacher-time card](docs/images/teacher-time.png), [grading lab](docs/images/lab.png).
 
 ### Results
 

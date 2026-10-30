@@ -122,7 +122,7 @@ def test_seed_is_idempotent_and_persists(tmp_path):
     seed(reopened, reset=True)
     assert len(reopened.students(1)) == 10
     with store.connect() as db:
-        assert [r[0] for r in db.execute("SELECT version FROM schema_version")] == [2]
+        assert [r[0] for r in db.execute("SELECT version FROM schema_version")] == [3]
     assert (store.root / "files").is_dir()
 
 

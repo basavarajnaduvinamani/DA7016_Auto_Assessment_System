@@ -143,8 +143,10 @@ class Store(AssignmentStore):
                 if None in row or row.get("name") is None:
                     raise ValueError("Each CSV row must contain a roll number and a name.")
                 rows.append(self.student_fields(row["roll_no"], row["name"]))
-            if not rows or len({r for r, _ in rows}) != len(rows):
-                raise ValueError("Include students with distinct roll numbers in the CSV.")
+            if not rows:
+                raise ValueError("Include at least one student in the roster CSV.")
+            if len({r for r, _ in rows}) != len(rows):
+                raise ValueError("Duplicate roll numbers were found. Each student needs a distinct roll number.")
         except (UnicodeDecodeError, csv.Error) as err:
             raise ValueError("Upload a valid UTF-8 CSV with the header roll_no,name.") from err
         with self.connect() as db:

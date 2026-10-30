@@ -19,6 +19,7 @@ from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
 from autoassess.web.downloads import mount_download_routes
 from autoassess.web.jobs import Jobs
 from autoassess.web.landing import CLASSROOM, NUMBERS_URL, REPO_URL, RESULTS, STEPS
+from autoassess.web.presentation import flag_chips
 from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.seed import seed, seed_assignment
 from autoassess.web.store import Store
@@ -58,6 +59,7 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
     app.state.store = store
     templates = Jinja2Templates(directory=HERE / "templates")
     app.state.templates = templates
+    templates.env.globals["flag_chips"] = flag_chips
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     app.add_middleware(DemoSession, store=store, serializer=serializer)
 

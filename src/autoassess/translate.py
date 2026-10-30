@@ -1,4 +1,4 @@
-"""Return feedback in the student's language (Bodhan Indic-Translate, week 5).
+"""Return feedback in the student's language through Bodhan Indic-Translate.
 
 Only the student-facing text is translated: feedback items, the rendered
 feedback and the sheet summary. Evidence quotes stay as the student wrote
@@ -12,6 +12,7 @@ from autoassess.schemas import SheetGrade
 
 
 def translate_feedback(grade: SheetGrade, translator: Translator, language: str) -> SheetGrade:
+    """Translate feedback while preserving marks, evidence and the English original."""
     questions = []
     for q in grade.questions:
         items = [
@@ -41,7 +42,9 @@ def translate_feedback(grade: SheetGrade, translator: Translator, language: str)
     return grade.model_copy(
         update={
             "questions": questions,
-            "summary_feedback": translator.translate(grade.summary_feedback, language) if grade.summary_feedback else "",
+            "summary_feedback": translator.translate(grade.summary_feedback, language)
+            if grade.summary_feedback
+            else "",
             "summary_feedback_en": grade.summary_feedback,
             "feedback_language": language,
         }

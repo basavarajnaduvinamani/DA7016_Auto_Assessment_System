@@ -47,6 +47,7 @@ class ScriptedLLM(LLMClient):
     name = "fake"
 
     def complete_json(self, system: str, user: str, *, temperature: float = 0.0, seed: int | None = None) -> dict:
+        """Return deterministic rubric-shaped replies without network access."""
         from autoassess.advocate import ADVOCATE_SYSTEM
         from autoassess.critic import CRITIC_SYSTEM
         from autoassess.feedback import FEEDBACK_SYSTEM
@@ -63,17 +64,30 @@ class ScriptedLLM(LLMClient):
                 criteria.append({"criterion_id": cid, **_award(description, float(marks), answer)})
             return {"criteria": criteria}
         if system == CRITIC_SYSTEM:
-            return {"audits": [
-                {"criterion_id": r["criterion_id"], "decision": "uphold", "marks": r["marks_awarded"],
-                 "reason": "Offline review keeps the award."}
-                for r in _rows(user, "AWARDS TO AUDIT:\n")
-            ]}
+            return {
+                "audits": [
+                    {
+                        "criterion_id": r["criterion_id"],
+                        "decision": "uphold",
+                        "marks": r["marks_awarded"],
+                        "reason": "Offline review keeps the award.",
+                    }
+                    for r in _rows(user, "AWARDS TO AUDIT:\n")
+                ]
+            }
         if system == ADVOCATE_SYSTEM:
-            return {"proposals": [
-                {"criterion_id": r["criterion_id"], "decision": "keep", "marks": r["marks_awarded"],
-                 "evidence": None, "reason": "Offline review keeps the award."}
-                for r in _rows(user, "CRITERIA BELOW FULL MARKS:\n")
-            ]}
+            return {
+                "proposals": [
+                    {
+                        "criterion_id": r["criterion_id"],
+                        "decision": "keep",
+                        "marks": r["marks_awarded"],
+                        "evidence": None,
+                        "reason": "Offline review keeps the award.",
+                    }
+                    for r in _rows(user, "CRITERIA BELOW FULL MARKS:\n")
+                ]
+            }
         if system == FEEDBACK_SYSTEM:
             rows = _rows(user, "GRADING:\n")
             earned, lost = [], []
@@ -82,13 +96,23 @@ class ScriptedLLM(LLMClient):
                 if marks > 0:
                     earned.append({"criterion_id": r["criterion_id"], "text": "You included a rubric point."})
                 if marks < maximum:
-                    lost.append({"criterion_id": r["criterion_id"], "text": "You missed a rubric point.",
-                                 "next_step": f"Include this point: {r['criterion']}"})
-            return {"earned": earned, "lost": lost, "errors": [], "remark": {
-                "strength": "You included a rubric point." if earned else "",
-                "fix": "Include the missing rubric point." if lost else "",
-                "next_step": "Check each rubric point against your answer.",
-            }}
+                    lost.append(
+                        {
+                            "criterion_id": r["criterion_id"],
+                            "text": "You missed a rubric point.",
+                            "next_step": f"Include this point: {r['criterion']}",
+                        }
+                    )
+            return {
+                "earned": earned,
+                "lost": lost,
+                "errors": [],
+                "remark": {
+                    "strength": "You included a rubric point." if earned else "",
+                    "fix": "Include the missing rubric point." if lost else "",
+                    "next_step": "Check each rubric point against your answer.",
+                },
+            }
         if system == SEGMENT_SYSTEM:
             questions = _between(user, "Questions:\n", "\n\n<sheet>")
             sheet = _between(user, "<sheet>\n", "\n</sheet>")
@@ -108,12 +132,21 @@ class ScriptedLLM(LLMClient):
             paper = _between(user, "=== QUESTION PAPER ===\n", "\n\n=== RUBRIC ===")
             rubric = _between(user, "=== RUBRIC ===\n", "\n\n=== MODEL ANSWERS ===")
             model = user.split("=== MODEL ANSWERS ===\n", 1)[1].rstrip("\n")
-            return {"exam_id": user.splitlines()[0].removeprefix("exam_id: "),
-                    "title": "Offline scripted draft", "language": "en", "questions": [{
-                        "id": "Q1", "text": paper, "max_marks": 1, "model_answer": model or None,
-                        "aliases": ["1"], "criteria": [{"id": "Q1.c1", "description": rubric,
-                                                           "marks": 1, "allow_partial": False}],
-                    }]}
+            return {
+                "exam_id": user.splitlines()[0].removeprefix("exam_id: "),
+                "title": "Offline scripted draft",
+                "language": "en",
+                "questions": [
+                    {
+                        "id": "Q1",
+                        "text": paper,
+                        "max_marks": 1,
+                        "model_answer": model or None,
+                        "aliases": ["1"],
+                        "criteria": [{"id": "Q1.c1", "description": rubric, "marks": 1, "allow_partial": False}],
+                    }
+                ],
+            }
         if system == REGRADE_SYSTEM:
             answer = _between(user, "<student_answer>\n", "\n</student_answer>")
             match = re.search(r"^CRITERION \S+ \(([\d.]+) marks, [^\n]*?\): (.+)$", user, re.M)
@@ -127,4 +160,5 @@ class ScriptedLLM(LLMClient):
     def complete_json_images(
         self, system: str, user: str, images: list[bytes], *, temperature: float = 0.0, seed: int | None = None
     ) -> dict:
+        """Reject image grading because this scripted provider is text-only."""
         raise NotImplementedError("ScriptedLLM supports text only; image input is not supported")

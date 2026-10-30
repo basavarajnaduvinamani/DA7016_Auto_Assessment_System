@@ -1,9 +1,10 @@
-# Render Blueprint: Red-Ink Classroom with the Gradio lab at /lab.
+# Render Blueprint: the Second Read teacher app with the Gradio lab at /lab.
 # Render dashboard > New > Blueprint > pick this repo. Then fill in the keys
 # marked sync: false under the service's Environment tab. See docs/deploy.md.
 services:
   - type: web
-    name: red-ink-grader
+    # The service name sets the onrender.com address: https://second-read.onrender.com
+    name: second-read
     runtime: python
     plan: free
     buildCommand: pip install ".[web,ingest,annotate]"

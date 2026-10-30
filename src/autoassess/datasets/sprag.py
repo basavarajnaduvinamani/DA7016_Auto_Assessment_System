@@ -32,11 +32,14 @@ class _Answer:
 
     @property
     def sid(self) -> str:
+        """Return a stable identifier for this individual source response."""
         return f"{self.source_id}-{self.ordinal:04d}"
 
 
 @dataclass(frozen=True)
 class ImportSummary:
+    """Counts of imported answers, held-out questions and missing human scores."""
+
     questions: int
     answers: int
     dev_questions: int
@@ -46,9 +49,11 @@ class ImportSummary:
     missing_scores: int
 
     def __str__(self) -> str:
-        return (f"{self.questions} questions, {self.answers} answers; "
-                f"dev/test: {self.dev_questions}/{self.test_questions} questions, "
-                f"{self.dev_answers}/{self.test_answers} answers; {self.missing_scores} missing scores")
+        return (
+            f"{self.questions} questions, {self.answers} answers; "
+            f"dev/test: {self.dev_questions}/{self.test_questions} questions, "
+            f"{self.dev_answers}/{self.test_answers} answers; {self.missing_scores} missing scores"
+        )
 
 
 def _read_csv(path: Path, fields: tuple[str, ...]) -> list[dict]:
@@ -148,23 +153,37 @@ def import_sprag(
     for number, source_id in enumerate(selected, 1):
         row, qid, label = catalog[source_id], f"Q{number}", _label(number)
         aliases = [source_id] + ([label] if label != qid else [])
-        questions.append(Question(
-            id=qid, text=row["QuestionText"], model_answer=row["Reference Answer"], max_marks=5, aliases=aliases,
-            # The reference answer goes into the criterion so the lexical baseline has content words to match.
-            criteria=[RubricCriterion(id=f"{qid}.c1", description=f"{HOLISTIC} Key points: {row['Reference Answer'].strip()}",
-                                      marks=5, allow_partial=True)],
-        ))
+        questions.append(
+            Question(
+                id=qid,
+                text=row["QuestionText"],
+                model_answer=row["Reference Answer"],
+                max_marks=5,
+                aliases=aliases,
+                # The reference answer goes into the criterion so the lexical baseline has content words to match.
+                criteria=[
+                    RubricCriterion(
+                        id=f"{qid}.c1",
+                        description=f"{HOLISTIC} Key points: {row['Reference Answer'].strip()}",
+                        marks=5,
+                        allow_partial=True,
+                    )
+                ],
+            )
+        )
         labels[source_id] = (qid, label)
     spec = ExamSpec(exam_id=f"sprag-{subject}", title=f"SPRAG ({subject})", language="en", questions=questions)
     split_ids = list(selected)
     random.Random(seed).shuffle(split_ids)
-    dev_ids = set(split_ids[:round(len(split_ids) * dev_share)])
+    dev_ids = set(split_ids[: round(len(split_ids) * dev_share)])
     out.mkdir(parents=True, exist_ok=True)
     (out / "sheets").mkdir()
     save_spec(spec, out / "exam_spec.yaml")
     missing = dev_answers = total = 0
-    with (out / "human_marks.csv").open("w", newline="", encoding="utf-8") as human, \
-            (out / "sheets.csv").open("w", newline="", encoding="utf-8") as meta:
+    with (
+        (out / "human_marks.csv").open("w", newline="", encoding="utf-8") as human,
+        (out / "sheets.csv").open("w", newline="", encoding="utf-8") as meta,
+    ):
         hw, mw = csv.DictWriter(human, HUMAN_FIELDS), csv.DictWriter(meta, META_FIELDS)
         hw.writeheader()
         mw.writeheader()
@@ -175,13 +194,29 @@ def import_sprag(
                 total += 1
                 dev_answers += split == "dev"
                 (out / "sheets" / f"{answer.sid}.txt").write_text(f"{label}\n{answer.text}\n", encoding="utf-8")
-                mw.writerow(dict(student_id=answer.sid, subject=answer.subject,
-                                 question_type=catalog[source_id]["QuestionType"], split=split))
+                mw.writerow(
+                    dict(
+                        student_id=answer.sid,
+                        subject=answer.subject,
+                        question_type=catalog[source_id]["QuestionType"],
+                        split=split,
+                    )
+                )
                 for grader, score in zip(("grader_A", "grader_B"), answer.scores, strict=True):
                     if score is None:
                         missing += 1
                         continue
-                    hw.writerow(dict(exam_id=spec.exam_id, student_id=answer.sid, grader=grader,
-                                     question_id=qid, criterion_id=f"{qid}.c1", marks_awarded=score, note=""))
-    return ImportSummary(len(questions), total, len(dev_ids), len(questions) - len(dev_ids),
-                         dev_answers, total - dev_answers, missing)
+                    hw.writerow(
+                        dict(
+                            exam_id=spec.exam_id,
+                            student_id=answer.sid,
+                            grader=grader,
+                            question_id=qid,
+                            criterion_id=f"{qid}.c1",
+                            marks_awarded=score,
+                            note="",
+                        )
+                    )
+    return ImportSummary(
+        len(questions), total, len(dev_ids), len(questions) - len(dev_ids), dev_answers, total - dev_answers, missing
+    )

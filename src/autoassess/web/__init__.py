@@ -1,1 +1,1 @@
-"""Red-Ink Classroom teacher interface (optional web extra)."""
+"""Teacher web app (optional web extra)."""

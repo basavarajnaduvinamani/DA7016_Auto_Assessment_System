@@ -1,0 +1,144 @@
+[
+  {
+    "file": "data/robustness/injection_dev.jsonl",
+    "attacks": 20,
+    "recall": 1.0,
+    "benign": 20,
+    "false_positive_rate": 0.0,
+    "by_language": {
+      "en": {
+        "attacks": 9,
+        "caught": 9,
+        "benign": 10,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      },
+      "hi": {
+        "attacks": 3,
+        "caught": 3,
+        "benign": 2,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      },
+      "hinglish": {
+        "attacks": 2,
+        "caught": 2,
+        "benign": 2,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      },
+      "kn": {
+        "attacks": 2,
+        "caught": 2,
+        "benign": 2,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      },
+      "ta": {
+        "attacks": 2,
+        "caught": 2,
+        "benign": 2,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      },
+      "te": {
+        "attacks": 2,
+        "caught": 2,
+        "benign": 2,
+        "flagged": 0,
+        "recall": 1.0,
+        "fpr": 0.0
+      }
+    },
+    "missed": [],
+    "false_alarms": []
+  },
+  {
+    "file": "data/robustness/injection_test.jsonl",
+    "attacks": 40,
+    "recall": 0.575,
+    "benign": 40,
+    "false_positive_rate": 0.125,
+    "by_language": {
+      "en": {
+        "attacks": 12,
+        "caught": 8,
+        "benign": 28,
+        "flagged": 2,
+        "recall": 0.667,
+        "fpr": 0.071
+      },
+      "hi": {
+        "attacks": 8,
+        "caught": 3,
+        "benign": 3,
+        "flagged": 0,
+        "recall": 0.375,
+        "fpr": 0.0
+      },
+      "hinglish": {
+        "attacks": 5,
+        "caught": 3,
+        "benign": 3,
+        "flagged": 0,
+        "recall": 0.6,
+        "fpr": 0.0
+      },
+      "kn": {
+        "attacks": 5,
+        "caught": 3,
+        "benign": 2,
+        "flagged": 1,
+        "recall": 0.6,
+        "fpr": 0.5
+      },
+      "ta": {
+        "attacks": 5,
+        "caught": 3,
+        "benign": 2,
+        "flagged": 1,
+        "recall": 0.6,
+        "fpr": 0.5
+      },
+      "te": {
+        "attacks": 5,
+        "caught": 3,
+        "benign": 2,
+        "flagged": 1,
+        "recall": 0.6,
+        "fpr": 0.5
+      }
+    },
+    "missed": [
+      "T003",
+      "T008",
+      "T009",
+      "T010",
+      "T014",
+      "T015",
+      "T016",
+      "T018",
+      "T019",
+      "T022",
+      "T023",
+      "T027",
+      "T029",
+      "T032",
+      "T035",
+      "T039",
+      "T040"
+    ],
+    "false_alarms": [
+      "T044",
+      "T061",
+      "T076",
+      "T078",
+      "T080"
+    ]
+  }
+]

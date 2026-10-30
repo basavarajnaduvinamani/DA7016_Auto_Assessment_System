@@ -22,6 +22,8 @@ from collections.abc import Sequence
 
 
 def combine_signals(signals: dict[str, float]) -> float:
+    """Use the weakest available confidence signal to decide referral."""
+    # Averaging could hide a failed evidence or OCR check behind otherwise stable runs.
     if not signals:
         return 1.0
     return round(max(0.0, min(1.0, min(signals.values()))), 3)

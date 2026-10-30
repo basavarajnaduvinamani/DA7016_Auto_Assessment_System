@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 def content_key(*parts: Any) -> str:
+    """Hash JSON-serialisable inputs into a stable cache key."""
     h = hashlib.sha256()
     for part in parts:
         if isinstance(part, bytes):
@@ -24,6 +26,8 @@ def content_key(*parts: Any) -> str:
 
 
 class DiskCache:
+    """Persist JSON results by content key in a local directory."""
+
     def __init__(self, root: str | Path, namespace: str):
         self.dir = Path(root) / namespace
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -32,12 +36,14 @@ class DiskCache:
         return self.dir / key[:2] / f"{key}.json"
 
     def get(self, key: str) -> Any | None:
+        """Read a cached result, returning None for a cache miss."""
         p = self._path(key)
         if not p.exists():
             return None
         return json.loads(p.read_text(encoding="utf-8"))
 
     def set(self, key: str, value: Any) -> None:
+        """Write a JSON-serialisable result under its cache key."""
         p = self._path(key)
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(".tmp")
@@ -45,6 +51,7 @@ class DiskCache:
         tmp.replace(p)
 
     def get_or_compute(self, key: str, fn: Callable[[], Any]) -> Any:
+        """Return a cached value or compute and persist it once."""
         hit = self.get(key)
         if hit is not None:
             return hit

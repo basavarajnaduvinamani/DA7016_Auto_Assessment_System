@@ -8,13 +8,18 @@ from autoassess.providers.llm import OpenAICompatibleLLM
 
 
 def _reply(cost):
-    return {"choices": [{"message": {"content": "{}"}}], "usage": {"prompt_tokens": 900, "completion_tokens": 80, "cost": cost}}
+    return {
+        "choices": [{"message": {"content": "{}"}}],
+        "usage": {"prompt_tokens": 900, "completion_tokens": 80, "cost": cost},
+    }
 
 
 def test_openrouter_cost_is_recorded_and_capped(tmp_path, monkeypatch):
     monkeypatch.setattr(OpenAICompatibleLLM, "_post", lambda self, p: _reply(0.004))
     ledger = openrouter_ledger(tmp_path, budget_usd=0.01)
-    llm = OpenAICompatibleLLM(OPENROUTER_BASE_URL, "google/gemini-2.5-flash", "k", DiskCache(tmp_path, "llm"), ledger=ledger)
+    llm = OpenAICompatibleLLM(
+        OPENROUTER_BASE_URL, "google/gemini-2.5-flash", "k", DiskCache(tmp_path, "llm"), ledger=ledger
+    )
     llm.complete_json("s", "u1")
     llm.complete_json("s", "u1")  # cached: free and not counted
     llm.complete_json("s", "u2")

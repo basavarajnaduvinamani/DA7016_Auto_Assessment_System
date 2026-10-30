@@ -1,6 +1,7 @@
 """Advocate, second examiner, confidence, follow-through, privacy, lint and the new metrics."""
 
 import pytest
+from conftest import SAMPLE, FakeLLM
 
 from autoassess.confidence import combine_signals, coverage_curve
 from autoassess.evaluate import compare, handwriting_penalty, human_consensus
@@ -8,10 +9,18 @@ from autoassess.feedback import question_feedback, verify_remark
 from autoassess.grader import build_prompt, dependency_context, evidence_in_answer, grade_question, grade_sheet
 from autoassess.metrics import bootstrap_ci, mean_absolute_error, signed_bias
 from autoassess.privacy import PrivacyError, anonymise, check_provider_for_real_sheets
-from autoassess.schemas import AnswerSegment, CriterionResult, ExamSpec, OCRLine, OCRPage, QuestionGrade, SheetGrade, Verdict
+from autoassess.schemas import (
+    AnswerSegment,
+    CriterionResult,
+    ExamSpec,
+    OCRLine,
+    OCRPage,
+    QuestionGrade,
+    SheetGrade,
+    Verdict,
+)
 from autoassess.segment import segment_pages, strip_crossed_out
 from autoassess.spec_builder import lint_spec, load_spec
-from conftest import SAMPLE, FakeLLM
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 Q2 = SPEC.question("Q2")
@@ -61,19 +70,44 @@ def test_advocate_raises_only_with_a_verified_quote():
     g = grade_question(Q2, seg(), FakeLLM([_reply()]), runs=1, advocate=advocate)
     assert g.criteria[2].marks_awarded == 1.0 and "advocate" in g.criteria[2].tags
     assert "advocate_raised:Q2.c3" in g.flags and g.marks_awarded == 3.75
-    assert "CRITERIA BELOW FULL MARKS" in advocate.calls[0][1] and "Q2.c1" not in advocate.calls[0][1].split("BELOW FULL MARKS")[1]
+    assert (
+        "CRITERIA BELOW FULL MARKS" in advocate.calls[0][1]
+        and "Q2.c1" not in advocate.calls[0][1].split("BELOW FULL MARKS")[1]
+    )
     assert g.confidence_signals["review_agreement"] == pytest.approx(0.75)
 
 
 def test_advocate_without_quote_changes_nothing():
-    advocate = FakeLLM([{"proposals": [{"criterion_id": "Q2.c3", "decision": "raise", "marks": 1.25, "evidence": "uses RAG", "reason": "x"}]}])
+    advocate = FakeLLM(
+        [
+            {
+                "proposals": [
+                    {"criterion_id": "Q2.c3", "decision": "raise", "marks": 1.25, "evidence": "uses RAG", "reason": "x"}
+                ]
+            }
+        ]
+    )
     g = grade_question(Q2, seg(), FakeLLM([_reply()]), runs=1, advocate=advocate)
     assert g.criteria[2].marks_awarded == 0 and "advocate_unsupported:Q2.c3" in g.flags
 
 
 def test_advocate_marks_benefit_of_the_doubt_when_runs_disagreed():
     runs = [_reply(), _reply(c3=(0.5, "look things up in documents")), _reply()]
-    advocate = FakeLLM([{"proposals": [{"criterion_id": "Q2.c3", "decision": "raise", "marks": 0.75, "evidence": "look things up in documents", "reason": "x"}]}])
+    advocate = FakeLLM(
+        [
+            {
+                "proposals": [
+                    {
+                        "criterion_id": "Q2.c3",
+                        "decision": "raise",
+                        "marks": 0.75,
+                        "evidence": "look things up in documents",
+                        "reason": "x",
+                    }
+                ]
+            }
+        ]
+    )
     g = grade_question(Q2, seg(), FakeLLM(runs), runs=3, advocate=advocate)
     assert {"advocate", "bod"} <= set(g.criteria[2].tags)
 
@@ -138,7 +172,10 @@ def _ecf_spec():
 
 def test_follow_through_sees_earlier_answer_and_tags_ecf():
     spec = _ecf_spec()
-    segs = {"Q1": AnswerSegment(question_id="Q1", text="6 x 7 = 40"), "Q2": AnswerSegment(question_id="Q2", text="2 x 40 = 80")}
+    segs = {
+        "Q1": AnswerSegment(question_id="Q1", text="6 x 7 = 40"),
+        "Q2": AnswerSegment(question_id="Q2", text="2 x 40 = 80"),
+    }
     assert dependency_context(spec.question("Q2"), segs) == "Q1: 6 x 7 = 40"
     llm = FakeLLM([
         {"criteria": [{"criterion_id": "Q1.c1", "marks_awarded": 0, "evidence": None, "reason": "wrong"}]},
@@ -170,7 +207,10 @@ def test_unknown_dependency_is_rejected():
 def test_crossed_out_work_is_ignored():
     assert strip_crossed_out("A stack is ~~FIFO~~ LIFO") == "A stack is LIFO"
     assert strip_crossed_out("[crossed out: wrong formula] E = mc^2") == "E = mc^2"
-    page = OCRPage(page_index=0, lines=[OCRLine(text="Ans 2 ~~wrong idea~~"), OCRLine(text="~~all struck~~"), OCRLine(text="right idea")])
+    page = OCRPage(
+        page_index=0,
+        lines=[OCRLine(text="Ans 2 ~~wrong idea~~"), OCRLine(text="~~all struck~~"), OCRLine(text="right idea")],
+    )
     assert segment_pages(SPEC, [page])["Q2"].text == "right idea"
 
 
@@ -209,14 +249,26 @@ def test_lint_flags_bundled_and_orphan_follow_through():
 def _qgrade(marks=(1.5, 1.25, 0)):
     ev = ["confident text that is not true", "training rewards likely tokens", None]
     crit = [
-        CriterionResult(criterion_id=f"Q2.c{i + 1}", verdict=Verdict.MET if m else Verdict.NOT_MET, marks_awarded=m, evidence=ev[i] if m else None, reason="r")
+        CriterionResult(
+            criterion_id=f"Q2.c{i + 1}",
+            verdict=Verdict.MET if m else Verdict.NOT_MET,
+            marks_awarded=m,
+            evidence=ev[i] if m else None,
+            reason="r",
+        )
         for i, m in enumerate(marks)
     ]
     return QuestionGrade(question_id="Q2", marks_awarded=sum(marks), max_marks=4, criteria=crit)
 
 
 def test_remark_drops_person_praise_misquotes_and_long_parts():
-    raw = {"remark": {"strength": "You are brilliant.", "fix": 'You wrote "use RAG" but never explained it.', "next_step": "Name one mitigation and say how it reduces false answers."}}
+    raw = {
+        "remark": {
+            "strength": "You are brilliant.",
+            "fix": 'You wrote "use RAG" but never explained it.',
+            "next_step": "Name one mitigation and say how it reduces false answers.",
+        }
+    }
     remark, flags = verify_remark(_qgrade(), ANSWER, raw)
     assert remark.next_step.startswith("Name one mitigation") and not remark.strength and not remark.fix
     assert sorted(flags) == ["remark_dropped:about_the_person:strength", "remark_dropped:misquote:fix"]
@@ -251,7 +303,10 @@ def _sheet(sid, marks, conf=1.0):
 
 def test_compare_reports_bias_coverage_and_groups():
     grades = [_sheet("a", 2), _sheet("b", 1, conf=0.3), _sheet("c", 3)]
-    human = {"A": {("a", "Q2"): 3, ("b", "Q2"): 3, ("c", "Q2"): 3}, "B": {("a", "Q2"): 2, ("b", "Q2"): 4, ("c", "Q2"): 3}}
+    human = {
+        "A": {("a", "Q2"): 3, ("b", "Q2"): 3, ("c", "Q2"): 3},
+        "B": {("a", "Q2"): 2, ("b", "Q2"): 4, ("c", "Q2"): 3},
+    }
     assert human_consensus(human)[("a", "Q2")] == 2.5
     meta = {"a": {"language": "kn"}, "b": {"language": "kn"}, "c": {"language": "en"}}
     rep = compare(SPEC, grades, human, meta)
@@ -269,7 +324,6 @@ def test_handwriting_penalty():
     assert out["by_handwriting"] == {"good": 0.0, "poor": -1.0}
 
 
-
 def test_lenient_marking_policy_reaches_every_prompt():
     from autoassess.advocate import build_advocate_prompt
     from autoassess.critic import build_critic_prompt
@@ -281,7 +335,10 @@ def test_lenient_marking_policy_reaches_every_prompt():
     data["questions"][1]["marking"] = "standard"  # a question can opt out
     spec = ExamSpec.model_validate(data)
     q1, q2 = spec.questions[0], spec.questions[1]
-    r = [CriterionResult(criterion_id=c.id, verdict=Verdict.PARTIAL, marks_awarded=0.5, evidence="x", reason="") for c in q1.criteria]
+    r = [
+        CriterionResult(criterion_id=c.id, verdict=Verdict.PARTIAL, marks_awarded=0.5, evidence="x", reason="")
+        for c in q1.criteria
+    ]
     for prompt in (build_prompt(q1, "ans"), build_critic_prompt(q1, "ans", r), build_advocate_prompt(q1, "ans", r)):
         assert "MARKING POLICY: lenient" in prompt
     assert "MARKING POLICY" not in build_prompt(q2, "ans")

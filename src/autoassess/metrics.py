@@ -17,7 +17,7 @@ def quadratic_weighted_kappa(a: Sequence[float], b: Sequence[float], step: float
     if n == 1:
         return 1.0
     obs = [[0.0] * n for _ in range(n)]
-    for x, y in zip(ia, ib):
+    for x, y in zip(ia, ib, strict=False):
         obs[x - lo][y - lo] += 1
     hist_a = [sum(row) for row in obs]
     hist_b = [sum(obs[i][j] for i in range(n)) for j in range(n)]
@@ -32,6 +32,7 @@ def quadratic_weighted_kappa(a: Sequence[float], b: Sequence[float], step: float
 
 
 def mean_absolute_error(a: Sequence[float], b: Sequence[float]) -> float:
+    """Return the mean absolute difference between paired marks."""
     return sum(abs(x - y) for x, y in zip(a, b, strict=True)) / len(a)
 
 
@@ -87,6 +88,7 @@ def bootstrap_ci(
 
 
 def pearson(a: Sequence[float], b: Sequence[float]) -> float:
+    """Return Pearson correlation, or NaN when a sequence has no variation."""
     n = len(a)
     ma, mb = sum(a) / n, sum(b) / n
     cov = sum((x - ma) * (y - mb) for x, y in zip(a, b, strict=True))
@@ -96,9 +98,13 @@ def pearson(a: Sequence[float], b: Sequence[float]) -> float:
 
 
 def agreement_report(
-    system: Sequence[float], human: Sequence[float], max_marks: Sequence[float] | None = None, ci: bool = False,
+    system: Sequence[float],
+    human: Sequence[float],
+    max_marks: Sequence[float] | None = None,
+    ci: bool = False,
     groups: Sequence[str] | None = None,
 ) -> dict:
+    """Summarise paired marks, optionally adding bootstrap confidence intervals."""
     report = {
         "n": len(system),
         "ci_method": "cluster:question" if groups is not None else "item",
@@ -112,7 +118,9 @@ def agreement_report(
         "bias": round(signed_bias(system, human), 3),
     }
     if max_marks is not None:
-        report["nmae"] = round(sum(abs(s - h) / m for s, h, m in zip(system, human, max_marks, strict=True)) / len(system), 3)
+        report["nmae"] = round(
+            sum(abs(s - h) / m for s, h, m in zip(system, human, max_marks, strict=True)) / len(system), 3
+        )
     if ci and len(system) >= 5:
         report["ci95"] = {
             "qwk": bootstrap_ci(system, human, quadratic_weighted_kappa, groups=groups),
@@ -137,10 +145,12 @@ def _ocr_norm(text: str) -> str:
 
 
 def character_error_rate(hypothesis: str, reference: str) -> float:
+    """Measure character edit distance relative to normalised reference length."""
     ref = _ocr_norm(reference)
     return _edit_distance(_ocr_norm(hypothesis), ref) / max(1, len(ref))
 
 
 def word_error_rate(hypothesis: str, reference: str) -> float:
+    """Measure word edit distance relative to reference word count."""
     ref = reference.split()
     return _edit_distance(hypothesis.split(), ref) / max(1, len(ref))

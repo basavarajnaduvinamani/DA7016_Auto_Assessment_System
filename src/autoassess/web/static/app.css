@@ -4,3 +4,42 @@
 .class-report .bar{display:inline-block;background:var(--red);height:12px;vertical-align:middle;border-radius:2px}.class-report .quiet{color:var(--muted)}.class-report h2{margin-top:28px}.class-report h1{font-size:25px}.download-actions{flex-wrap:wrap}@media print{body{background:white;color:black;font-size:11pt}.topbar,footer,.breadcrumbs,.skip,button,.download-actions,.page-heading>.button{display:none!important}.container{max-width:none;min-height:0;padding:0}.panel{box-shadow:none;border:0;padding:0;margin:16px 0}.class-report{break-inside:auto}.class-report .bar{print-color-adjust:exact;-webkit-print-color-adjust:exact}h1,h2,h3{break-after:avoid}tr{break-inside:avoid}a{color:black;text-decoration:none}.page-heading{margin-bottom:18px}.table-scroll{overflow:visible}}
 
 .class-report .bar{max-width:80%}.class-report td:first-child{white-space:nowrap;width:80px}
+
+/* Indic scripts use installed Noto fallbacks without a remote font request. */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    "Noto Sans Devanagari", "Noto Sans Kannada", "Noto Sans Tamil", "Noto Sans Telugu",
+    "Noto Sans Bengali", "Noto Sans Malayalam", "Noto Sans Gujarati", "Noto Sans Oriya",
+    "Noto Sans Gurmukhi", sans-serif;
+}
+pre { font-family: inherit; }
+.flag-chips { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
+.flag-chip {
+  display:inline-block; max-width:100%; padding:4px 9px; border-radius:20px;
+  background:#f3eee3; color:#735821; font-size:11px; font-weight:650; border:1px solid #e6dcc3;
+}
+.flag-danger { background:var(--red-light); border-color:#eac9c7; color:#942c34; }
+.review-toolbar { display:flex; justify-content:space-between; gap:20px; align-items:center; margin-bottom:20px; }
+.queue-filter { display:flex; gap:10px; align-items:center; }
+.queue-filter select { min-width:120px; }
+kbd { font-size:11px; padding:2px 5px; border:1px solid var(--line); border-radius:4px; background:white; }
+.empty-illustration { width:150px; height:105px; margin-bottom:14px; }
+.how-marking-works { margin-bottom:24px; }
+.how-marking-works ol { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; padding-left:22px; margin:12px 0; }
+.how-marking-works li { padding-left:3px; }
+.how-marking-works li::marker { color:var(--red); font-weight:700; }
+.how-marking-works strong,.how-marking-works span { display:block; }
+.how-marking-works span { color:var(--muted); font-size:13px; margin-top:5px; }
+.marked-preview { margin:22px 0; padding-top:18px; border-top:1px solid var(--line); }
+.marked-preview a { display:flex; align-items:center; gap:20px; font-size:13px; }
+.answer-source img.marked-thumbnail {
+  width:115px; height:150px; object-fit:contain; background:var(--paper); border:1px solid var(--line); border-radius:6px;
+}
+.rubric-total-warning[hidden] { display:none; }
+@media(max-width:700px) {
+  .review-toolbar { align-items:flex-start; flex-direction:column; gap:8px; }
+  .how-marking-works ol { grid-template-columns:1fr; gap:14px; }
+  .queue-filter { flex-wrap:wrap; }
+  .queue-filter select { width:auto; }
+  .marked-preview a { gap:14px; }
+}

@@ -24,6 +24,7 @@ _ROLL = re.compile(r"\b(?:[A-Z]{2,4}\d{2}[A-Z]{1,4}\d{2,4}|\d{2}[A-Z]{2,4}\d{3,5
 
 
 def anonymise(text: str) -> str:
+    """Remove recognised personal identifiers from text before provider calls."""
     text = _FIELD.sub(lambda m: f"{m.group('label')}[redacted]", text)
     text = _EMAIL.sub("[email]", text)
     text = _PHONE.sub("[phone]", text)
@@ -34,10 +35,13 @@ FREE_TIER_HOSTS = ("generativelanguage.googleapis.com",)
 
 
 class PrivacyError(RuntimeError):
+    """The configured provider violates the real-sheet privacy policy."""
+
     pass
 
 
 def check_provider_for_real_sheets(base_url: str | None, real_sheets: bool, paid_gemini: bool = False) -> None:
+    """Reject known free Gemini endpoints when real-sheet privacy mode is active."""
     if not real_sheets or paid_gemini:
         return
     if base_url and any(h in base_url for h in FREE_TIER_HOSTS):

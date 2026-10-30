@@ -1,0 +1,1 @@
+<div class="flag-chips">{% for chip in flag_chips(flags) %}<span class="flag-chip {{ 'flag-danger' if chip.code == 'possible_prompt_injection' else '' }}" data-flag="{{ chip.code }}" title="{{ chip.title }}" aria-label="{{ chip.title }}" tabindex="0">{{ chip.label }}</span>{% endfor %}</div>

@@ -40,7 +40,10 @@ def load_human_marks(path: str | Path) -> dict[str, dict[tuple[str, str], float]
 
 
 def load_grades(directory: str | Path) -> list[SheetGrade]:
-    return [SheetGrade.model_validate_json(p.read_text(encoding="utf-8")) for p in sorted(Path(directory).glob("*.json"))]
+    """Load validated sheet grades from a directory of JSON files."""
+    return [
+        SheetGrade.model_validate_json(p.read_text(encoding="utf-8")) for p in sorted(Path(directory).glob("*.json"))
+    ]
 
 
 def load_sheet_meta(path: str | Path) -> dict[str, dict[str, str]]:
@@ -65,6 +68,7 @@ def compare(
     meta: dict[str, dict[str, str]] | None = None,
     ci: bool = True,
 ) -> dict:
+    """Compare current marks to human graders and consensus with optional grouping."""
     system = {(g.student_id, q.question_id): q.marks_awarded for g in grades for q in g.questions}
     conf = {(g.student_id, q.question_id): q.confidence for g in grades for q in g.questions}
     max_marks = {q.id: q.max_marks for q in spec.questions}
@@ -75,7 +79,10 @@ def compare(
         if not keys:
             continue
         report["per_grader"][grader] = agreement_report(
-            [system[k] for k in keys], [marks[k] for k in keys], [max_marks[k[1]] for k in keys], ci=ci,
+            [system[k] for k in keys],
+            [marks[k] for k in keys],
+            [max_marks[k[1]] for k in keys],
+            ci=ci,
             groups=[k[1] for k in keys],
         )
 
@@ -86,10 +93,14 @@ def compare(
         report["vs_consensus"] = agreement_report(sysv, humv, mx, ci=ci, groups=[k[1] for k in keys])
         report["coverage_curve"] = coverage_curve([conf[k] for k in keys], sysv, humv, mx)
         report["auto_accepted_share"] = round(
-            sum(1 for g in grades for q in g.questions if not q.needs_review) / max(1, sum(len(g.questions) for g in grades)), 3
+            sum(1 for g in grades for q in g.questions if not q.needs_review)
+            / max(1, sum(len(g.questions) for g in grades)),
+            3,
         )
         report["bias_per_question"] = {
-            q.id: round(signed_bias([system[k] for k in keys if k[1] == q.id], [consensus[k] for k in keys if k[1] == q.id]), 3)
+            q.id: round(
+                signed_bias([system[k] for k in keys if k[1] == q.id], [consensus[k] for k in keys if k[1] == q.id]), 3
+            )
             for q in spec.questions
             if any(k[1] == q.id for k in keys)
         }
@@ -126,20 +137,33 @@ def _per_group(keys, system, consensus, max_marks, meta, ci=True) -> dict:
             if value:
                 groups[value].append(k)
         out[col] = {
-            v: agreement_report([system[k] for k in ks], [consensus[k] for k in ks], [max_marks[k[1]] for k in ks], ci=ci and len(ks) >= 10, groups=[k[1] for k in ks])
+            v: agreement_report(
+                [system[k] for k in ks],
+                [consensus[k] for k in ks],
+                [max_marks[k[1]] for k in ks],
+                ci=ci and len(ks) >= 10,
+                groups=[k[1] for k in ks],
+            )
             for v, ks in sorted(groups.items())
             if len(ks) >= 2
         }
     return out
 
 
-def handwriting_penalty(scan: list[SheetGrade], transcript: list[SheetGrade], meta: dict[str, dict[str, str]] | None = None) -> dict:
+def handwriting_penalty(
+    scan: list[SheetGrade], transcript: list[SheetGrade], meta: dict[str, dict[str, str]] | None = None
+) -> dict:
     """Marks on the scan minus marks on the typed transcript, same sheets and questions.
 
     Negative means reading the handwriting cost the student marks.
     """
     t = {(g.student_id, q.question_id): q.marks_awarded for g in transcript for q in g.questions}
-    rows = [(g.student_id, q.question_id, q.marks_awarded - t[(g.student_id, q.question_id)]) for g in scan for q in g.questions if (g.student_id, q.question_id) in t]
+    rows = [
+        (g.student_id, q.question_id, q.marks_awarded - t[(g.student_id, q.question_id)])
+        for g in scan
+        for q in g.questions
+        if (g.student_id, q.question_id) in t
+    ]
     if not rows:
         return {"n": 0}
     out: dict = {"n": len(rows), "mean_delta": round(sum(d for *_, d in rows) / len(rows), 3)}
@@ -155,4 +179,5 @@ def handwriting_penalty(scan: list[SheetGrade], transcript: list[SheetGrade], me
 
 
 def write_report(report: dict, path: str | Path) -> None:
+    """Write aggregate evaluation results as formatted JSON."""
     Path(path).write_text(json.dumps(report, indent=2), encoding="utf-8")

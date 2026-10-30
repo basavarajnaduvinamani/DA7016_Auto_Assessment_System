@@ -9,7 +9,16 @@ from autoassess.providers.bodhan import BodhanOCR, BodhanTranslate, BudgetExceed
 def _fake_ocr_response():
     return {
         "choices": [{"message": {"content": "Ans 1. Queries keys and values"}}],
-        "blocks": [{"order": 0, "label": "paragraph", "type": "Text", "bbox_xyxy": [10, 20, 300, 60], "conf": 0.93, "text": "Ans 1. Queries keys and values"}],
+        "blocks": [
+            {
+                "order": 0,
+                "label": "paragraph",
+                "type": "Text",
+                "bbox_xyxy": [10, 20, 300, 60],
+                "conf": 0.93,
+                "text": "Ans 1. Queries keys and values",
+            }
+        ],
     }
 
 
@@ -35,7 +44,7 @@ def test_ocr_markdown_fallback_without_blocks(tmp_path):
     img.write_bytes(b"x")
     ocr = BodhanOCR("k", cache=None)
     ocr.client._post = lambda path, body: {"choices": [{"message": {"content": "line one\nline two"}}]}
-    assert [l.text for l in ocr.read_page(img, 0).lines] == ["line one", "line two"]
+    assert [line.text for line in ocr.read_page(img, 0).lines] == ["line one", "line two"]
 
 
 def test_budget_stops_paid_calls(tmp_path):

@@ -16,12 +16,15 @@ from autoassess.segment import segment
 
 @dataclass
 class GradingRun:
+    """A complete grading result with source pages and grounded answer segments."""
+
     spec: ExamSpec
     grade: SheetGrade
     segments: dict[str, AnswerSegment]
     pages: list[OCRPage] = field(default_factory=list)
 
     def html(self) -> str:
+        """Render the evidence-linked report for this grading run."""
         from autoassess.report import render_html
 
         return render_html(self.spec, self.grade, self.segments, self.pages)
@@ -33,7 +36,9 @@ class GradingRun:
         return annotate_sheet(self.spec, self.grade, self.segments, self.pages, out_dir)
 
 
-def read_sheet(path: str | Path, ocr: OCRProvider, work_dir: str | Path | None = None, language: str | None = None) -> list[OCRPage]:
+def read_sheet(
+    path: str | Path, ocr: OCRProvider, work_dir: str | Path | None = None, language: str | None = None
+) -> list[OCRPage]:
     """A .txt sheet is read as text; anything else is ingested and OCR'd page by page."""
     path = Path(path)
     if path.suffix.lower() == ".txt":
@@ -68,7 +73,18 @@ def run(
     if llm is None:
         grade = grade_sheet_lexical(spec, segments, student_id)
     else:
-        grade = grade_sheet(spec, segments, llm, student_id, runs=runs, critic=critic, advocate=advocate, second=second, pages=pages, mode=mode)
+        grade = grade_sheet(
+            spec,
+            segments,
+            llm,
+            student_id,
+            runs=runs,
+            critic=critic,
+            advocate=advocate,
+            second=second,
+            pages=pages,
+            mode=mode,
+        )
     if feedback:
         grade = add_feedback(spec, grade, {k: v.text for k, v in segments.items()}, llm)
         if translator is not None and feedback_language:
@@ -79,4 +95,5 @@ def run(
 
 
 def grade_pages(spec: ExamSpec, pages: list[OCRPage], student_id: str, llm: LLMClient | None, **kwargs) -> SheetGrade:
+    """Run the full pipeline and return only its validated sheet grade."""
     return run(spec, pages, student_id, llm, **kwargs).grade

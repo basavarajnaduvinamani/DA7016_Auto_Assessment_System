@@ -7,6 +7,7 @@ import math
 from collections.abc import Iterable
 from typing import Any
 
+from autoassess.demo import LANGUAGES
 from autoassess.regrade import RegradeRecord
 from autoassess.schemas import CriterionResult, ExamSpec, SheetGrade, Verdict
 
@@ -62,18 +63,27 @@ class AssignmentStore:
                     old_json TEXT NOT NULL, result_json TEXT NOT NULL, record_json TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
-                UPDATE schema_version SET version=2;
+                UPDATE schema_version SET version=3;
             """)
 
-    def create_assignment(self, class_id: int, title: str, spec: ExamSpec, *, is_demo: bool = False) -> int:
+            # Existing classroom databases retain their records and default to English.
+            columns = {row[1] for row in db.execute("PRAGMA table_info(assignments)")}
+            if "feedback_language" not in columns:
+                db.execute("ALTER TABLE assignments ADD COLUMN feedback_language TEXT NOT NULL DEFAULT 'English'")
+
+    def create_assignment(
+        self, class_id: int, title: str, spec: ExamSpec, *, is_demo: bool = False, feedback_language: str = "English"
+    ) -> int:
         """Persist a validated rubric and non-empty assignment title."""
+        if feedback_language not in LANGUAGES:
+            raise ValueError("Choose a supported feedback language.")
         title = title.strip()
         if not title or len(title) > 160:
             raise ValueError("Enter an assignment title (up to 160 characters).")
         with self.connect() as db:
             return db.execute(
-                "INSERT INTO assignments(class_id,title,spec_json,is_demo) VALUES(?,?,?,?)",
-                (class_id, title, spec.model_dump_json(), int(is_demo)),
+                "INSERT INTO assignments(class_id,title,spec_json,is_demo,feedback_language) VALUES(?,?,?,?,?)",
+                (class_id, title, spec.model_dump_json(), int(is_demo), feedback_language),
             ).lastrowid
 
     def assignments(self, class_id: int) -> list[dict]:

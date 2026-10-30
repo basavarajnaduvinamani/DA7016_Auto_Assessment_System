@@ -3,6 +3,8 @@
 {% block breadcrumb %}<span>/</span><span>{{ assignment.title }}</span>{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">{{ 'RELEASED' if assignment.released else 'ASSIGNMENT' }}</p><h1>{{ assignment.title }}</h1><p class="muted">{{ spec.questions|length }} questions · {{ '%g'|format(spec.total_marks) }} marks · Advocate review by default</p></div><div class="actions"><a href="/assignments/{{ assignment.id }}/upload" class="button secondary">Upload sheets</a><a class="button" href="/assignments/{{ assignment.id }}/review">Review answers</a></div></div>
+{% if translation_notice %}<div class="notice" role="status">Feedback stays in English: translation is not configured</div>{% endif %}
+<section class="panel how-marking-works"><h2>How marking works</h2><ol><li><strong>Read the sheet</strong><span>Typed answers go straight in. Scans are read into text.</span></li><li><strong>Check your rubric</strong><span>Each mark points to words in the student’s answer.</span></li><li><strong>Review what needs you</strong><span>Inspect flagged answers, make your decision, then release.</span></li></ol></section>
 {% if warnings %}<details class="panel rubric-warnings"><summary>Rubric check · {{ warnings|length }} suggestions</summary><ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul></details>{% endif %}
 {% include 'progress.html' %}
 {% include 'teacher_time.html' %}

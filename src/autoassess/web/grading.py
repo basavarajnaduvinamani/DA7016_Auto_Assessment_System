@@ -51,9 +51,19 @@ def grade_submission(
     input_dir.mkdir(parents=True, exist_ok=True)
     input_path = input_dir / f"{submission['roll_no']}{original.suffix}"
     shutil.copyfile(original, input_path)
-    result = mark_sheet(spec, input_path, Options(), settings=settings or demo_settings(), out_dir=out)
+    result = mark_sheet(
+        spec,
+        input_path,
+        Options(language=assignment["feedback_language"]),
+        settings=settings or demo_settings(),
+        out_dir=out,
+    )
     if any(note.startswith("Reading provider unavailable:") for note in result.notes):
         raise ValueError("Reading provider unavailable; check OCR setup and retry.")
+    if not any(segment.text.strip() for segment in result.run.segments.values()):
+        result.notes.append(
+            "No recognisable questions were found. All questions are marked unanswered; check the question labels and review the sheet."
+        )
     grade = result.grade.model_copy(update={"student_id": submission["roll_no"]})
     run_json = json.dumps(
         {

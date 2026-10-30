@@ -3,6 +3,7 @@
 import io
 
 import pytest
+from conftest import SAMPLE, FakeLLM
 from PIL import Image
 
 from autoassess.experiments import run_ablation
@@ -10,7 +11,6 @@ from autoassess.grader import grade_question, grade_sheet
 from autoassess.page_images import answer_crops
 from autoassess.schemas import AnswerSegment, BBox, OCRLine, OCRPage
 from autoassess.spec_builder import load_spec
-from conftest import SAMPLE, FakeLLM
 
 SPEC = load_spec(SAMPLE / "exam_spec.yaml")
 Q2 = SPEC.question("Q2")
@@ -36,7 +36,11 @@ def _page(tmp_path, h=1200):
     path = tmp_path / "p0.png"
     Image.new("RGB", (900, h), "white").save(path)
     line = OCRLine(text=f"Ans 2 {TEXT}", bbox=BBox(x0=50, y0=400, x1=850, y1=460))
-    return OCRPage(page_index=0, image_path=str(path), lines=[OCRLine(text="Ans 1 x", bbox=BBox(x0=50, y0=100, x1=850, y1=150)), line])
+    return OCRPage(
+        page_index=0,
+        image_path=str(path),
+        lines=[OCRLine(text="Ans 1 x", bbox=BBox(x0=50, y0=100, x1=850, y1=150)), line],
+    )
 
 
 def test_crop_is_the_answer_band_not_the_whole_page(tmp_path):

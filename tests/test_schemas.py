@@ -9,8 +9,10 @@ def _q(**over):
         id="Q1",
         text="t",
         max_marks=3,
-        criteria=[{"id": "Q1.c1", "description": "Names the three parts.", "marks": 2},
-                  {"id": "Q1.c2", "description": "Gives one example.", "marks": 1}],
+        criteria=[
+            {"id": "Q1.c1", "description": "Names the three parts.", "marks": 2},
+            {"id": "Q1.c2", "description": "Gives one example.", "marks": 1},
+        ],
     )
     base.update(over)
     return base

@@ -1,7 +1,6 @@
 """Provider interfaces. The pipeline only ever talks to these.
 
-Free baselines implement them now; Bodhan AI classes implement the same
-interfaces later and are picked by config.
+Configured adapters implement the same contracts for local and hosted services.
 """
 
 from __future__ import annotations
@@ -13,6 +12,8 @@ from autoassess.schemas import OCRPage
 
 
 class OCRProvider(ABC):
+    """Interface for reading page text, layout and recognition confidence."""
+
     name: str = "base"
 
     @abstractmethod
@@ -21,6 +22,8 @@ class OCRProvider(ABC):
 
 
 class LLMClient(ABC):
+    """Interface for structured text and optional image-based model responses."""
+
     name: str = "base"
 
     @abstractmethod
@@ -35,6 +38,8 @@ class LLMClient(ABC):
 
 
 class Translator(ABC):
+    """Interface for translating feedback while preserving its structure."""
+
     name: str = "base"
 
     @abstractmethod

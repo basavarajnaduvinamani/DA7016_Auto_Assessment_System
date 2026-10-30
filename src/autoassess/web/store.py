@@ -6,15 +6,18 @@ import csv
 import io
 import re
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-
+from typing import Any
 
 from autoassess.web.repository import AssignmentStore
 
 
 class Store(AssignmentStore):
-    def __init__(self, data_dir: str | Path):
+    """Manage the local SQLite database, class ownership and validated rosters."""
+
+    def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / "files").mkdir(exist_ok=True)
@@ -40,7 +43,8 @@ class Store(AssignmentStore):
         self.init_assignments()
 
     @contextmanager
-    def connect(self):
+    def connect(self) -> Iterator[sqlite3.Connection]:
+        """Yield a transaction-scoped connection with foreign keys enabled."""
         db = sqlite3.connect(self.path, timeout=30)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
@@ -50,59 +54,84 @@ class Store(AssignmentStore):
         finally:
             db.close()
 
-    def teacher(self, teacher_id: int):
+    def teacher(self, teacher_id: int) -> dict[str, Any] | None:
+        """Find a teacher by persistent ID."""
         with self.connect() as db:
             row = db.execute("SELECT * FROM teachers WHERE id=?", (teacher_id,)).fetchone()
             return dict(row) if row else None
 
-    def teacher_by_email(self, email: str):
+    def teacher_by_email(self, email: str) -> dict[str, Any] | None:
+        """Find a seeded teacher using a case-insensitive email match."""
         with self.connect() as db:
             row = db.execute("SELECT * FROM teachers WHERE email=?", (email.strip(),)).fetchone()
             return dict(row) if row else None
 
     def classes(self, teacher_id: int) -> list[dict]:
+        """List owned classes with live roster, assignment and review counts."""
         with self.connect() as db:
-            classes = [dict(r) for r in db.execute("""
+            classes = [
+                dict(r)
+                for r in db.execute(
+                    """
                 SELECT c.*, COUNT(s.id) AS student_count FROM classes c
                 LEFT JOIN students s ON s.class_id=c.id WHERE c.teacher_id=? GROUP BY c.id ORDER BY c.id
-            """, (teacher_id,))]
+            """,
+                    (teacher_id,),
+                )
+            ]
         for classroom in classes:
-            assignments = self.assignments(classroom['id'])
-            classroom['assignment_count'] = len(assignments)
-            classroom['review_count'] = sum(self.assignment_summary(a['id'])['needs_review'] for a in assignments)
+            assignments = self.assignments(classroom["id"])
+            classroom["assignment_count"] = len(assignments)
+            classroom["review_count"] = sum(self.assignment_summary(a["id"])["needs_review"] for a in assignments)
         return classes
 
-    def classroom(self, class_id: int, teacher_id: int):
+    def classroom(self, class_id: int, teacher_id: int) -> dict[str, Any] | None:
+        """Find a class owned by a specified teacher."""
         with self.connect() as db:
             row = db.execute("SELECT * FROM classes WHERE id=? AND teacher_id=?", (class_id, teacher_id)).fetchone()
             return dict(row) if row else None
 
     def create_class(self, teacher_id: int, name: str, subject: str, section: str = "") -> int:
+        """Validate and save a class under its teacher owner."""
         name, subject, section = name.strip(), subject.strip(), section.strip()
         if not name or not subject or max(len(name), len(subject)) > 120 or len(section) > 60:
-            raise ValueError("Enter a class name and subject (up to 120 characters) and an optional section (up to 60).")
+            raise ValueError(
+                "Enter a class name and subject (up to 120 characters) and an optional section (up to 60)."
+            )
         with self.connect() as db:
-            return db.execute("INSERT INTO classes(teacher_id,name,subject,section) VALUES(?,?,?,?)",
-                              (teacher_id, name, subject, section)).lastrowid
+            return db.execute(
+                "INSERT INTO classes(teacher_id,name,subject,section) VALUES(?,?,?,?)",
+                (teacher_id, name, subject, section),
+            ).lastrowid
 
     def students(self, class_id: int) -> list[dict]:
+        """List students in roll-number order for a class."""
         with self.connect() as db:
-            return [dict(r) for r in db.execute("SELECT * FROM students WHERE class_id=? ORDER BY roll_no", (class_id,))]
+            return [
+                dict(r) for r in db.execute("SELECT * FROM students WHERE class_id=? ORDER BY roll_no", (class_id,))
+            ]
 
     @staticmethod
     def student_fields(roll_no: str, name: str) -> tuple[str, str]:
+        """Validate and normalise a student's roll number and display name."""
         roll_no, name = roll_no.strip(), name.strip()
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", roll_no) or not name or len(name) > 120:
-            raise ValueError("Use a roll number with letters, numbers, dots, dashes or underscores, and a name (up to 120 characters).")
+            raise ValueError(
+                "Use a roll number with letters, numbers, dots, dashes or underscores, and a name (up to 120 characters)."
+            )
         return roll_no, name
 
-    def add_student(self, class_id: int, roll_no: str, name: str):
+    def add_student(self, class_id: int, roll_no: str, name: str) -> None:
+        """Insert a student or update the name for an existing class roll number."""
         roll_no, name = self.student_fields(roll_no, name)
         with self.connect() as db:
-            db.execute("INSERT INTO students(class_id,roll_no,name) VALUES(?,?,?) ON CONFLICT(class_id,roll_no) DO UPDATE SET name=excluded.name",
-                       (class_id, roll_no, name))
+            db.execute(
+                "INSERT INTO students(class_id,roll_no,name) VALUES(?,?,?) ON CONFLICT(class_id,roll_no) DO UPDATE SET name=excluded.name",
+                (class_id, roll_no, name),
+            )
 
     def import_roster(self, class_id: int, content: bytes) -> int:
+        """Validate a bounded CSV completely before atomically updating the roster."""
         if len(content) > 1024 * 1024:
             raise ValueError("Roster CSV must be under 1 MB.")
         try:
@@ -119,6 +148,8 @@ class Store(AssignmentStore):
         except (UnicodeDecodeError, csv.Error) as err:
             raise ValueError("Upload a valid UTF-8 CSV with the header roll_no,name.") from err
         with self.connect() as db:
-            db.executemany("INSERT INTO students(class_id,roll_no,name) VALUES(?,?,?) ON CONFLICT(class_id,roll_no) DO UPDATE SET name=excluded.name",
-                           [(class_id, *row) for row in rows])
+            db.executemany(
+                "INSERT INTO students(class_id,roll_no,name) VALUES(?,?,?) ON CONFLICT(class_id,roll_no) DO UPDATE SET name=excluded.name",
+                [(class_id, *row) for row in rows],
+            )
         return len(rows)

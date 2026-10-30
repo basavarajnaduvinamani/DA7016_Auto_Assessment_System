@@ -226,3 +226,5 @@ Agreement is well below human-human agreement, so marks should be reviewed by a 
 ## Acknowledgements
 
 Bodhan AI (IIT Madras with AI4Bharat) for IndicOCR and Indic-Translate; the SPRAG dataset authors (CC BY 4.0); course instructor Prof. Mitesh M. Khapra and the DA7016 TAs.
+
+Development rules and implementation task specs live in [docs/development/](docs/development/README.md).

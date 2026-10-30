@@ -30,12 +30,16 @@ def parse_json_reply(text: str) -> dict:
 
 
 class LLMError(RuntimeError):
+    """A model endpoint returned a failed or unusable response."""
+
     def __init__(self, message: str, status: int | None = None):
         super().__init__(message)
         self.status = status
 
 
 class OpenAICompatibleLLM(LLMClient):
+    """Call a cached OpenAI-compatible endpoint with structured-output validation."""
+
     def __init__(
         self,
         base_url: str,
@@ -61,7 +65,10 @@ class OpenAICompatibleLLM(LLMClient):
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})},
+            headers={
+                "Content-Type": "application/json",
+                **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -80,15 +87,19 @@ class OpenAICompatibleLLM(LLMClient):
             raise LLMError(f"{err.code} from {self.base_url}: {detail}", err.code) from err
 
     def complete_json(self, system: str, user: str, *, temperature: float = 0.0, seed: int | None = None) -> dict:
+        """Request and validate a JSON response to text prompts."""
         return self._complete(system, user, temperature, seed)
 
     def complete_json_images(
         self, system: str, user: str, images: list[bytes], *, temperature: float = 0.0, seed: int | None = None
     ) -> dict:
+        """Request and validate a JSON response to prompts and page images."""
         content: list[dict] = [{"type": "text", "text": user}]
         for img in images:
             mime = "image/jpeg" if img[:3] == b"\xff\xd8\xff" else "image/png"
-            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img).decode()}"}})
+            content.append(
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img).decode()}"}}
+            )
         return self._complete(system, content, temperature, seed)
 
     def _complete(self, system: str, user: str | list[dict], temperature: float, seed: int | None) -> dict:
@@ -103,6 +114,7 @@ class OpenAICompatibleLLM(LLMClient):
 
         def call() -> str:
             # The seed stays in the cache key either way, so repeated runs are cached separately.
+            """Perform an uncached request and record its billed usage."""
             sent = payload if self.sends_seed else {k: v for k, v in payload.items() if k != "seed"}
             if self.ledger:
                 self.ledger.check()

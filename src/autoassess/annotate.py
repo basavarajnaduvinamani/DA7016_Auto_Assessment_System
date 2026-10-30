@@ -46,6 +46,8 @@ MarkKind = Literal["tick", "text", "wavy", "caret", "circle", "question"]
 
 
 class Mark(BaseModel):
+    """A drawable annotation with page coordinates, text and mark value."""
+
     kind: MarkKind
     page: int
     x: float
@@ -57,6 +59,8 @@ class Mark(BaseModel):
 
 
 class AnnotationPlan(BaseModel):
+    """The marks and feedback to draw over a student's pages."""
+
     student_id: str
     pages: list[str] = Field(description="Page image paths, in order.")
     marks: list[Mark] = Field(default_factory=list)
@@ -134,7 +138,9 @@ def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPag
                 continue
             d.text((LEFT, y + 18), text, fill=STUDENT_INK, font=font)
             x1 = LEFT + d.textlength(text, font=font)
-            lines.append(src.model_copy(update={"text": text, "bbox": BBox(x0=LEFT, y0=y + 12, x1=x1, y1=y + LINE_H - 6)}))
+            lines.append(
+                src.model_copy(update={"text": text, "bbox": BBox(x0=LEFT, y0=y + 12, x1=x1, y1=y + LINE_H - 6)})
+            )
         path = out_dir / f"{student_id}_typeset_{idx + 1}.png"
         img.save(path)
         out.append(OCRPage(page_index=idx, image_path=str(path), lines=lines, provider="typeset"))
@@ -142,12 +148,14 @@ def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPag
 
 
 def needs_typesetting(pages: list[OCRPage]) -> bool:
+    """Return whether pages need a rendered text layout before annotation."""
     return not pages or any(
         not p.image_path or not Path(p.image_path).exists() or not any(line.bbox for line in p.lines) for p in pages
     )
 
 
 def resegment(spec: ExamSpec, pages: list[OCRPage]) -> dict[str, AnswerSegment]:
+    """Rebuild question segments using the rendered pages and line boxes."""
     from autoassess.segment import segment_pages
 
     return segment_pages(spec, pages)
@@ -211,7 +219,10 @@ def locate(quote: str, lines: list[tuple[int, OCRLine]], tail: bool = True) -> _
     return best if best_score >= 0.6 else None
 
 
-def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSegment], pages: list[OCRPage]) -> AnnotationPlan:
+def plan_annotations(
+    spec: ExamSpec, grade: SheetGrade, segments: dict[str, AnswerSegment], pages: list[OCRPage]
+) -> AnnotationPlan:
+    """Locate evidence and plan red-ink awards, corrections and review symbols."""
     sizes = {p.page_index: _page_size(p) for p in pages}
     pos = {p.page_index: i for i, p in enumerate(pages)}
     marks: list[Mark] = []
@@ -226,6 +237,7 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
 
     def sheet_order(qg: QuestionGrade) -> tuple[int, float]:
         # Students answer out of order; lay margin notes out in the order they appear on the sheet.
+        """Sort question grades by their first location on the answer sheet."""
         seg = segments.get(qg.question_id)
         own = _page_lines(pages, seg.pages[0], seg) if seg and seg.pages else []
         return (pos[seg.pages[0]], own[0].bbox.y0) if own else (10**6, 0.0)
@@ -244,12 +256,32 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
         p0 = pos[first_page]
         # Left margin: the question total, circled.
         total = f"{fmt_marks(qg.marks_awarded)}/{fmt_marks(qg.max_marks)}"
-        marks.append(Mark(kind="circle", page=p0, x=max(8, first.bbox.x0 - 130 * scale), y=first.bbox.y0 - 6 * scale, text=total, size=sz))
+        marks.append(
+            Mark(
+                kind="circle",
+                page=p0,
+                x=max(8, first.bbox.x0 - 130 * scale),
+                y=first.bbox.y0 - 6 * scale,
+                text=total,
+                size=sz,
+            )
+        )
         # Right margin: sub-part marks in brackets, and "?" when sent for review.
         rx = min(W - 120 * scale, max(first.bbox.x1 + 40 * scale, W - (RIGHT_MARGIN - 30) * scale))
-        marks.append(Mark(kind="text", page=p0, x=rx, y=first.bbox.y0 - 4 * scale, text=f"({fmt_marks(qg.marks_awarded)})", size=sz))
+        marks.append(
+            Mark(
+                kind="text",
+                page=p0,
+                x=rx,
+                y=first.bbox.y0 - 4 * scale,
+                text=f"({fmt_marks(qg.marks_awarded)})",
+                size=sz,
+            )
+        )
         if qg.needs_review:
-            marks.append(Mark(kind="question", page=p0, x=rx + 90 * scale, y=first.bbox.y0 - 10 * scale, text="?", size=sz * 1.4))
+            marks.append(
+                Mark(kind="question", page=p0, x=rx + 90 * scale, y=first.bbox.y0 - 10 * scale, text="?", size=sz * 1.4)
+            )
         # Ticks at the evidence, one per mark.
         tick_slots: dict[int, float] = {}
         for r in qg.criteria:
@@ -262,15 +294,43 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
             x = tick_slots.get(key, min(line.bbox.x1 + 14 * scale, limit - 60 * scale))
             n = int(r.marks_awarded)
             for _ in range(max(n, 0)):
-                marks.append(Mark(kind="tick", page=pos[page], x=x, y=line.bbox.y0, w=26 * scale, h=line.bbox.y1 - line.bbox.y0, size=sz))
+                marks.append(
+                    Mark(
+                        kind="tick",
+                        page=pos[page],
+                        x=x,
+                        y=line.bbox.y0,
+                        w=26 * scale,
+                        h=line.bbox.y1 - line.bbox.y0,
+                        size=sz,
+                    )
+                )
                 x += 26 * scale
             frac = r.marks_awarded - n
             if frac > 0:
-                marks.append(Mark(kind="text", page=pos[page], x=x, y=line.bbox.y0 - 4 * scale, text=fmt_marks(frac), size=sz * 0.7))
+                marks.append(
+                    Mark(
+                        kind="text",
+                        page=pos[page],
+                        x=x,
+                        y=line.bbox.y0 - 4 * scale,
+                        text=fmt_marks(frac),
+                        size=sz * 0.7,
+                    )
+                )
                 x += 24 * scale
             for tag, label in (("ecf", "ECF"), ("bod", "BOD")):
                 if tag in r.tags:
-                    marks.append(Mark(kind="text", page=pos[page], x=x + 4 * scale, y=line.bbox.y0 - 2 * scale, text=label, size=sz * 0.65))
+                    marks.append(
+                        Mark(
+                            kind="text",
+                            page=pos[page],
+                            x=x + 4 * scale,
+                            y=line.bbox.y0 - 2 * scale,
+                            text=label,
+                            size=sz * 0.65,
+                        )
+                    )
                     x += 56 * scale
             if (
                 praise_left
@@ -279,7 +339,16 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
                 and qg.marks_awarded >= 0.8 * qg.max_marks
                 and hit is not None
             ):
-                marks.append(Mark(kind="text", page=pos[page], x=x + 8 * scale, y=line.bbox.y0 - 6 * scale, text="Good!", size=sz * 0.9))
+                marks.append(
+                    Mark(
+                        kind="text",
+                        page=pos[page],
+                        x=x + 8 * scale,
+                        y=line.bbox.y0 - 6 * scale,
+                        text="Good!",
+                        size=sz * 0.9,
+                    )
+                )
                 x += 90 * scale
                 praise_left -= 1
             tick_slots[key] = x + 6 * scale
@@ -290,9 +359,13 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
                 continue
             b = hit.line.bbox
             x0, x1 = b.x0 + hit.start * (b.x1 - b.x0), b.x0 + hit.end * (b.x1 - b.x0)
-            marks.append(Mark(kind="wavy", page=pos[hit.page], x=x0, y=b.y1 + 2 * scale, w=max(30 * scale, x1 - x0), size=sz))
+            marks.append(
+                Mark(kind="wavy", page=pos[hit.page], x=x0, y=b.y1 + 2 * scale, w=max(30 * scale, x1 - x0), size=sz)
+            )
             if e.correction:
-                marks.append(Mark(kind="text", page=pos[hit.page], x=x0, y=b.y0 - 34 * scale, text=e.correction, size=sz * 0.62))
+                marks.append(
+                    Mark(kind="text", page=pos[hit.page], x=x0, y=b.y0 - 34 * scale, text=e.correction, size=sz * 0.62)
+                )
         # Caret at the end of an answer that lost marks, with the fix.
         if qg.marks_awarded < qg.max_marks and qg.remark and qg.remark.fix:
             lb = last.bbox
@@ -314,9 +387,13 @@ def plan_annotations(spec: ExamSpec, grade: SheetGrade, segments: dict[str, Answ
         student_id=grade.student_id,
         pages=[p.image_path or "" for p in pages],
         marks=marks,
-        cover=[(q.question_id, f"{fmt_marks(q.marks_awarded)}" + (" ?" if q.needs_review else "")) for q in grade.questions],
+        cover=[
+            (q.question_id, f"{fmt_marks(q.marks_awarded)}" + (" ?" if q.needs_review else "")) for q in grade.questions
+        ],
         total=f"{fmt_marks(grade.total)} / {fmt_marks(spec.total_marks)}",
-        confidence=round(sum(q.confidence for q in grade.questions) / max(1, len(grade.questions)), 2) if grade.questions else conf,
+        confidence=round(sum(q.confidence for q in grade.questions) / max(1, len(grade.questions)), 2)
+        if grade.questions
+        else conf,
         review=[q.question_id for q in grade.questions if q.needs_review],
         notes=_notes(spec, grade),
     )
@@ -350,7 +427,10 @@ def _notes(spec: ExamSpec, grade: SheetGrade) -> list[str]:
             out += [f"  {line}" for line in q.remark.lines()]
         for e in q.errors:
             out.append(f'  Check: "{e.quote}" -> {e.correction}')
-        out.append(f"  Marks: {fmt_marks(q.marks_awarded)} of {fmt_marks(q.max_marks)}" + ("   ? to be checked by a teacher" if q.needs_review else ""))
+        out.append(
+            f"  Marks: {fmt_marks(q.marks_awarded)} of {fmt_marks(q.max_marks)}"
+            + ("   ? to be checked by a teacher" if q.needs_review else "")
+        )
     if grade.summary_feedback:
         out += ["", grade.summary_feedback]
     return out
@@ -378,13 +458,20 @@ def _tick(d, m: Mark, rng: random.Random):
     s = m.w
     base_y = m.y + m.h * 0.75
     j = lambda: rng.uniform(-2, 2)  # noqa: E731
-    pts = [(m.x + j(), base_y - s * 0.35 + j()), (m.x + s * 0.35 + j(), base_y + j()), (m.x + s * 1.05 + j(), base_y - s * 1.1 + j())]
+    pts = [
+        (m.x + j(), base_y - s * 0.35 + j()),
+        (m.x + s * 0.35 + j(), base_y + j()),
+        (m.x + s * 1.05 + j(), base_y - s * 1.1 + j()),
+    ]
     d.line(pts, fill=(*INK, 240), width=max(3, int(m.size / 9)), joint="curve")
 
 
 def _wavy(d, m: Mark, rng: random.Random):
     amp, period = m.size * 0.12, m.size * 0.45
-    pts = [(m.x + t, m.y + amp * math.sin(2 * math.pi * t / period) + rng.uniform(-0.6, 0.6)) for t in range(0, int(m.w) + 1, 3)]
+    pts = [
+        (m.x + t, m.y + amp * math.sin(2 * math.pi * t / period) + rng.uniform(-0.6, 0.6))
+        for t in range(0, int(m.w) + 1, 3)
+    ]
     if len(pts) > 1:
         d.line(pts, fill=(*INK, 230), width=max(2, int(m.size / 12)))
 
@@ -411,6 +498,7 @@ def _stamp(img, xy, lines: list[str], size: float, rng: random.Random):
 
 
 def render_cover(plan: AnnotationPlan, title: str, rng: random.Random):
+    """Draw the booklet cover with the question grid and total."""
     from PIL import Image, ImageDraw
 
     img = Image.new("RGBA", (PAGE_W, PAGE_H), (250, 248, 240, 255))
@@ -449,6 +537,7 @@ def render_cover(plan: AnnotationPlan, title: str, rng: random.Random):
 
 
 def render_notes(plan: AnnotationPlan, rng: random.Random):
+    """Draw feedback pages for the annotation plan."""
     from PIL import Image
 
     pages = []
@@ -495,7 +584,11 @@ def render_plan(plan: AnnotationPlan, title: str = "", cover: bool = True, notes
                 _jitter_text(img, (m.x, m.y), m.text, m.size, rng, bold=m.kind == "question")
             elif m.kind == "circle":
                 w = _jitter_text(img, (m.x, m.y), m.text, m.size, rng, bold=True)
-                d.ellipse([m.x - 6, m.y - 4, m.x + w + 2, m.y + m.size * 1.5], outline=(*INK, 220), width=max(3, int(m.size / 11)))
+                d.ellipse(
+                    [m.x - 6, m.y - 4, m.x + w + 2, m.y + m.size * 1.5],
+                    outline=(*INK, 220),
+                    width=max(3, int(m.size / 11)),
+                )
         if i == 0:
             _stamp(img, (img.width - 330, img.height - 150), ["AI-marked"], 28, rng)
         out.append(img)
@@ -506,6 +599,8 @@ def render_plan(plan: AnnotationPlan, title: str = "", cover: bool = True, notes
 
 @dataclass
 class AnnotatedSheet:
+    """Paths to the completed marked PDF and page images."""
+
     plan: AnnotationPlan
     pdf: Path
     pngs: list[Path]
@@ -541,4 +636,5 @@ def annotate_sheet(
 
 
 def question_grade_for(grade: SheetGrade, qid: str) -> QuestionGrade | None:
+    """Find a question's grade, returning None when it is absent."""
     return next((q for q in grade.questions if q.question_id == qid), None)

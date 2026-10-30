@@ -29,7 +29,9 @@ def _draft_spec(args: argparse.Namespace) -> int:
     from autoassess.spec_builder import draft_spec, lint_spec, save_spec
 
     read = lambda p: Path(p).read_text(encoding="utf-8")  # noqa: E731
-    spec = draft_spec(read(args.paper), read(args.rubric), read(args.model_answers), make_llm(Settings.load()), args.exam_id)
+    spec = draft_spec(
+        read(args.paper), read(args.rubric), read(args.model_answers), make_llm(Settings.load()), args.exam_id
+    )
     save_spec(spec, args.out)
     print(f"wrote {args.out}; review it before grading")
     for w in lint_spec(spec):
@@ -89,7 +91,10 @@ def _grade(args: argparse.Namespace) -> int:
             marked = result.annotate(out / "marked")
             print(f"  marked sheet: {marked.pdf}")
         review = [q.question_id for q in grade.questions if q.needs_review]
-        print(f"{sid}: {grade.total:g} / {spec.total_marks:g}" + (f"  (? for review: {', '.join(review)})" if review else ""))
+        print(
+            f"{sid}: {grade.total:g} / {spec.total_marks:g}"
+            + (f"  (? for review: {', '.join(review)})" if review else "")
+        )
     from autoassess.doctor import spend_summary
 
     print(f"spend so far: {spend_summary(settings)}")
@@ -99,10 +104,15 @@ def _grade(args: argparse.Namespace) -> int:
 def _evaluate(args: argparse.Namespace) -> int:
     import json
 
-    from autoassess.evaluate import compare, load_grades, load_human_marks, write_report
+    from autoassess.evaluate import (
+        compare,
+        handwriting_penalty,
+        load_grades,
+        load_human_marks,
+        load_sheet_meta,
+        write_report,
+    )
     from autoassess.spec_builder import load_spec
-
-    from autoassess.evaluate import handwriting_penalty, load_sheet_meta
 
     meta = load_sheet_meta(args.meta) if args.meta else None
     grades = load_grades(args.grades)
@@ -160,7 +170,9 @@ def _experiment(args: argparse.Namespace) -> int:
             for ps in pages.values()
             for pg in ps
         )
-        results = run_ablation(spec, sheets, load_human_marks(args.human), llm, critic, pages=pages if has_images else None)
+        results = run_ablation(
+            spec, sheets, load_human_marks(args.human), llm, critic, pages=pages if has_images else None
+        )
         (out / "ablation.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
         table = ablation_table(results)
     else:
@@ -229,8 +241,13 @@ def _grade_class(args: argparse.Namespace) -> int:
 
             annotate_sheet(spec, g, sheets[g.student_id], pages[g.student_id], out / "marked")
         review = [q.question_id for q in g.questions if q.needs_review]
-        print(f"{g.student_id}: {g.total:g} / {spec.total_marks:g}" + (f"  (? for review: {', '.join(review)})" if review else ""))
-    report = class_report(spec, [type(grades[0]).model_validate_json((out / f"{g.student_id}.json").read_text()) for g in grades])
+        print(
+            f"{g.student_id}: {g.total:g} / {spec.total_marks:g}"
+            + (f"  (? for review: {', '.join(review)})" if review else "")
+        )
+    report = class_report(
+        spec, [type(grades[0]).model_validate_json((out / f"{g.student_id}.json").read_text()) for g in grades]
+    )
     (out / "class_report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "class_report.html").write_text(class_report_html(report, spec.title), encoding="utf-8")
     print(f"class report: {out / 'class_report.html'}")
@@ -280,10 +297,13 @@ def _results(args: argparse.Namespace) -> int:
     from autoassess.results import build_results
 
     read = lambda path: json.loads(Path(path).read_text(encoding="utf-8"))  # noqa: E731
-    build_results(read(args.agreement), args.out,
-                  ablation=read(args.ablation) if args.ablation else None,
-                  robustness=read(args.robustness) if args.robustness else None,
-                  ocr=[read(path) for path in args.ocr] if args.ocr else None)
+    build_results(
+        read(args.agreement),
+        args.out,
+        ablation=read(args.ablation) if args.ablation else None,
+        robustness=read(args.robustness) if args.robustness else None,
+        ocr=[read(path) for path in args.ocr] if args.ocr else None,
+    )
     print(f"results pack: {args.out}")
     return 0
 
@@ -300,7 +320,10 @@ def _coverage(args: argparse.Namespace) -> int:
     table = coverage_table(rows, args.thresholds or THRESHOLDS, ci=not args.no_ci)
     written = write_coverage(table, args.out, source=args.source or f"{args.grades} vs {Path(args.human).name}")
     print(written["headline"] or "No answers auto-marked at the headline threshold.")
-    print(f"coverage table: {Path(args.out) / 'coverage.md'}" + ("" if written["figure"] else " (figure skipped: matplotlib not installed)"))
+    print(
+        f"coverage table: {Path(args.out) / 'coverage.md'}"
+        + ("" if written["figure"] else " (figure skipped: matplotlib not installed)")
+    )
     return 0
 
 
@@ -310,8 +333,14 @@ def _import_sprag(args: argparse.Namespace) -> int:
     from autoassess.datasets.sprag import import_sprag
 
     try:
-        summary = import_sprag(args.src, args.out, subject=args.subject, per_question=args.per_question,
-                               dev_share=args.dev_share, seed=args.seed)
+        summary = import_sprag(
+            args.src,
+            args.out,
+            subject=args.subject,
+            per_question=args.per_question,
+            dev_share=args.dev_share,
+            seed=args.seed,
+        )
     except (ValueError, OSError, csv.Error) as err:
         print(f"Cannot import SPRAG: {err}", file=sys.stderr)
         return 2
@@ -331,6 +360,7 @@ def _doctor(args: argparse.Namespace) -> int:
 
 def _serve(args) -> int:
     import uvicorn
+
     from autoassess.web.app import create_app
 
     app = create_app(args.data_dir, reset_demo=args.reset_demo)
@@ -339,6 +369,7 @@ def _serve(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run the selected operation."""
     parser = argparse.ArgumentParser(prog="autoassess")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -376,17 +407,27 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", required=True, help="folder for a JSON grade and an HTML report per sheet")
     p.add_argument("--runs", type=int, default=3, help="independent grading runs per question")
     p.add_argument("--critic", action="store_true", help="let a reviewer lower marks it finds too generous")
-    p.add_argument("--advocate", action="store_true", help="let a reviewer raise marks it finds were missed (verified quote needed)")
+    p.add_argument(
+        "--advocate",
+        action="store_true",
+        help="let a reviewer raise marks it finds were missed (verified quote needed)",
+    )
     p.add_argument("--second-model", help="a second examiner model for the confidence check, e.g. openai/gpt-4.1-mini")
     p.add_argument("--baseline", action="store_true", help="use the lexical baseline, no LLM")
-    p.add_argument("--input", choices=["text", "image", "hybrid"], default="text",
-                   help="grade the OCR text, the page image (vision model), or both")
+    p.add_argument(
+        "--input",
+        choices=["text", "image", "hybrid"],
+        default="text",
+        help="grade the OCR text, the page image (vision model), or both",
+    )
     p.add_argument("--annotate", action="store_true", help="also write the sheet marked in red ink (PDF + PNGs)")
     p.add_argument("--feedback-language", help="translate feedback, e.g. Hindi or Kannada (Bodhan Indic-Translate)")
     p.add_argument("sheets", nargs="+")
     p.set_defaults(func=_grade)
 
-    p = sub.add_parser("grade-class", help="grade a class question by question, with a consistency pass and class report")
+    p = sub.add_parser(
+        "grade-class", help="grade a class question by question, with a consistency pass and class report"
+    )
     p.add_argument("--spec", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--runs", type=int, default=3)
@@ -405,7 +446,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("regrade", help="regrade one criterion after a student's request")
     p.add_argument("--spec", required=True)
-    p.add_argument("--grade", required=True, help="the sheet's grade JSON (updated in place; requests logged beside it)")
+    p.add_argument(
+        "--grade", required=True, help="the sheet's grade JSON (updated in place; requests logged beside it)"
+    )
     p.add_argument("--sheet", required=True, help="the answer sheet")
     p.add_argument("--criterion", required=True, help="e.g. Q2.c3")
     p.add_argument("--reason", required=True, help="the student's reason")

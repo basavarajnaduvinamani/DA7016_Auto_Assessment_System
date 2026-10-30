@@ -1,0 +1,10 @@
+<section class="panel assignment-section teacher-time" aria-labelledby="teacher-time-title">
+<div class="section-heading"><div><p class="eyebrow">TEACHER TIME</p><h2 id="teacher-time-title">Where your review time goes</h2></div><a href="/assignments/{{ assignment.id }}/review">Open review queue →</a></div>
+{% if teacher_time.answers %}<div class="stats-grid teacher-time-grid">
+<div class="panel"><span>Ready to auto-accept</span><strong>{{ teacher_time.auto_pct }}%</strong><small>{{ teacher_time.auto }} of {{ teacher_time.answers }} answers · confidence ≥ {{ '%g'|format(teacher_time.threshold) }}, no flags</small></div>
+<div class="panel"><span>Flagged for you</span><strong class="review-text">{{ teacher_time.flagged_pct }}%</strong><small>{{ teacher_time.flagged }} answers · low confidence, OCR or injection flags</small></div>
+<div class="panel"><span>Your overrides</span><strong>{{ teacher_time.overrides }}</strong><small>on {{ teacher_time.overridden_answers }} answers{% if teacher_time.rechecks %} · {{ teacher_time.rechecks }} AI re-checks{% endif %}</small></div>
+</div>
+<p class="small muted">Counted on the original AI marks of graded sheets. No time-saved figure is shown: it depends on how you review.</p>
+{% else %}<p class="muted">Grade sheets to see how many answers can be auto-accepted and how many need you.</p>{% endif %}
+</section>

@@ -1,0 +1,36 @@
+# Keeps the free Render demo awake so the first visitor does not wait for a cold start.
+#
+# Free-tier notes (check Render's current docs, these change):
+# - A free web service spins down after about 15 minutes without inbound traffic; a ping
+#   every 10 minutes keeps it up.
+# - Free instance hours are shared by every free service in the workspace (750 per month at
+#   the time of writing). One always-on service uses about 744, so keep-warm only fits ONE
+#   free service; disable this workflow if you add another.
+# - GitHub may delay scheduled runs by several minutes at busy times and disables schedules
+#   after 60 days without repository activity; re-enable from the Actions tab.
+# - The demo's data lives in /tmp on Render and is reset on every restart or deploy anyway.
+# Override the URL with a repository variable RENDER_HEALTHZ_URL (Settings > Variables).
+name: keep-warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /healthz
+        env:
+          URL: ${{ vars.RENDER_HEALTHZ_URL || 'https://red-ink-grader.onrender.com/healthz' }}
+        run: |
+          # A cold start can take about a minute: allow retries before reporting failure.
+          curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 20 --retry-all-errors "$URL"

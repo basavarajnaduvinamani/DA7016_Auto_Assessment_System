@@ -18,6 +18,7 @@ from autoassess.demo import (
     llm_available, mark_class, mark_sheet, status_markdown,
 )
 from autoassess.spec_builder import lint_spec, load_spec
+from autoassess.web.brand import CSS, HEADER, THEME
 
 INPUTS = {"OCR text": "text", "Page image": "image", "Both (hybrid)": "hybrid"}
 
@@ -120,7 +121,7 @@ llm_enabled = llm_available(settings)
 grader_choices = ["LLM grader", "Lexical baseline"] if llm_enabled else ["Lexical baseline"]
 
 with gr.Blocks(title="Red-Ink Grader", analytics_enabled=False) as demo:
-    gr.Markdown("# Red-Ink Grader\nUpload an answer sheet and get it back marked, with marks a student can check and feedback they can act on.")
+    gr.HTML(HEADER)
     last_result = gr.State(value=None)
     status = gr.Markdown(status_markdown())
     with gr.Tab("Mark a sheet"):
@@ -177,6 +178,6 @@ def healthz():
 
 
 app = gr.mount_gradio_app(
-    app, demo.queue(default_concurrency_limit=2), path="/", show_error=False,
+    app, demo.queue(default_concurrency_limit=2), path="/", show_error=False, theme=THEME, css=CSS,
     max_file_size=int(float(os.getenv("AUTOASSESS_MAX_UPLOAD_MB", "10")) * 1024 * 1024),
 )

@@ -93,6 +93,22 @@ Only `--agreement` and `--out` are required. Omit optional inputs to omit their 
 
 `summary.json` is a flat dictionary with `qwk`, `human_qwk`, `mae`, `within_1`, `bias`, `coverage_at_0_8` and `robustness_pass_rate`. System and ablation metrics use `vs_consensus`, falling back to the alphabetically first human grader for older reports. Coverage is copied from threshold 0.8, not from `auto_accepted_share`. Robustness pass rate is the share of passing rows across all cases (or the case-weighted pass rate from summaries when rows are unavailable). Unavailable headline values are `null`; table rounding does not alter the summary values. Reruns refresh the known table and figure filenames, removing stale optional sections while preserving unrelated files in the output directory.
 
+## 8. Coverage: selective auto-marking
+
+The product claim is "auto-mark the confident answers, send the rest to the teacher". `autoassess coverage` measures it from saved per-answer grades (each `QuestionGrade` keeps its `confidence` and `flags`) and the human marks CSV, the same inputs as `evaluate`:
+
+```bash
+pip install -e ".[report]"  # optional: enables the figure
+# <grades> = the folder `grade` wrote for the SPRAG test sheets with the final config
+autoassess coverage --spec data/private/sprag/exam_spec.yaml --grades <grades> \
+    --human data/private/sprag/human_marks.csv --out docs/report/results/coverage \
+    --source "SPRAG test, final config (advocate only)"
+```
+
+At each confidence threshold an answer is auto-marked when its confidence is at least the threshold and it has no review flag (`low_ocr_confidence`, `possible_prompt_injection`, `inconsistent_with:`). On the auto-marked answers it reports QWK (with a question-clustered 95% bootstrap interval; `--no-ci` skips it), MAE, within-1 and bias against the human consensus, plus the number sent to the teacher. It writes `coverage.md` (headline line "auto-mark X% of answers at QWK Y" at threshold 0.8, then the full table), `coverage.csv`, `coverage.json` and `coverage.png` (QWK against share auto-marked, labelled by threshold). Only graded answers with a human mark are counted, so unanswered SPRAG entries from other questions do not dilute the share, and a test-only grades folder gives test-only numbers. The output holds aggregates only, so it can be committed.
+
+The per-answer grades for SPRAG and the classroom set are private runs and are not in this repository, so no coverage table is committed yet. `numbers.md` already reports the MAE side for the final config (confidence >= 0.8 covers 92% of test answers with MAE 0.76); the command above adds QWK per threshold. The tests use a synthetic fixture (`tests/test_coverage.py`).
+
 ## Public data: SPRAG
 
 SPRAG contains typed English Python and ML answers from an Indian engineering college, with question text, reference answers and two human scores per answer. The [Zenodo release](https://zenodo.org/records/14928181) declares **CC BY 4.0** (Sridevi B., *SPRAG v1.0*, DOI `10.5281/zenodo.14928181`). The GitHub copy has no licence file. Keep the checkout and every imported/derived file under the git-ignored `data/private/`; **do not commit any SPRAG content**, including reference answers or generated reports. Tests use independently invented examples only.

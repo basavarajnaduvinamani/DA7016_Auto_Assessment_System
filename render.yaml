@@ -3,8 +3,8 @@
 # marked sync: false under the service's Environment tab. See docs/deploy.md.
 services:
   - type: web
-    # The service name sets the onrender.com address: https://second-read.onrender.com
-    name: second-read
+    # The service name sets the onrender.com address: https://secondread.onrender.com
+    name: secondread
     runtime: python
     plan: free
     buildCommand: pip install ".[web,ingest,annotate]"

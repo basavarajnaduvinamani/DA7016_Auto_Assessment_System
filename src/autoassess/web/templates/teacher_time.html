@@ -5,6 +5,11 @@
 <div class="panel"><span>Flagged for you</span><strong class="review-text">{{ teacher_time.flagged_pct }}%</strong><small>{{ teacher_time.flagged }} answers · low confidence, OCR or injection flags</small></div>
 <div class="panel"><span>Your overrides</span><strong>{{ teacher_time.overrides }}</strong><small>on {{ teacher_time.overridden_answers }} answers{% if teacher_time.rechecks %} · {{ teacher_time.rechecks }} AI re-checks{% endif %}</small></div>
 </div>
-<p class="small muted">Counted on the original AI marks of graded sheets. No time-saved figure is shown: it depends on how you review.</p>
+{% if teacher_time.decided %}<div class="stats-grid teacher-time-grid">
+<div class="panel"><span>Answers you decided</span><strong>{{ teacher_time.decided }}</strong><small>accepted or changed in the review queue</small></div>
+<div class="panel"><span>Override rate</span><strong>{{ teacher_time.override_rate_pct }}%</strong><small>of decided answers had a mark changed by you</small></div>
+<div class="panel"><span>Review time</span><strong>{% if teacher_time.median_review_seconds is not none %}{{ teacher_time.median_review_seconds }}s{% else %}–{% endif %}</strong><small>median per decided answer{% if teacher_time.review_minutes %} · {{ teacher_time.review_minutes }} min in total{% endif %}</small></div>
+</div>{% endif %}
+<p class="small muted">Counted on the original AI marks of graded sheets. Review time runs from opening an answer to accepting or changing it; pauses over 15 minutes are left out.</p>
 {% else %}<p class="muted">Grade sheets to see how many answers can be auto-accepted and how many need you.</p>{% endif %}
 </section>

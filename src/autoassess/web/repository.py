@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from collections.abc import Iterable
 from typing import Any
 
@@ -62,6 +63,12 @@ class AssignmentStore:
                     teacher_id INTEGER NOT NULL REFERENCES teachers(id), kind TEXT NOT NULL,
                     old_json TEXT NOT NULL, result_json TEXT NOT NULL, record_json TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                -- Product telemetry: when a teacher opened and decided each answer. Read-only for marking.
+                CREATE TABLE IF NOT EXISTS review_events (
+                    id INTEGER PRIMARY KEY, submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+                    question_id TEXT NOT NULL, teacher_id INTEGER NOT NULL REFERENCES teachers(id),
+                    kind TEXT NOT NULL CHECK(kind IN ('open','accept','override')), at REAL NOT NULL
                 );
                 UPDATE schema_version SET version=3;
             """)
@@ -243,6 +250,26 @@ class AssignmentStore:
             self.changes(submission["id"]),
             self.accepted_questions(submission["id"]),
         )
+
+    def log_review_event(
+        self, submission_id: int, question_id: str, teacher_id: int, kind: str, at: float | None = None
+    ) -> None:
+        """Record that a teacher opened, accepted or overrode one answer, for review-time metrics."""
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO review_events(submission_id,question_id,teacher_id,kind,at) VALUES(?,?,?,?,?)",
+                (submission_id, question_id, teacher_id, kind, time.time() if at is None else at),
+            )
+
+    def review_events(self, assignment_id: int) -> list[dict[str, Any]]:
+        """Return review events for an assignment in time order."""
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT e.submission_id, e.question_id, e.kind, e.at FROM review_events e "
+                "JOIN submissions s ON s.id = e.submission_id WHERE s.assignment_id=? ORDER BY e.at, e.id",
+                (assignment_id,),
+            )
+            return [dict(r) for r in rows]
 
     def accept_question(self, submission_id: int, question_id: str, teacher_id: int) -> None:
         """Record teacher acceptance of an existing marked answer."""

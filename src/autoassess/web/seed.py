@@ -22,7 +22,7 @@ def seed(store: Store, reset: bool = False) -> None:
         ).lastrowid
         db.executemany(
             "INSERT INTO students(class_id,roll_no,name) VALUES(?,?,?)",
-            [(classroom, f"S{i:03}", f"Sample Student {i:02}") for i in range(1, 11)],
+            [(classroom, f"S{i:03}", f"Sample Student {i:02}") for i in range(1, 13)],
         )
 
 

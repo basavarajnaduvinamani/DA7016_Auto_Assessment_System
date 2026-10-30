@@ -1,0 +1,8 @@
+Q1
+Attention ஒவ்வொரு token-க்கும் query, key, value என்ற மூன்று vectors-ஐ input-இலிருந்து linear projection மூலம் உருவாக்குகிறது. ஒரு query-யும் ஒவ்வொரு key-யும் dot product எடுத்து, key dimension-இன் square root-ஆல் வகுக்கப்படுகிறது. Softmax அந்த scores-ஐ ஒன்றாகக் கூடும் weights-ஆக மாற்றுகிறது. Output என்பது value vectors-இன் weighted sum ஆகும்.
+
+Q2
+Hallucination என்பது model நம்பிக்கையுடன் தவறான அல்லது ஆதாரமற்ற தகவலைச் சொல்வது. காரணம்: பயிற்சியில் அடுத்த சொல்லைச் சரியாக ஊகிப்பதற்கே பரிசு கிடைக்கிறது, உண்மைக்கு அல்ல. தீர்வு: retrieval augmented generation மூலம் ஆவணங்களைத் தேடி, அவற்றின் அடிப்படையில் பதில் சொல்லலாம்.
+
+Q3
+Fine-tuning task data-வைக் கொண்டு model weights-ஐ மாற்றுகிறது. In-context learning weights-ஐ மாற்றாமல், prompt-இல் உள்ள instructions மற்றும் examples-ஐப் பயன்படுத்துகிறது.

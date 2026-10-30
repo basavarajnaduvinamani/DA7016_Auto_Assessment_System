@@ -288,6 +288,22 @@ def _results(args: argparse.Namespace) -> int:
     return 0
 
 
+def _coverage(args: argparse.Namespace) -> int:
+    from autoassess.coverage import THRESHOLDS, answer_rows, coverage_table, write_coverage
+    from autoassess.evaluate import load_grades, load_human_marks
+    from autoassess.spec_builder import load_spec
+
+    rows = answer_rows(load_spec(args.spec), load_grades(args.grades), load_human_marks(args.human))
+    if not rows:
+        print("No graded answer has a human mark: check that student and question ids match.", file=sys.stderr)
+        return 2
+    table = coverage_table(rows, args.thresholds or THRESHOLDS, ci=not args.no_ci)
+    written = write_coverage(table, args.out, source=args.source or f"{args.grades} vs {Path(args.human).name}")
+    print(written["headline"] or "No answers auto-marked at the headline threshold.")
+    print(f"coverage table: {Path(args.out) / 'coverage.md'}" + ("" if written["figure"] else " (figure skipped: matplotlib not installed)"))
+    return 0
+
+
 def _import_sprag(args: argparse.Namespace) -> int:
     import csv
 
@@ -427,6 +443,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ocr", nargs="+")
     p.add_argument("--out", required=True)
     p.set_defaults(func=_results)
+
+    p = sub.add_parser("coverage", help="share auto-marked vs agreement across confidence thresholds")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--grades", required=True, help="folder written by `grade`")
+    p.add_argument("--human", required=True, help="human marks CSV")
+    p.add_argument("--out", required=True, help="folder for coverage.md/.csv/.json and coverage.png")
+    p.add_argument("--thresholds", type=float, nargs="+", help="default: 0 0.5 0.6 0.7 0.75 0.8 0.85 0.9 0.95 1")
+    p.add_argument("--no-ci", action="store_true", help="skip the question-clustered bootstrap intervals")
+    p.add_argument("--source", help="label for the table, e.g. 'SPRAG test, final config'")
+    p.set_defaults(func=_coverage)
 
     p = sub.add_parser("import-sprag", help="convert local SPRAG CSVs into evaluation inputs")
     p.add_argument("--src", required=True, help="SPRAG checkout's Data directory")

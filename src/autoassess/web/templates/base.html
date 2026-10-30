@@ -6,14 +6,15 @@
   <title>{% block title %}Red-Ink Classroom{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
   <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
+  {% block head %}{% endblock %}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <a class="brand" href="/" aria-label="Red-Ink Classroom home"><span class="brand-icon">R<span>✓</span></span><span>Red-Ink <strong>Classroom</strong></span></a>
-  <nav aria-label="Account">{% if teacher %}<span class="teacher">{{ teacher.name }}</span><a href="/lab/">Grading lab</a><form action="/sign-out" method="post"><button class="link-button">Sign out</button></form>{% else %}<span>Teacher workspace</span>{% endif %}</nav>
+  <nav aria-label="Account">{% if teacher %}<span class="teacher">{{ teacher.name }}</span><a href="/lab/">Grading lab</a><form action="/sign-out" method="post"><button class="link-button">Sign out</button></form>{% else %}{% block public_nav %}<span>Teacher workspace</span>{% endblock %}{% endif %}</nav>
 </header>
-<main id="main" class="container">
+<main id="main" class="{% block main_class %}container{% endblock %}">
 {% if teacher %}<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Your classes</a>{% if classroom %}<span>/</span><a href="/classes/{{ classroom.id }}">{{ classroom.name }}</a>{% endif %}{% block breadcrumb %}{% endblock %}</nav>{% endif %}
 {% if error %}<div role="alert" class="notice error">{{ error }}</div>{% endif %}
 {% if message %}<div role="status" class="notice">{{ message }}</div>{% endif %}

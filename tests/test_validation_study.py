@@ -9,7 +9,7 @@ from autoassess.validation_study import Score, fit_referral, paired_comparison, 
 
 def _scores(split="dev"):
     return [
-        Score(str(i), str(i // 2), split, s, h, 5, c, False, h, h)
+        Score(str(i), str(i // 2), split, s, h, 5, c, False, h, h, False)
         for i, (s, h, c) in enumerate([(0, 0, 0.9), (1, 1, 0.9), (0, 4, 0.2), (0, 5, 0.2)])
     ]
 
@@ -32,12 +32,19 @@ def test_threshold_fits_dev_and_is_frozen_when_test_marks_change():
 
 
 def test_referral_veto_and_unattainable_coverage():
-    rows = [replace(r, needs_review=True) for r in _scores()]
+    rows = [replace(r, needs_review=True, forced_review=True) for r in _scores()]
     with pytest.raises(ValueError, match="coverage"):
         fit_referral(rows)
     result = risk_coverage([replace(r, split="test") for r in rows], {"threshold": 0.8}, draws=2)
     assert result["selected"]["accepted"] == 0
     assert result["selected"]["accepted_mae"] is None
+
+
+def test_calibration_can_replace_old_confidence_threshold_but_needs_flag_metadata():
+    rows = [replace(r, needs_review=r.confidence < 0.8) for r in _scores()]
+    assert fit_referral(rows, minimum_coverage=1)["dev_coverage"] == 1
+    with pytest.raises(ValueError, match="metadata"):
+        fit_referral([replace(r, forced_review=None) for r in rows])
 
 
 def test_duplicate_and_leaked_questions_are_rejected():
@@ -61,7 +68,7 @@ def test_paired_resampling_identity_reorder_and_missing_predictions():
 def test_question_clusters_and_difference_direction():
     # Two question clusters, equal size: per-cluster default errors are 0 and 4.
     # A cluster bootstrap can only yield MAE differences 0, 2 or 4.
-    base = [replace(r, system=r.human) for r in _scores("test")]
+    base = [replace(r, item_id=f"{r.item_id}-{copy}", system=r.human) for copy in range(5) for r in _scores("test")]
     default = [replace(r, system=r.human + (4 if r.question_id == "0" else 0)) for r in base]
     result = paired_comparison(default, base, seed=7, draws=100)
     assert result["differences"]["mae"] == {"estimate": 2, "ci95": [0, 4]}

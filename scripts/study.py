@@ -75,7 +75,7 @@ def _provenance(config: dict, inputs: list[Path]) -> dict:
 
 def _export(args: argparse.Namespace) -> None:
     dataset, grades, out = args.dataset.resolve(), args.grades.resolve(), args.out
-    salt_path = ROOT / "data/private/upgrade-2026-10-30/export.key"
+    salt_path = args.key_file
     salt_path.parent.mkdir(parents=True, exist_ok=True)
     if not salt_path.exists():
         with salt_path.open("xb") as stream:
@@ -124,6 +124,7 @@ def _export(args: argparse.Namespace) -> None:
                     q.needs_review,
                     human["grader_A"][key],
                     human["grader_B"][key],
+                    any(flag in q.flags for flag in ("low_ocr_confidence", "possible_prompt_injection")),
                 )
             )
         if found != {k for k in consensus if k[0] == sid}:
@@ -154,7 +155,7 @@ def _export(args: argparse.Namespace) -> None:
         manifest["recorded_run_sha256"] = _digest(args.run_manifest)
     manifest["source_directories"] = [str(dataset), str(grades)]
     manifest["source_tree_sha256"] = hashlib.sha256(
-        "\n".join(str(p.relative_to(ROOT)) + ":" + _digest(p) for p in used_inputs).encode()
+        "\n".join(str(p) + ":" + _digest(p) for p in used_inputs).encode()
     ).hexdigest()
     manifest["known_inputs"] = {str(p): _digest(p) for p in (meta_path, human_path, spec_path)}
     manifest["source_grade_mtime_range"] = [
@@ -279,6 +280,10 @@ def _embedding(args: argparse.Namespace) -> None:
     if len(vectors) != len(scores) or {r["item_id"] for r in vectors} != {r.item_id for r in scores}:
         raise ValueError("complete unique matched embeddings required")
     vectors = {r["item_id"]: r for r in vectors}
+    if any(not isinstance(r.get("blank"), bool) for r in vectors.values()):
+        raise ValueError("embedding blank indicators must be boolean")
+    if len({len(r["answer"]) for r in vectors.values()} | {len(r["reference"]) for r in vectors.values()}) != 1:
+        raise ValueError("one embedding dimension required for the frozen encoder")
     similarities = {r.item_id: cosine(vectors[r.item_id]["answer"], vectors[r.item_id]["reference"]) for r in scores}
     dev = [r for r in scores if r.split == "dev"]
     frozen = fit_similarity([similarities[r.item_id] for r in dev], [r.human / r.max_marks for r in dev])
@@ -288,6 +293,7 @@ def _embedding(args: argparse.Namespace) -> None:
             system=similarity_mark(similarities[r.item_id], r.max_marks, frozen, blank=vectors[r.item_id]["blank"]),
             confidence=1.0,
             needs_review=False,
+            forced_review=False,
         )
         for r in scores
     ]
@@ -402,6 +408,69 @@ def _robustness(args: argparse.Namespace) -> None:
     _write(args.out, payload)
 
 
+def _reproduce(args: argparse.Namespace) -> None:
+    checks = []
+    for name in ("historical-lexical", "current-lexical"):
+        folder = args.root / name
+        rows = _load(folder / "scores.json")
+        actual = {split: score_metrics([r for r in rows if r.split == split]) for split in ("dev", "test")}
+        if actual != json.loads((folder / "aggregate.json").read_text())["results"]:
+            raise AssertionError("aggregate differs: " + name)
+        manifest = json.loads((folder / "evidence-manifest.json").read_text())
+        for path, digest in manifest["output_sha256"].items():
+            if _digest(folder / path) != digest:
+                raise AssertionError("export content differs: " + name + "/" + path)
+        checks.append(name + ": exact aggregate and export-hash equality")
+    data = json.loads((args.root / "lexical-detector-robustness.json").read_text())
+    identities = set()
+    for r in data["rows"]:
+        identity = r["item_id"], r["perturbation"]
+        if identity in identities:
+            raise AssertionError("duplicate robustness case")
+        identities.add(identity)
+        if r["delta"] != r["perturbed_mark"] - r["clean_mark"]:
+            raise AssertionError("robustness delta differs")
+        if not 0 <= r["perturbed_mark"] <= r["max_marks"] or not 0 <= r["clean_mark"] <= r["max_marks"]:
+            raise AssertionError("robustness mark outside bounds")
+        limit = (
+            0.0
+            if r["perturbation"] == "blank"
+            else r["max_marks"] * 0.25
+            if r["perturbation"] in {"keyword_stuffing", "restate_question"}
+            else r["clean_mark"] + 0.25
+        )
+        if r["success_limit"] != limit or r["attack_success"] != (r["perturbed_mark"] > limit + 1e-9):
+            raise AssertionError("robustness success decision differs")
+    for name, expected in data["summary"].items():
+        group = [r for r in data["rows"] if r["perturbation"] == name]
+        actual = {
+            "n": len(group),
+            "mean_mark_delta": sum(r["delta"] for r in group) / len(group),
+            "positive_inflation_count": sum(r["delta"] > 1e-9 for r in group),
+            "attack_success_count": sum(r["attack_success"] for r in group),
+            "attack_success_rate": sum(r["attack_success"] for r in group) / len(group),
+            "injection_flag_count": sum(r["injection_flag"] for r in group),
+        }
+        if actual != expected:
+            raise AssertionError("robustness aggregate differs: " + name)
+    clean = data["clean_rows"]
+    if (
+        len(clean) != data["clean"]["n"]
+        or sum(r["injection_flag"] for r in clean) != data["clean"]["injection_flag_count"]
+        or sum(r["injection_flag"] for r in clean) / len(clean) != data["clean"]["injection_flag_rate"]
+    ):
+        raise AssertionError("clean detector aggregate differs")
+    checks.append("lexical-detector-robustness: exact per-case and aggregate equality")
+    _write(
+        args.out,
+        {
+            "provenance": _provenance({}, []),
+            "checks": checks,
+            "scope": "all new study aggregates; published docs/report/numbers.md remains BLOCKED",
+        },
+    )
+
+
 def main() -> None:
     """Dispatch explicit local study operations with caller-selected input paths."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -411,6 +480,7 @@ def main() -> None:
         export.add_argument("--" + name, type=Path, required=True)
     export.add_argument("--label", required=True)
     export.add_argument("--run-manifest", type=Path)
+    export.add_argument("--key-file", type=Path, default=ROOT / "data/private/upgrade-2026-10-30/export.key")
     export.set_defaults(fn=_export)
     aggregate = commands.add_parser("aggregate")
     aggregate.add_argument("--scores", type=Path, required=True)
@@ -444,6 +514,10 @@ def main() -> None:
     for name in ("dataset", "templates", "out"):
         robustness.add_argument("--" + name, type=Path, required=True)
     robustness.set_defaults(fn=_robustness)
+    reproduce = commands.add_parser("reproduce")
+    reproduce.add_argument("--root", type=Path, default=ROOT / "results/2026-10-30")
+    reproduce.add_argument("--out", type=Path, required=True)
+    reproduce.set_defaults(fn=_reproduce)
     args = parser.parse_args()
     args.fn(args)
 

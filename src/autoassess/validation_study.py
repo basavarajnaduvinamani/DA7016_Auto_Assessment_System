@@ -29,6 +29,7 @@ class Score:
     needs_review: bool
     human_a: float
     human_b: float
+    forced_review: bool | None = None
 
     def __post_init__(self) -> None:
         if not self.item_id or not self.question_id or self.split not in {"dev", "test"}:
@@ -40,6 +41,8 @@ class Score:
             raise ValueError("scores outside question bounds")
         if not 0 <= self.confidence <= 1 or not isinstance(self.needs_review, bool):
             raise ValueError("invalid confidence or review decision")
+        if self.forced_review is not None and not isinstance(self.forced_review, bool):
+            raise ValueError("forced review must be boolean or unknown")
         if not math.isclose(self.human, (self.human_a + self.human_b) / 2, abs_tol=1e-12):
             raise ValueError("consensus must be the mean of the two human marks")
 
@@ -74,15 +77,18 @@ def score_metrics(rows: Sequence[Score]) -> dict:
 def fit_referral(dev: Sequence[Score], minimum_coverage: float = 0.5) -> dict:
     """Minimise development accepted MAE subject to a fixed coverage floor.
 
-    Ties prefer higher coverage, then the lower threshold. Explicit review
-    decisions always veto acceptance, even at a low confidence threshold.
+    Ties prefer higher coverage, then the lower threshold. Non-confidence review
+    reasons veto acceptance. The original needs_review decision must not freeze
+    the old confidence threshold into a newly calibrated policy.
     """
     if not dev or any(r.split != "dev" for r in dev) or not 0 < minimum_coverage <= 1:
         raise ValueError("development rows and a valid coverage floor required")
     validate_split(dev)
+    if any(r.forced_review is None for r in dev):
+        raise ValueError("non-confidence forced-review metadata required for calibration")
     candidates = []
     for threshold in sorted({0.0, *(r.confidence for r in dev)}):
-        accepted = [r for r in dev if r.confidence >= threshold and not r.needs_review]
+        accepted = [r for r in dev if r.confidence >= threshold and not r.forced_review]
         coverage = len(accepted) / len(dev)
         if accepted and coverage >= minimum_coverage:
             candidates.append((score_metrics(accepted)["mae"], -coverage, threshold))
@@ -108,12 +114,14 @@ def risk_coverage(test: Sequence[Score], frozen: dict, *, seed: int = 0, draws: 
     if not test or any(r.split != "test" for r in test) or draws < 1:
         raise ValueError("test rows and positive draws required")
     validate_split(test)
+    if any(r.forced_review is None for r in test):
+        raise ValueError("non-confidence forced-review metadata required for calibration")
     rng = random.Random(seed)
     points = []
     errors = [abs(r.system - r.human) for r in test]
     random_expected_mae = sum(errors) / len(errors)
     for threshold in sorted({0.0, frozen["threshold"], *(r.confidence for r in test)}):
-        accepted = [r for r in test if r.confidence >= threshold and not r.needs_review]
+        accepted = [r for r in test if r.confidence >= threshold and not r.forced_review]
         k = len(accepted)
         samples = sorted(sum(rng.sample(errors, k)) / k for _ in range(draws)) if k else []
         points.append(

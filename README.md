@@ -76,6 +76,18 @@ All from [`docs/report/numbers.md`](docs/report/numbers.md) (SPRAG test, n = 455
 - **Handwriting.** On the classroom set agreement is lower (QWK 0.47), mainly because the teacher was more generous to vague answers than the rubric, with OCR adding uncertainty.
 - **Cost.** $7.72 of OpenRouter calls across all experiments, about $0.006 per answer for the full pipeline.
 
+## Cost per sheet
+
+Worked out from the measured spend in [`docs/report/numbers.md`](docs/report/numbers.md#cost): about **$0.006 per answer** for the full pipeline (three grading runs, advocate and critic) on gemini-2.5-flash through OpenRouter. The default advocate-only configuration makes fewer calls, so treat these as upper bounds. The rupee figures assume about ₹88 to the US dollar.
+
+| Sheet | Model calls | Bodhan OCR (₹0.20 per page) | Total |
+| --- | --- | --- | --- |
+| 3-question typed quiz (the sample exam) | 3 × $0.006 ≈ ₹1.6 | none | **≈ ₹1.6** |
+| 15-question handwritten booklet, 4 pages | 15 × $0.006 ≈ ₹7.9 | ₹0.80 | **≈ ₹8.7** |
+| Same booklet, feedback translated to Hindi | as above | as above, plus ₹0.20 per 10k translated tokens | **≈ ₹9** |
+
+A class of 40 handwritten booklets costs roughly ₹350 to mark. Cached results are free to re-open, and only answers sent back for an AI re-check cost again.
+
 ## Quick start
 
 Requires Python 3.11 or newer.

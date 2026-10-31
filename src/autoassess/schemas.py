@@ -214,22 +214,40 @@ class FeedbackItem(BaseModel):
     next_step: str | None = None
 
 
+# "Well done", "Fix" and "Next time" in each feedback language, so a translated remark reads in one language.
+REMARK_LABELS: dict[str, tuple[str, str, str]] = {
+    "English": ("Well done", "Fix", "Next time"),
+    "Hindi": ("शाबाश", "सुधार", "अगली बार"),
+    "Kannada": ("ಚೆನ್ನಾಗಿದೆ", "ತಿದ್ದುಪಡಿ", "ಮುಂದಿನ ಬಾರಿ"),
+    "Tamil": ("நன்று", "திருத்தம்", "அடுத்த முறை"),
+    "Telugu": ("బాగుంది", "సవరణ", "తదుపరి సారి"),
+    "Marathi": ("छान", "सुधारणा", "पुढच्या वेळी"),
+    "Bengali": ("খুব ভালো", "সংশোধন", "পরের বার"),
+    "Malayalam": ("നന്നായി", "തിരുത്ത്", "അടുത്ത തവണ"),
+    "Gujarati": ("શાબાશ", "સુધારો", "આગલી વખતે"),
+    "Odia": ("ବହୁତ ଭଲ", "ସଂଶୋଧନ", "ପରବର୍ତ୍ତୀ ଥର"),
+    "Punjabi": ("ਸ਼ਾਬਾਸ਼", "ਸੁਧਾਰ", "ਅਗਲੀ ਵਾਰ"),
+}
+
+
 class Remark(BaseModel):
     """The short margin remark: one strength, one fix, one thing to do next time."""
 
     strength: str = ""
     fix: str = ""
     next_step: str = ""
+    language: str = Field(default="English", description="Language of the remark; picks the line labels.")
 
     def lines(self) -> list[str]:
-        """Format the strength, correction and next-step remark lines."""
+        """Format the strength, correction and next-step remark lines, labelled in the remark's language."""
+        well_done, fix, next_time = REMARK_LABELS.get(self.language, REMARK_LABELS["English"])
         out = []
         if self.strength:
-            out.append(f"Well done: {self.strength}")
+            out.append(f"{well_done}: {self.strength}")
         if self.fix:
-            out.append(f"Fix: {self.fix}")
+            out.append(f"{fix}: {self.fix}")
         if self.next_step:
-            out.append(f"Next time: {self.next_step}")
+            out.append(f"{next_time}: {self.next_step}")
         return out
 
 

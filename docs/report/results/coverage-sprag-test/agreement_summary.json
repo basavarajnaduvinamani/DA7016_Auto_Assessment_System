@@ -1,0 +1,89 @@
+{
+ "run": "SPRAG test, final config (advocate only, lenient, 3 runs, google/gemini-2.5-flash via OpenRouter), fresh run 2026-10-31",
+ "cost_usd": 2.38,
+ "n": 455,
+ "vs_consensus": {
+  "n": 455,
+  "ci_method": "cluster:question",
+  "qwk": 0.725,
+  "mae": 0.856,
+  "within_1": 0.765,
+  "exact": 0.358,
+  "pearson": 0.731,
+  "mean_system": 2.949,
+  "mean_human": 2.732,
+  "bias": 0.217,
+  "nmae": 0.171,
+  "ci95": {
+   "qwk": [
+    0.669,
+    0.774
+   ],
+   "mae": [
+    0.771,
+    0.945
+   ],
+   "bias": [
+    0.083,
+    0.342
+   ]
+  }
+ },
+ "per_grader": {
+  "grader_A": {
+   "n": 455,
+   "ci_method": "cluster:question",
+   "qwk": 0.728,
+   "mae": 0.826,
+   "within_1": 0.82,
+   "exact": 0.433,
+   "pearson": 0.73,
+   "mean_system": 2.949,
+   "mean_human": 2.824,
+   "bias": 0.125,
+   "nmae": 0.165,
+   "ci95": {
+    "qwk": [
+     0.671,
+     0.775
+    ],
+    "mae": [
+     0.741,
+     0.912
+    ],
+    "bias": [
+     -0.008,
+     0.251
+    ]
+   }
+  },
+  "grader_B": {
+   "n": 455,
+   "ci_method": "cluster:question",
+   "qwk": 0.708,
+   "mae": 0.887,
+   "within_1": 0.793,
+   "exact": 0.404,
+   "pearson": 0.721,
+   "mean_system": 2.949,
+   "mean_human": 2.64,
+   "bias": 0.309,
+   "nmae": 0.177,
+   "ci95": {
+    "qwk": [
+     0.651,
+     0.758
+    ],
+    "mae": [
+     0.796,
+     0.982
+    ],
+    "bias": [
+     0.174,
+     0.435
+    ]
+   }
+  }
+ },
+ "human_vs_human_note": "see numbers.md (0.962 on test)"
+}

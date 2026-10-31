@@ -28,7 +28,7 @@ Held-out SPRAG test set (455 typed short answers, 0 to 5 marks, two human grader
 | **Second Read (final configuration)** | **0.723 [0.667, 0.773]** | **0.85** | **76%** |
 | Lexical baseline | 0.375 | 1.62 | 40% |
 
-On real handwritten sheets (9 students, 135 answers, one teacher) agreement is lower: QWK 0.47 [0.32, 0.57], with 75 of 135 answers flagged for review. Hence the scope: auto-mark the confident answers, send the rest to the teacher. `autoassess coverage` reports the share auto-marked against QWK at each confidence threshold ([`docs/evaluation.md`](docs/evaluation.md#8-coverage-selective-auto-marking)).
+On real handwritten sheets (9 students, 135 answers, one teacher) agreement is lower: QWK 0.47 [0.32, 0.57], with 75 of 135 answers flagged for review. Hence the scope: auto-mark the confident answers, send the rest to the teacher. On a fresh final-config run of the test set, answers at confidence >= 0.8 are **91% of the set (415 of 455), auto-marked at QWK 0.773 [0.731, 0.811]**; the other 40 go to the teacher ([coverage table](docs/report/results/coverage-sprag-test/coverage.md)).
 
 ### Run it in one minute (no API key)
 

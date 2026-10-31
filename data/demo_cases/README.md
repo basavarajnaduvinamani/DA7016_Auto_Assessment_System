@@ -24,3 +24,12 @@ autoassess grade --spec data/sample_exam/exam_spec.yaml --out runs/demo_cases_hi
 ```
 
 Or in the teacher app: create an assignment, import `data/sample_exam/exam_spec.yaml` as the rubric, upload these files and click **Grade all**. Live grading needs `OPENROUTER_API_KEY`; Hindi feedback needs a Bodhan translate key.
+
+## Multilingual assignments (`multilingual/`)
+
+One folder per language (Hindi, Kannada, Tamil, Telugu), each with `rubric_<language>.yaml` (the sample quiz with every question, model answer and criterion in that language) and two sheets: `S005_<language>_strong.txt` and `S006_<language>_weak.txt`. Both are Bodhan Indic-Translate drafts of the English S005 and S006. Import the rubric, set the feedback language to match, and grade. Reasons, feedback and margin remarks then come back in that language. Results are in the main README under "Multilingual assignments".
+
+```bash
+autoassess grade --spec data/demo_cases/multilingual/tamil/rubric_tamil.yaml --out runs/tamil --advocate --annotate \
+    --feedback-language Tamil data/demo_cases/multilingual/tamil/*.txt
+```

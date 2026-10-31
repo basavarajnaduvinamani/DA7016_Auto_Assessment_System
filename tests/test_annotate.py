@@ -52,6 +52,20 @@ def test_plan_has_one_tick_per_whole_mark_and_examiner_symbols(tmp_path):
     assert plan.cover[2] == ("Q3", "5 ?") and plan.total == "11¼ / 15"
 
 
+def test_marks_stay_left_of_the_margin_and_praise_is_once_per_answer(tmp_path):
+    from autoassess.annotate import PAGE_W, RIGHT_MARGIN
+
+    for sid in ("S001", "S002"):
+        r = _graded(sid)
+        pages = typeset(r.pages, tmp_path / sid, sid)
+        plan = plan_annotations(SPEC, r.grade, segment_pages(SPEC, pages), pages)
+        rule = PAGE_W - RIGHT_MARGIN + 10  # the right margin's red rule
+        ticks = [m for m in plan.marks if m.kind == "tick"]
+        assert ticks and all(m.x + m.w <= rule for m in ticks)
+        praise = [m for m in plan.marks if m.text == "Good!"]
+        assert len(praise) <= 2 and len({round(m.y) for m in praise}) == len(praise)
+
+
 def test_no_praise_on_a_weak_answer(tmp_path):
     r = _graded("S003")
     pages = typeset(r.pages, tmp_path, "S003")

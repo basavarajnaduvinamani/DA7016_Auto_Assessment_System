@@ -81,7 +81,7 @@ A Hindi (Devanagari) answer to SPRAG Q1 ("What is machine learning?") was graded
 
 ## Red-ink example (report appendix)
 
-Synthetic sample sheet S002 from the bundled sample quiz, graded by the final configuration (gemini-2.5-flash, advocate review): 5.75 of 15. Page 1 of the marked PDF, cropped, is `results/figures/example_redink.png`.
+Synthetic sample sheet S002 from the bundled sample quiz, graded by the final configuration (gemini-2.5-flash, advocate review). The first run gave 5.75 of 15; the figure was re-rendered on 31 Oct 2026 with level, straight red ink from a fresh run that gave 4.75 of 15 (cost $0.02), which shows the run-to-run spread on a single weak sheet. Page 1 of the marked PDF, cropped, is `results/figures/example_redink.png`.
 
 ## Cost
 

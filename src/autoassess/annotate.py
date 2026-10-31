@@ -11,21 +11,20 @@ comes from something the grader decided, so none of it is decoration:
 - sub-part marks in brackets in the right margin, the question total circled
   in the left margin, and a "?" beside any mark sent for human review;
 - a short margin remark: one strength, one fix, one thing for next time;
-- "Good!" at most twice per sheet, only where a criterion was fully met;
+- "Good!" after the ticks of a strong answer: once per answer, twice per sheet at most;
 - a cover page with the marks grid filled in, and an "AI-marked" stamp, so
   the handwriting style never passes for a human examiner;
 - a last page with the full feedback, comments before marks.
 
 plan_annotations() turns a graded sheet into an AnnotationPlan (plain JSON,
 easy to test and to re-render), and render_plan() draws it in a handwriting
-font with a little jitter. A .txt sheet, or OCR without line boxes, is first
+font, kept straight and level so the marks read cleanly. A .txt sheet, or OCR without line boxes, is first
 typeset onto ruled pages so every mark has a place to go.
 """
 
 from __future__ import annotations
 
 import math
-import random
 import re
 import textwrap
 from collections import defaultdict
@@ -88,6 +87,7 @@ def fmt_marks(x: float) -> str:
 
 PAGE_W, PAGE_H = 1240, 1754  # A4 at 150 dpi
 LEFT, RIGHT_MARGIN, TOP, LINE_H = 150, 330, 120, 60
+TICK_GUTTER = 130  # space kept free between the written text and the margin rule for ticks
 
 
 def _font(size: int, bold: bool = False, script_text: str = ""):
@@ -113,7 +113,7 @@ def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPag
 
     out_dir.mkdir(parents=True, exist_ok=True)
     font = _student_font()
-    width = PAGE_W - LEFT - RIGHT_MARGIN
+    width = PAGE_W - LEFT - RIGHT_MARGIN - TICK_GUTTER
     wrapped: list[tuple[str, OCRLine]] = []
     for page in pages:
         for line in page.lines:
@@ -282,17 +282,29 @@ def plan_annotations(
             marks.append(
                 Mark(kind="question", page=p0, x=rx + 90 * scale, y=first.bbox.y0 - 10 * scale, text="?", size=sz * 1.4)
             )
-        # Ticks at the evidence, one per mark.
+        # Ticks at the evidence, one per mark, kept out of the margin column. When the
+        # evidence line has no room left, the marks go on the next line of the answer.
         tick_slots: dict[int, float] = {}
+        limit = rx - 30 * scale
+        praise_at: tuple[int, OCRLine, float] | None = None  # after the last fully met criterion's ticks
+        tick_w = 26 * scale
+
         for r in qg.criteria:
             if r.marks_awarded <= 0:
                 continue
             hit = locate(r.evidence or "", lines) if r.evidence else None
-            page, line = (hit.page, hit.line) if hit else (last_page, last)
-            key = id(line)
-            limit = rx - 20 * scale  # keep ticks out of the margin column
-            x = tick_slots.get(key, min(line.bbox.x1 + 14 * scale, limit - 60 * scale))
+            at = next((i for i, (_, ln) in enumerate(lines) if hit and ln is hit.line), len(lines) - 1)
             n = int(r.marks_awarded)
+            frac = r.marks_awarded - n
+            tags = [label for tag, label in (("ecf", "ECF"), ("bod", "BOD")) if tag in r.tags]
+            need = n * tick_w + (24 * scale if frac > 0 else 0) + 56 * scale * len(tags)
+            # The evidence line, then the lines after it, then the ones before.
+            order = list(range(at, len(lines))) + list(range(at - 1, -1, -1))
+            # A line's first free x is just after its text, or after marks already on it.
+            free = [tick_slots.get(id(ln), ln.bbox.x1 + 14 * scale) for _, ln in lines]
+            pick = next((i for i in order if free[i] + need <= limit), at)
+            page, line = lines[pick]
+            x = min(free[pick], limit - need)
             for _ in range(max(n, 0)):
                 marks.append(
                     Mark(
@@ -300,13 +312,12 @@ def plan_annotations(
                         page=pos[page],
                         x=x,
                         y=line.bbox.y0,
-                        w=26 * scale,
+                        w=tick_w,
                         h=line.bbox.y1 - line.bbox.y0,
                         size=sz,
                     )
                 )
-                x += 26 * scale
-            frac = r.marks_awarded - n
+                x += tick_w
             if frac > 0:
                 marks.append(
                     Mark(
@@ -319,39 +330,31 @@ def plan_annotations(
                     )
                 )
                 x += 24 * scale
-            for tag, label in (("ecf", "ECF"), ("bod", "BOD")):
-                if tag in r.tags:
-                    marks.append(
-                        Mark(
-                            kind="text",
-                            page=pos[page],
-                            x=x + 4 * scale,
-                            y=line.bbox.y0 - 2 * scale,
-                            text=label,
-                            size=sz * 0.65,
-                        )
-                    )
-                    x += 56 * scale
-            if (
-                praise_left
-                and x + 100 * scale < limit
-                and r.marks_awarded >= crit[r.criterion_id].marks
-                and qg.marks_awarded >= 0.8 * qg.max_marks
-                and hit is not None
-            ):
+            for label in tags:
                 marks.append(
                     Mark(
                         kind="text",
                         page=pos[page],
-                        x=x + 8 * scale,
-                        y=line.bbox.y0 - 6 * scale,
-                        text="Good!",
-                        size=sz * 0.9,
+                        x=x + 4 * scale,
+                        y=line.bbox.y0 - 2 * scale,
+                        text=label,
+                        size=sz * 0.65,
                     )
                 )
-                x += 90 * scale
+                x += 56 * scale
+            if r.marks_awarded >= crit[r.criterion_id].marks and n >= 1 and hit is not None:
+                praise_at = (page, line, x)
+            tick_slots[id(line)] = x + 6 * scale
+        # "Good!" at most once per answer, after its ticks, for a strong answer, and only where it fits.
+        if praise_at and praise_left and qg.marks_awarded >= 0.8 * qg.max_marks:
+            page, line, _ = praise_at
+            x = tick_slots[id(line)]
+            if x + 90 * scale <= limit:
+                marks.append(
+                    Mark(kind="text", page=pos[page], x=x, y=line.bbox.y0 - 6 * scale, text="Good!", size=sz * 0.9)
+                )
+                tick_slots[id(line)] = x + 96 * scale
                 praise_left -= 1
-            tick_slots[key] = x + 6 * scale
         # Wavy underline under wrong statements, correction above the line.
         for e in qg.errors:
             hit = locate(e.quote, lines, tail=False)
@@ -369,7 +372,8 @@ def plan_annotations(
         # Caret at the end of an answer that lost marks, with the fix.
         if qg.marks_awarded < qg.max_marks and qg.remark and qg.remark.fix:
             lb = last.bbox
-            marks.append(Mark(kind="caret", page=pos[last_page], x=lb.x1 + 6 * scale, y=lb.y1 - 4 * scale, size=sz))
+            # Under the last word, so it never sits on top of the ticks that follow the text.
+            marks.append(Mark(kind="caret", page=pos[last_page], x=lb.x1 - 22 * scale, y=lb.y1 - 4 * scale, size=sz))
         # Margin remark under the bracketed marks.
         if qg.remark:
             y = max(first.bbox.y0 + 44 * scale, margin_free.get(p0, 0.0))
@@ -441,7 +445,7 @@ def _notes(spec: ExamSpec, grade: SheetGrade) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _jitter_text(img, xy, text: str, size: float, rng: random.Random, bold: bool = False, fill=INK):
+def _ink_text(img, xy, text: str, size: float, bold: bool = False, fill=INK):
     from PIL import Image, ImageDraw
 
     font = _font(int(size), bold, text)
@@ -449,29 +453,24 @@ def _jitter_text(img, xy, text: str, size: float, rng: random.Random, bold: bool
     h = int(size * 1.6) + 10
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     ImageDraw.Draw(layer).text((8, 2), text, font=font, fill=(*fill, 235))
-    layer = layer.rotate(rng.uniform(-2.5, 2.5), resample=Image.BICUBIC, expand=True)
-    img.alpha_composite(layer, (int(xy[0] + rng.uniform(-2, 2)), int(xy[1] + rng.uniform(-2, 2))))
+    img.alpha_composite(layer, (int(xy[0]), int(xy[1])))
     return w
 
 
-def _tick(d, m: Mark, rng: random.Random):
+def _tick(d, m: Mark):
     s = m.w
     base_y = m.y + m.h * 0.75
-    j = lambda: rng.uniform(-2, 2)  # noqa: E731
     pts = [
-        (m.x + j(), base_y - s * 0.35 + j()),
-        (m.x + s * 0.35 + j(), base_y + j()),
-        (m.x + s * 1.05 + j(), base_y - s * 1.1 + j()),
+        (m.x, base_y - s * 0.35),
+        (m.x + s * 0.35, base_y),
+        (m.x + s * 1.05, base_y - s * 1.1),
     ]
     d.line(pts, fill=(*INK, 240), width=max(3, int(m.size / 9)), joint="curve")
 
 
-def _wavy(d, m: Mark, rng: random.Random):
+def _wavy(d, m: Mark):
     amp, period = m.size * 0.12, m.size * 0.45
-    pts = [
-        (m.x + t, m.y + amp * math.sin(2 * math.pi * t / period) + rng.uniform(-0.6, 0.6))
-        for t in range(0, int(m.w) + 1, 3)
-    ]
+    pts = [(m.x + t, m.y + amp * math.sin(2 * math.pi * t / period)) for t in range(0, int(m.w) + 1, 3)]
     if len(pts) > 1:
         d.line(pts, fill=(*INK, 230), width=max(2, int(m.size / 12)))
 
@@ -481,7 +480,7 @@ def _caret(d, m: Mark):
     d.line([(m.x, m.y + s), (m.x + s * 0.5, m.y), (m.x + s, m.y + s)], fill=(*INK, 240), width=max(3, int(m.size / 10)))
 
 
-def _stamp(img, xy, lines: list[str], size: float, rng: random.Random):
+def _stamp(img, xy, lines: list[str], size: float):
     from PIL import Image, ImageDraw
 
     font = _font(int(size), True)
@@ -493,11 +492,10 @@ def _stamp(img, xy, lines: list[str], size: float, rng: random.Random):
     d.rounded_rectangle([3, 3, w - 4, h - 4], radius=12, outline=(*INK, 210), width=4)
     for i, t in enumerate(lines):
         d.text((20, 14 + i * size * 1.35), t, font=font, fill=(*INK, 210))
-    layer = layer.rotate(rng.uniform(-8, -4), resample=Image.BICUBIC, expand=True)
     img.alpha_composite(layer, (int(xy[0]), int(xy[1])))
 
 
-def render_cover(plan: AnnotationPlan, title: str, rng: random.Random):
+def render_cover(plan: AnnotationPlan, title: str):
     """Draw the booklet cover with the question grid and total."""
     from PIL import Image, ImageDraw
 
@@ -520,23 +518,22 @@ def render_cover(plan: AnnotationPlan, title: str, rng: random.Random):
         d.rectangle([x0, y, x0 + cw, y + rh], outline=(60, 60, 60), width=2)
         d.rectangle([x0 + cw, y, x0 + 2 * cw, y + rh], outline=(60, 60, 60), width=2)
         d.text((x0 + 20, y + 16), q, fill=(40, 40, 40), font=_student_font(28))
-        _jitter_text(img, (x0 + cw + 24, y + 2), mk, 40 if q == "Total" else 36, rng, bold=q == "Total")
+        _ink_text(img, (x0 + cw + 24, y + 2), mk, 40 if q == "Total" else 36, bold=q == "Total")
     yb = y0 + (len(rows) + 1) * rh + 20
     _stamp(
         img,
         (x0 + 2 * cw + 60, y0 + 40),
         ["AI-marked", VERSION, f"confidence {plan.confidence:.0%}"],
         34,
-        rng,
     )
     if plan.review:
-        _jitter_text(img, (x0, yb), f"? to be checked by a teacher: {', '.join(plan.review)}", 32, rng)
+        _ink_text(img, (x0, yb), f"? to be checked by a teacher: {', '.join(plan.review)}", 32)
         yb += 60
-    _jitter_text(img, (x0, yb), "Feedback for each answer is on the last page.", 30, rng)
+    _ink_text(img, (x0, yb), "Feedback for each answer is on the last page.", 30)
     return img
 
 
-def render_notes(plan: AnnotationPlan, rng: random.Random):
+def render_notes(plan: AnnotationPlan):
     """Draw feedback pages for the annotation plan."""
     from PIL import Image
 
@@ -547,53 +544,52 @@ def render_notes(plan: AnnotationPlan, rng: random.Random):
             if img is None or y > PAGE_H - 120:
                 img = Image.new("RGBA", (PAGE_W, PAGE_H), (253, 252, 247, 255))
                 pages.append(img)
-                _jitter_text(img, (110, 70), "Examiner's notes", 46, rng, bold=True)
+                _ink_text(img, (110, 70), "Examiner's notes", 46, bold=True)
                 y = 160
             if chunk:
                 header = not chunk.startswith(" ") and len(chunk) <= 6
-                _jitter_text(img, (110, y), chunk, 36 if header else 30, rng, bold=header)
+                _ink_text(img, (110, y), chunk, 36 if header else 30, bold=header)
             y += 46
     if pages:
         if y > PAGE_H - 320:
             img = Image.new("RGBA", (PAGE_W, PAGE_H), (253, 252, 247, 255))
             pages.append(img)
             y = 160
-        _stamp(pages[-1], (PAGE_W - 470, y + 40), ["AI-marked", VERSION], 30, rng)
+        _stamp(pages[-1], (PAGE_W - 470, y + 40), ["AI-marked", VERSION], 30)
     return pages
 
 
-def render_plan(plan: AnnotationPlan, title: str = "", cover: bool = True, notes: bool = True, seed: int | None = None):
+def render_plan(plan: AnnotationPlan, title: str = "", cover: bool = True, notes: bool = True):
     """Draw the plan. Returns a list of RGB PIL images: cover, annotated pages, notes."""
     from PIL import Image, ImageDraw
 
-    rng = random.Random(seed if seed is not None else plan.student_id)
     out = []
     if cover:
-        out.append(render_cover(plan, title, rng))
+        out.append(render_cover(plan, title))
     for i, path in enumerate(plan.pages):
         img = Image.open(path).convert("RGBA")
         d = ImageDraw.Draw(img, "RGBA")
         for m in (m for m in plan.marks if m.page == i):
             if m.kind == "tick":
-                _tick(d, m, rng)
+                _tick(d, m)
             elif m.kind == "wavy":
-                _wavy(d, m, rng)
+                _wavy(d, m)
             elif m.kind == "caret":
                 _caret(d, m)
             elif m.kind in ("text", "question"):
-                _jitter_text(img, (m.x, m.y), m.text, m.size, rng, bold=m.kind == "question")
+                _ink_text(img, (m.x, m.y), m.text, m.size, bold=m.kind == "question")
             elif m.kind == "circle":
-                w = _jitter_text(img, (m.x, m.y), m.text, m.size, rng, bold=True)
+                w = _ink_text(img, (m.x, m.y), m.text, m.size, bold=True)
                 d.ellipse(
                     [m.x - 6, m.y - 4, m.x + w + 2, m.y + m.size * 1.5],
                     outline=(*INK, 220),
                     width=max(3, int(m.size / 11)),
                 )
         if i == 0:
-            _stamp(img, (img.width - 330, img.height - 150), ["AI-marked"], 28, rng)
+            _stamp(img, (img.width - 330, img.height - 150), ["AI-marked"], 28)
         out.append(img)
     if notes:
-        out += render_notes(plan, rng)
+        out += render_notes(plan)
     return [im.convert("RGB") for im in out]
 
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 
-from autoassess.grader import policy_note
+from autoassess.grader import policy_note, reason_language_note
 from autoassess.providers.base import LLMClient
 from autoassess.schemas import CriterionResult, Question, Verdict
 
@@ -55,6 +55,7 @@ def build_advocate_prompt(
         f"{earlier}"
         f"<student_answer>\n{answer}\n</student_answer>\n\n"
         f"CRITERIA BELOW FULL MARKS:\n{json.dumps(short, indent=2, ensure_ascii=False)}"
+        f"{reason_language_note(question)}"
     )
 
 

@@ -157,10 +157,22 @@ def policy_note(question: Question) -> str:
     return f"{LENIENT_NOTE}\n\n" if question.marking == "lenient" else ""
 
 
+# Any Indian script (Devanagari to Malayalam blocks). A rubric written in one gets its reasons in that language.
+_INDIC = re.compile(r"[\u0900-\u0D7F]")
+
+
+def reason_language_note(question: Question) -> str:
+    """Ask for reasons in the rubric's language when the rubric is not in English (empty for English rubrics)."""
+    text = question.text + " ".join(c.description for c in question.criteria)
+    if not _INDIC.search(text):
+        return ""
+    return "\n\nWrite every reason in the same language and script as the rubric, keeping technical terms as written."
+
+
 def build_prompt(question: Question, answer: str, context: str | None = None, mode: str = "text") -> str:
     """Build a criterion-grading prompt with the answer treated as untrusted data."""
     rubric = "\n".join(_criterion_line(c) for c in question.criteria) + "\n\n" + policy_note(question).strip()
-    rubric = rubric.rstrip()
+    rubric = rubric.rstrip() + reason_language_note(question)
     model = question.model_answer or "(none given)"
     earlier = (
         f"EARLIER ANSWERS (context only, not graded here):\n<earlier_answers>\n{context}\n</earlier_answers>\n\n"

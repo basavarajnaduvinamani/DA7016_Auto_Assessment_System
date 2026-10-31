@@ -80,6 +80,14 @@ Live run with the final configuration (gemini-2.5-flash, advocate review, Bodhan
 | Tamil | 15 / 15 | 1.5 / 15 | 21 of 21 | 6 of 6 |
 | Telugu | 15 / 15 | 1.5 / 15 | 21 of 21 | 6 of 6 |
 
+Red ink on the weak sheet in each language, straight from that run: the wavy underline with a correction, carets for missing points, the "?" sent to the teacher, and the margin remark with its labels in the student's language ([strong sheets](docs/images/multilingual/)):
+
+| Hindi | Kannada |
+| --- | --- |
+| <img src="docs/images/multilingual/hindi_weak.png" alt="Hindi weak sheet marked in red ink with Hindi margin remarks" width="420"> | <img src="docs/images/multilingual/kannada_weak.png" alt="Kannada weak sheet marked in red ink with Kannada margin remarks" width="420"> |
+| **Tamil** | **Telugu** |
+| <img src="docs/images/multilingual/tamil_weak.png" alt="Tamil weak sheet marked in red ink with Tamil margin remarks" width="420"> | <img src="docs/images/multilingual/telugu_weak.png" alt="Telugu weak sheet marked in red ink with Telugu margin remarks" width="420"> |
+
 The English originals score 15 and 0.5, so the weak sheets come out 0.5 to 1.75 marks higher once translated.
 
 How it works:

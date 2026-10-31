@@ -1,0 +1,146 @@
+{
+  "source": "SPRAG test, final config (advocate only), fresh run 2026-10-31",
+  "headline": "At confidence >= 0.8: auto-mark 91% of answers (415 of 455) at QWK 0.773 [0.731, 0.811], MAE 0.78; 40 go to the teacher.",
+  "rows": [
+    {
+      "threshold": 0.0,
+      "auto_n": 453,
+      "auto_share": 0.996,
+      "review_n": 2,
+      "qwk": 0.723,
+      "qwk_ci95": [
+        0.666,
+        0.772
+      ],
+      "mae": 0.86,
+      "within_1": 0.764,
+      "bias": 0.218
+    },
+    {
+      "threshold": 0.5,
+      "auto_n": 449,
+      "auto_share": 0.987,
+      "review_n": 6,
+      "qwk": 0.734,
+      "qwk_ci95": [
+        0.678,
+        0.781
+      ],
+      "mae": 0.847,
+      "within_1": 0.766,
+      "bias": 0.236
+    },
+    {
+      "threshold": 0.6,
+      "auto_n": 448,
+      "auto_share": 0.985,
+      "review_n": 7,
+      "qwk": 0.734,
+      "qwk_ci95": [
+        0.678,
+        0.781
+      ],
+      "mae": 0.847,
+      "within_1": 0.766,
+      "bias": 0.238
+    },
+    {
+      "threshold": 0.7,
+      "auto_n": 415,
+      "auto_share": 0.912,
+      "review_n": 40,
+      "qwk": 0.773,
+      "qwk_ci95": [
+        0.731,
+        0.811
+      ],
+      "mae": 0.779,
+      "within_1": 0.793,
+      "bias": 0.121
+    },
+    {
+      "threshold": 0.75,
+      "auto_n": 415,
+      "auto_share": 0.912,
+      "review_n": 40,
+      "qwk": 0.773,
+      "qwk_ci95": [
+        0.731,
+        0.811
+      ],
+      "mae": 0.779,
+      "within_1": 0.793,
+      "bias": 0.121
+    },
+    {
+      "threshold": 0.8,
+      "auto_n": 415,
+      "auto_share": 0.912,
+      "review_n": 40,
+      "qwk": 0.773,
+      "qwk_ci95": [
+        0.731,
+        0.811
+      ],
+      "mae": 0.779,
+      "within_1": 0.793,
+      "bias": 0.121
+    },
+    {
+      "threshold": 0.85,
+      "auto_n": 229,
+      "auto_share": 0.503,
+      "review_n": 226,
+      "qwk": 0.889,
+      "qwk_ci95": [
+        0.856,
+        0.916
+      ],
+      "mae": 0.548,
+      "within_1": 0.865,
+      "bias": -0.181
+    },
+    {
+      "threshold": 0.9,
+      "auto_n": 229,
+      "auto_share": 0.503,
+      "review_n": 226,
+      "qwk": 0.889,
+      "qwk_ci95": [
+        0.856,
+        0.916
+      ],
+      "mae": 0.548,
+      "within_1": 0.865,
+      "bias": -0.181
+    },
+    {
+      "threshold": 0.95,
+      "auto_n": 228,
+      "auto_share": 0.501,
+      "review_n": 227,
+      "qwk": 0.889,
+      "qwk_ci95": [
+        0.856,
+        0.916
+      ],
+      "mae": 0.548,
+      "within_1": 0.864,
+      "bias": -0.184
+    },
+    {
+      "threshold": 1.0,
+      "auto_n": 228,
+      "auto_share": 0.501,
+      "review_n": 227,
+      "qwk": 0.889,
+      "qwk_ci95": [
+        0.856,
+        0.916
+      ],
+      "mae": 0.548,
+      "within_1": 0.864,
+      "bias": -0.184
+    }
+  ]
+}

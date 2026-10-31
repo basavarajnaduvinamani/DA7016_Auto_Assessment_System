@@ -421,7 +421,10 @@ def plan_annotations(
             stop = min([v - 12 * scale for v in starts[p0] if v > first.bbox.y0 + 1], default=H - 60 * scale)
             width_chars = max(14, int((W - rx - 10) / (12 * scale)))
             for part in qg.remark.lines():
-                for chunk in textwrap.wrap(part, width=width_chars, max_lines=3, placeholder="…"):
+                # Kannada, Tamil and Telugu letters run about a third wider than Kalam's Latin.
+                wide = _script_font(part, ink=True) not in (None, "Kalam")
+                chars = int(width_chars * 0.7) if wide else width_chars
+                for chunk in textwrap.wrap(part, width=chars, max_lines=3, placeholder="…"):
                     if y + 26 * scale > stop:
                         break  # no room before the next answer; the notes page has the full remark
                     marks.append(Mark(kind="text", page=p0, x=rx - 10 * scale, y=y, text=chunk, size=sz * 0.62))

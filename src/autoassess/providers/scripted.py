@@ -21,6 +21,15 @@ def _content_words(text: str) -> set[str]:
     return {w for w in _words(text) if len(w) >= 4 and w not in STOPWORDS}
 
 
+def _short(criterion: str, limit: int = 60) -> str:
+    """A rubric point without its leading verb ("States that ..."), ended with "." or cut to fit with "…"."""
+    text = re.sub(
+        r"^(states|says|mentions|gives|defines|explains|names|lists)( that)?\s+", "", criterion.strip(), flags=re.I
+    )
+    text = text.rstrip(".")
+    return text + "." if len(text) <= limit else text[: limit - 1].rsplit(" ", 1)[0] + "…"
+
+
 def _between(text: str, start: str, end: str) -> str:
     return text.split(start, 1)[1].split(end, 1)[0].strip("\n")
 
@@ -89,17 +98,21 @@ class ScriptedLLM(LLMClient):
                 ]
             }
         if system == FEEDBACK_SYSTEM:
+            # Remarks quote the rubric's own wording, so the offline demo reads like real marking.
             rows = _rows(user, "GRADING:\n")
-            earned, lost = [], []
+            earned, lost, covered, missing = [], [], [], []
             for r in rows:
                 marks, maximum = map(float, r["marks"].split(" of "))
+                point = _short(r["criterion"])
                 if marks > 0:
-                    earned.append({"criterion_id": r["criterion_id"], "text": "You included a rubric point."})
+                    covered.append(point)
+                    earned.append({"criterion_id": r["criterion_id"], "text": f"You covered: {point}"})
                 if marks < maximum:
+                    missing.append(point)
                     lost.append(
                         {
                             "criterion_id": r["criterion_id"],
-                            "text": "You missed a rubric point.",
+                            "text": f"Missing: {point}",
                             "next_step": f"Include this point: {r['criterion']}",
                         }
                     )
@@ -108,9 +121,11 @@ class ScriptedLLM(LLMClient):
                 "lost": lost,
                 "errors": [],
                 "remark": {
-                    "strength": "You included a rubric point." if earned else "",
-                    "fix": "Include the missing rubric point." if lost else "",
-                    "next_step": "Check each rubric point against your answer.",
+                    "strength": f"{covered[0][0].upper()}{covered[0][1:]}" if covered else "",
+                    "fix": f"Add: {missing[0]}" if missing else "",
+                    "next_step": "Plan one line per rubric point before writing."
+                    if missing
+                    else "Add a short example to make it even stronger.",
                 },
             }
         if system == SEGMENT_SYSTEM:

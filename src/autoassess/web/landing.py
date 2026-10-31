@@ -52,3 +52,53 @@ LANGUAGE_NAMES = [
     ("ଓଡ଼ିଆ", "or"),
     ("ਪੰਜਾਬੀ", "pa"),
 ]
+
+
+def privacy_note() -> dict[str, object]:
+    """What the app stores, where and for how long, for the sign-in page, /privacy and the account page.
+
+    The hosting line and the pilot end date come from AUTOASSESS_DATA_LOCATION and
+    AUTOASSESS_PILOT_END, so the note matches the deployment it is shown on.
+    """
+    import os
+
+    location = os.getenv("AUTOASSESS_DATA_LOCATION", "").strip() or (
+        "the app server and its Postgres database" if os.getenv("DATABASE_URL") else "the app server"
+    )
+    end = os.getenv("AUTOASSESS_PILOT_END", "").strip()
+    return {
+        "short": (
+            f"We store your email, your class rosters, the sheets you upload and their marks, in {location}. "
+            "Sheets are sent to our AI and handwriting-reading services only to mark them. "
+            "You can delete everything yourself at any time"
+            + (f", and the rest is deleted when the pilot ends on {end}." if end else ".")
+        ),
+        "sections": [
+            (
+                "What we store",
+                "Your name and email. The classes and rosters you add (student names and roll numbers). "
+                "The answer sheets you upload, the text read from them, the AI's marks and feedback, and the "
+                "marked PDFs. Every decision you make (accept or change a mark, with your reason) and when you "
+                "opened and decided each answer, which is how review time is measured.",
+            ),
+            (
+                "Where it is",
+                f"In {location}. To mark a sheet, its pages or text are sent to the AI grading service "
+                "(OpenRouter, using Google Gemini) and, for handwritten pages, to Bodhan IndicOCR; feedback in "
+                "Indian languages is translated by Bodhan. Your roster is not sent to them.",
+            ),
+            (
+                "How long",
+                "Until you press Delete all my data on your Account page, which removes your account, classes, "
+                "rosters, sheets, marks, files and logs straight away"
+                + (f". Anything left is deleted when the pilot ends on {end}." if end else ".")
+                + " Sign-in codes are kept only as a hash and expire after 10 minutes; sign-in rate-limit "
+                "records are deleted after 24 hours.",
+            ),
+            (
+                "What the pilot report contains",
+                "Counts and timings only: minutes per sheet, how often you changed a mark and the average size "
+                "of the change. No student names, roll numbers, answers, feedback or your reasons.",
+            ),
+        ],
+    }

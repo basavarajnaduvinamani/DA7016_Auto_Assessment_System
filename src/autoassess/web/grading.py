@@ -99,8 +99,7 @@ def rebuild_artifacts(store: Store, submission_id: int) -> dict[str, Any]:
     html_path = out / "report.html"
     html_path.write_text(run.html(), encoding="utf-8")
     artifacts = {"pdf": str(annotated.pdf), "pngs": [str(p) for p in annotated.pngs], "html": str(html_path)}
-    with store.connect() as db:
-        db.execute("UPDATE submissions SET artifacts_json=? WHERE id=?", (json.dumps(artifacts), submission_id))
+    store.set_artifacts(submission_id, artifacts)
     return artifacts
 
 

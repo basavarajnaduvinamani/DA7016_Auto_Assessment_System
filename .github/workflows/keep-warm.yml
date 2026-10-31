@@ -6,9 +6,13 @@
 # - Free instance hours are shared by every free service in the workspace (750 per month at
 #   the time of writing). One always-on service uses about 744, so keep-warm only fits ONE
 #   free service; disable this workflow if you add another.
-# - GitHub may delay scheduled runs by several minutes at busy times and disables schedules
-#   after 60 days without repository activity; re-enable from the Actions tab.
-# - The demo's data lives in /tmp on Render and is reset on every restart or deploy anyway.
+# - GitHub does NOT run schedules on time. On 31 Oct 2026 this */10 schedule fired only three
+#   times in eleven hours (00:01, 05:22, 10:59 UTC), and the 10:59 run took 78 s, i.e. it woke a
+#   sleeping instance. So this workflow is only a backup: for a pilot, add a free external
+#   monitor that hits /healthz every 5 minutes (UptimeRobot or cron-job.org; see docs/deploy.md).
+# - GitHub disables schedules after 60 days without repository activity; re-enable from the Actions tab.
+# - With DATABASE_URL set, records and files live in Postgres and survive restarts; without it
+#   they live in /tmp on Render and are reset on every restart or deploy.
 # Override the URL with a repository variable RENDER_HEALTHZ_URL (Settings > Variables).
 name: keep-warm
 

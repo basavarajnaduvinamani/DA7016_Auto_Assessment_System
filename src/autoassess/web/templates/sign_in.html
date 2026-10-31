@@ -40,9 +40,14 @@
   <div><p class="eyebrow">TRY IT ON A SAMPLE CLASS</p><h2 id="sign-in-title">Open the demo classroom</h2><p class="muted">A sample class and a marked quiz are ready for you: the review queue, each answer beside its marked page, changing a mark with a reason, release and exports.</p></div>
   <div class="panel sign-in"><span class="eyebrow">TEACHER SIGN-IN</span>
     <form action="/sign-in" method="post"><input type="hidden" name="email" value="demo@redink.local"><button class="button full">Sign in as demo teacher</button></form>
-    <div class="divider">or use a seeded email</div>
+    {% if email_sign_in %}<div class="divider">or sign in with your school email</div>
+    <form action="/sign-in" method="post" class="stack"><label>Email address<input type="email" name="email" value="{{ email|default('') }}" placeholder="you@school.edu" required autocomplete="email" maxlength="254"></label><button class="button secondary">Email me a sign-in code <span aria-hidden="true">→</span></button></form>
+    <p class="small muted">We'll email you a 6-digit code. It works once and expires in 10 minutes. No password needed.</p>
+    <p class="small muted privacy-short" id="privacy">{{ privacy.short }} <a href="/privacy">How we handle your data</a></p>
+    {% else %}<div class="divider">or use a seeded email</div>
     <form action="/sign-in" method="post" class="stack"><label>Email address<input type="email" name="email" value="{{ email|default('') }}" placeholder="you@school.edu" required autocomplete="email"></label><button class="button secondary">Continue <span aria-hidden="true">→</span></button></form>
     <p class="small muted">No password needed in the demo workspace. Please use sample data only.</p>
+    <p class="small muted privacy-short" id="privacy">{{ privacy.short }} <a href="/privacy">How we handle your data</a></p>{% endif %}
   </div>
 </section>
 {% endblock %}

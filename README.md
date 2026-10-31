@@ -111,11 +111,11 @@ Click **Sign in as demo teacher**. A sample class and a pre-graded sample assign
 **Docker:**
 
 ```bash
-docker build -t redink .
-docker run --rm -p 8000:8000 --env-file .env -v redink-data:/var/lib/redink redink
+docker build -t secondread .
+docker run --rm -p 8000:8000 --env-file .env -v secondread-data:/var/lib/secondread secondread
 ```
 
-**Render:** `render.yaml` is a ready blueprint (New > Blueprint, pick this repository, add the keys). See [`docs/deploy.md`](docs/deploy.md). The `keep-warm` GitHub Actions workflow pings `/healthz` every 10 minutes so the free instance does not sleep (free-tier limits are noted in [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml)).
+**Render:** `render.yaml` is a ready blueprint (New > Blueprint, pick this repository, add the keys). See [`docs/deploy.md`](docs/deploy.md). The `keep-warm` GitHub Actions workflow pings `/healthz` as a backup, but GitHub runs schedules hours late, so use a free external monitor for a pilot (see [`docs/deploy.md`](docs/deploy.md#pilot-setup)).
 
 ## Configuration
 
@@ -131,6 +131,9 @@ Settings come from environment variables or a `.env` file. The main ones:
 | `OPENROUTER_BUDGET_USD`, `BODHAN_BUDGET_INR` | Spend limits; paid calls stop there |
 | `AUTOASSESS_DEMO_DRY_RUN` | `1` = offline scripted grading for demos |
 | `AUTOASSESS_DATA_DIR` | Where the teacher app keeps its SQLite file and uploads (default `.redink/`) |
+| `DATABASE_URL` | A `postgres://` URL (Neon, Supabase): records and uploaded/marked files survive restarts. `autoassess migrate` creates the schema or copies a local workspace in |
+| `RESEND_API_KEY` or `BREVO_API_KEY`, `AUTOASSESS_MAIL_FROM` | Email sign-in with one-time codes (10 minutes, single use, rate limited). Without them only the demo teacher can sign in |
+| `AUTOASSESS_PILOT_EMAILS`, `AUTOASSESS_ADMIN_EMAILS` | Who may create an account by email code, and who may download every teacher's pilot log |
 
 `autoassess doctor` checks each configured key with one tiny live request. All variables are listed in [`.env.example`](.env.example).
 

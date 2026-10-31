@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Account · {{ product_name }}{% endblock %}
+{% block breadcrumb %}<span>/</span><span>Account</span>{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ACCOUNT</p><h1>Your account and your data</h1><p class="muted">Signed in as {{ teacher.email }}.</p></div></div>
+<div class="two-columns">
+  <div class="stack">
+    <section class="panel" aria-labelledby="log-title">
+      <h2 id="log-title">Pilot log</h2>
+      <p class="muted">Minutes per sheet, how often you changed a mark and how far, per assignment and in total. Counts and timings only, with no student names, roll numbers, answers or your reasons.</p>
+      <p><a class="button secondary" href="/account/pilot-log.csv" download>Download my pilot log (CSV)</a></p>
+      {% if is_admin %}<p><a class="button secondary" href="/pilot/export.csv" download>Download every teacher's log (CSV)</a></p>{% endif %}
+    </section>
+    <section class="panel danger-zone" aria-labelledby="delete-title">
+      <h2 id="delete-title">Delete all my data</h2>
+      {% if is_demo %}<p class="muted">This is the shared demo account, so it can't be deleted. Sign in with your own email to manage your data.</p>
+      {% else %}<p class="muted">This removes your account, classes, rosters, uploaded sheets, marks, marked PDFs and logs from the database and file storage straight away. It can't be undone, so download anything you need first.</p>
+      <form action="/account/delete" method="post" class="stack"><label>Type your email to confirm<input type="email" name="confirm" autocomplete="off" required placeholder="{{ teacher.email }}"></label><button class="button danger">Delete all my data</button></form>{% endif %}
+    </section>
+  </div>
+  <div class="stack">{% for title, body in privacy.sections %}<section class="panel"><h2>{{ title }}</h2><p class="muted small">{{ body }}</p></section>{% endfor %}</div>
+</div>
+{% endblock %}

@@ -13,33 +13,54 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[ingest,api,annotate,web,dev]"
+      - run: pip install -e ".[ingest,api,annotate,web,postgres,dev]"
       - run: ruff check .
       - run: pytest -q
+
+  postgres:
+    # The teacher-app tests again, each on a fresh Postgres database (as on Neon or Supabase).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      AUTOASSESS_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres  # an IP: the tests block DNS lookups
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[ingest,api,annotate,web,postgres,dev]"
+      - run: pytest -q tests/test_web_*.py
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build teacher app image (no push)
-        run: docker build --tag redink:ci .
+        run: docker build --tag secondread:ci .
       - name: Check offline container startup
         run: |
-          docker run -d --network none --name redink-smoke -e AUTOASSESS_DEMO_DRY_RUN=1 redink:ci
+          docker run -d --network none --name secondread-smoke -e AUTOASSESS_DEMO_DRY_RUN=1 secondread:ci
           python - <<'PY'
           import subprocess
           import time
           for attempt in range(45):
-              check = subprocess.run(['docker', 'exec', 'redink-smoke', 'python', '-c',
+              check = subprocess.run(['docker', 'exec', 'secondread-smoke', 'python', '-c',
                   "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/healthz').status == 200"],
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
               if check.returncode == 0:
                   break
               time.sleep(1)
           else:
-              subprocess.run(['docker', 'logs', 'redink-smoke'])
+              subprocess.run(['docker', 'logs', 'secondread-smoke'])
               raise SystemExit('Container health check failed')
           PY
       - name: Stop smoke container
         if: always()
-        run: docker rm -f redink-smoke || true
+        run: docker rm -f secondread-smoke || true

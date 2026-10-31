@@ -29,6 +29,7 @@ def teacher_time(store: Store, assignment_id: int, threshold: float = THRESHOLD)
     answers = auto = flagged = 0
     teacher_changes = ai_rechecks = 0
     changed_answers: set[tuple[int, str]] = set()
+    deltas: list[float] = []  # teacher's new mark minus the AI's, per changed criterion
     for submission in store.submissions(assignment_id):
         if not submission["grade_json"]:
             continue
@@ -45,6 +46,7 @@ def teacher_time(store: Store, assignment_id: int, threshold: float = THRESHOLD)
             else:
                 teacher_changes += 1
                 changed_answers.add((submission["id"], change["question_id"]))
+                deltas.append(change["new_marks"] - change["old_marks"])
 
     def share(n: int) -> int | None:
         """Percentage of all answers, or None when nothing is graded yet."""
@@ -61,8 +63,27 @@ def teacher_time(store: Store, assignment_id: int, threshold: float = THRESHOLD)
         "overrides": teacher_changes,
         "overridden_answers": len(changed_answers),
         "rechecks": ai_rechecks,
+        **calibration(deltas),
         **review_activity(store.review_events(assignment_id)),
     }
+
+
+# Fewer changes than this say little about a teacher's habits, so no direction is reported.
+MIN_CHANGES = 5
+
+
+def calibration(deltas: list[float]) -> dict[str, Any]:
+    """How the teacher's changed marks compare with the AI's: the average shift and its direction.
+
+    Read-only: it describes the teacher's habit and never changes a mark.
+    """
+    if not deltas:
+        return {"calibration_n": 0, "calibration_shift": None, "calibration_direction": None}
+    shift = round(statistics.fmean(deltas), 2)
+    direction = None
+    if len(deltas) >= MIN_CHANGES:
+        direction = "more generous" if shift >= 0.25 else "stricter" if shift <= -0.25 else "in line"
+    return {"calibration_n": len(deltas), "calibration_shift": shift, "calibration_direction": direction}
 
 
 # A gap longer than this between opening an answer and deciding it is treated as the teacher stepping away.

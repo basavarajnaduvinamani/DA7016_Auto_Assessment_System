@@ -187,8 +187,8 @@ def test_docker_context_excludes_private_files_and_builds_in_ci():
     ]:
         assert not ignored(path), path
     dockerfile = (ROOT / "Dockerfile").read_text()
-    assert "FROM python:3.12-slim" in dockerfile and ".[web,ingest,annotate]" in dockerfile
-    assert "USER redink" in dockerfile and "autoassess serve --host 0.0.0.0 --port" in dockerfile
+    assert "FROM python:3.12-slim" in dockerfile and ".[web,ingest,annotate,postgres]" in dockerfile
+    assert "USER secondread" in dockerfile and "autoassess serve --host 0.0.0.0 --port" in dockerfile
     workflow = yaml.load((ROOT / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
     steps = workflow["jobs"]["docker"]["steps"]
     assert any("docker build" in step.get("run", "") for step in steps)

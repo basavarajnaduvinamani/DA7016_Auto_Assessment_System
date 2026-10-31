@@ -389,6 +389,33 @@ def _serve(args) -> int:
     return 0
 
 
+def _migrate(args) -> int:
+    from autoassess.web.migrate import migrate
+
+    summary = migrate(args.database_url, args.data_dir, args.from_sqlite, args.force)
+    print(f"Schema is current on {summary['backend']} (files: {summary['files_backend']}).")
+    if "copied" in summary:
+        rows = ", ".join(f"{table} {n}" for table, n in summary["copied"].items())
+        print(f"Copied rows: {rows}. Files copied: {summary['files']}.")
+    return 0
+
+
+def _pilot_export(args) -> int:
+    import os
+
+    from autoassess.web.pilot import all_rows, to_csv
+    from autoassess.web.store import Store
+
+    store = Store(args.data_dir or os.getenv("AUTOASSESS_DATA_DIR", ".redink"))
+    content = to_csv(all_rows(store, include_demo=args.include_demo))
+    if args.out:
+        Path(args.out).write_bytes(content)
+        print(f"Wrote {args.out}")
+    else:
+        print(content.decode(), end="")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse command-line arguments and run the selected operation."""
     parser = argparse.ArgumentParser(prog="autoassess")
@@ -400,6 +427,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--data-dir")
     p.add_argument("--reset-demo", action="store_true", help="replace local app data with the synthetic demo")
     p.set_defaults(func=_serve)
+
+    p = sub.add_parser("migrate", help="create or upgrade the teacher-app database; optionally copy a SQLite workspace")
+    p.add_argument("--database-url", help="defaults to DATABASE_URL; empty means the local SQLite file")
+    p.add_argument("--data-dir", help="the app's data folder (defaults to AUTOASSESS_DATA_DIR or .redink)")
+    p.add_argument("--from-sqlite", metavar="DIR", help="a local data folder (with redink.db) to copy in")
+    p.add_argument("--force", action="store_true", help="copy even if the target already has teachers")
+    p.set_defaults(func=_migrate)
+
+    p = sub.add_parser("pilot-export", help="pilot log CSV for every teacher (no student text)")
+    p.add_argument("--data-dir")
+    p.add_argument("--out", help="write here instead of printing")
+    p.add_argument("--include-demo", action="store_true", help="include the shared demo teacher")
+    p.set_defaults(func=_pilot_export)
 
     p = sub.add_parser("doctor", help="check each configured key with one tiny live request")
     p.add_argument("--free", action="store_true", help="skip the Bodhan checks (they cost about Rs 0.20)")

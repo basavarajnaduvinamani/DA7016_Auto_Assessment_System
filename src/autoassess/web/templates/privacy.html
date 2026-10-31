@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Privacy · {{ product_name }}{% endblock %}
+{% block breadcrumb %}<span>/</span><span>Privacy</span>{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">PRIVACY</p><h1>What {{ product_name }} keeps, where, and for how long</h1><p class="muted">{{ privacy.short }}</p></div></div>
+<div class="privacy-grid">{% for title, body in privacy.sections %}<section class="panel"><h2>{{ title }}</h2><p class="muted">{{ body }}</p></section>{% endfor %}</div>
+{% if not teacher %}<p><a class="button secondary" href="/sign-in">Back to sign-in</a></p>{% endif %}
+{% endblock %}

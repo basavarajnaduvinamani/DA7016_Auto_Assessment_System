@@ -20,6 +20,8 @@ annotate = ["pillow>=10.1"]
 demo = ["gradio>=6.30,<6.31", "pillow>=10.1"]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.15"]
 report = ["matplotlib>=3.8"]
+postgres = ["psycopg[binary,pool]>=3.2"]
+s3 = ["boto3>=1.34"]
 web = ["fastapi>=0.110", "uvicorn>=0.29", "jinja2>=3.1", "python-multipart>=0.0.9", "itsdangerous>=2.2", "openpyxl>=3.1", "autoassess[demo]"]
 
 [project.scripts]

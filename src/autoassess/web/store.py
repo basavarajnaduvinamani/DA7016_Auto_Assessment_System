@@ -1,58 +1,50 @@
-"""SQLite persistence for the teacher app; each operation owns its connection."""
+"""Teacher-app persistence (SQLite locally, Postgres with DATABASE_URL); each operation owns its connection."""
 
 from __future__ import annotations
 
 import csv
 import io
+import os
 import re
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from autoassess.web.db import open_database
+from autoassess.web.files import FileMirror, open_blobs
 from autoassess.web.repository import AssignmentStore
 
 
-class Store(AssignmentStore):
-    """Manage the local SQLite database, class ownership and validated rosters."""
+def normal_email(email: str) -> str:
+    """Trim and lowercase an email so lookups and rate limits treat spellings alike."""
+    return (email or "").strip().lower()
 
-    def __init__(self, data_dir: str | Path) -> None:
+
+class Store(AssignmentStore):
+    """Manage the database, class ownership, validated rosters and teacher accounts."""
+
+    def __init__(self, data_dir: str | Path, database_url: str | None = None) -> None:
+        """Open the database and files folder, applying any pending schema migrations.
+
+        Args:
+            data_dir: Local folder for the SQLite file and the working copy of uploaded/marked files.
+            database_url: A ``postgres://`` URL; defaults to ``DATABASE_URL``. Empty means SQLite.
+        """
         self.root = Path(data_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / "files").mkdir(exist_ok=True)
-        self.path = self.root / "redink.db"
-        with self.connect() as db:
-            db.executescript("""
-                PRAGMA journal_mode=WAL;
-                CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
-                INSERT INTO schema_version SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
-                CREATE TABLE IF NOT EXISTS teachers (
-                    id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE
-                );
-                CREATE TABLE IF NOT EXISTS classes (
-                    id INTEGER PRIMARY KEY, teacher_id INTEGER NOT NULL REFERENCES teachers(id),
-                    name TEXT NOT NULL, subject TEXT NOT NULL, section TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS students (
-                    id INTEGER PRIMARY KEY, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-                    roll_no TEXT NOT NULL, name TEXT NOT NULL, UNIQUE(class_id, roll_no)
-                );
-            """)
-
-        self.init_assignments()
+        url = (os.getenv("DATABASE_URL", "") if database_url is None else database_url).strip()
+        self.database = open_database(self.root, url or None)
+        self.path = getattr(self.database, "path", None)
+        self.database.migrate()
+        self.files = FileMirror(self.root / "files", open_blobs(self.connect, self.database.durable_files))
 
     @contextmanager
-    def connect(self) -> Iterator[sqlite3.Connection]:
-        """Yield a transaction-scoped connection with foreign keys enabled."""
-        db = sqlite3.connect(self.path, timeout=30)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys=ON")
-        try:
-            with db:
-                yield db
-        finally:
-            db.close()
+    def connect(self) -> Iterator[Any]:
+        """Yield a transaction-scoped connection (SQLite with foreign keys on, or Postgres)."""
+        with self.database.connect() as db:
+            yield db
 
     def teacher(self, teacher_id: int) -> dict[str, Any] | None:
         """Find a teacher by persistent ID."""
@@ -63,8 +55,60 @@ class Store(AssignmentStore):
     def teacher_by_email(self, email: str) -> dict[str, Any] | None:
         """Find a seeded teacher using a case-insensitive email match."""
         with self.connect() as db:
-            row = db.execute("SELECT * FROM teachers WHERE email=?", (email.strip(),)).fetchone()
+            row = db.execute("SELECT * FROM teachers WHERE lower(email)=?", (normal_email(email),)).fetchone()
             return dict(row) if row else None
+
+    def create_teacher(self, email: str, name: str = "") -> dict[str, Any]:
+        """Create a teacher for a verified email (or return the existing one)."""
+        email = normal_email(email)
+        existing = self.teacher_by_email(email)
+        if existing:
+            return existing
+        name = name.strip()[:120] or email.split("@", 1)[0]
+        with self.connect() as db:
+            db.execute("INSERT INTO teachers(name,email) VALUES(?,?)", (name, email))
+        return self.teacher_by_email(email)
+
+    def delete_teacher_data(self, teacher_id: int) -> dict[str, int]:
+        """Delete a teacher and everything they own: classes, rosters, sheets, marks, logs and files.
+
+        Returns:
+            Counts of deleted classes, assignments and sheets, for the confirmation message.
+        """
+        with self.connect() as db:
+            teacher = db.execute("SELECT email FROM teachers WHERE id=?", (teacher_id,)).fetchone()
+            if teacher is None:
+                return {"classes": 0, "assignments": 0, "sheets": 0}
+            class_ids = [r[0] for r in db.execute("SELECT id FROM classes WHERE teacher_id=?", (teacher_id,))]
+            assignment_ids = [
+                r[0]
+                for r in db.execute(
+                    "SELECT a.id FROM assignments a JOIN classes c ON c.id=a.class_id WHERE c.teacher_id=?",
+                    (teacher_id,),
+                )
+            ]
+            sheets = 0
+            for assignment_id in assignment_ids:
+                ids = [r[0] for r in db.execute("SELECT id FROM submissions WHERE assignment_id=?", (assignment_id,))]
+                sheets += len(ids)
+                for sid in ids:
+                    for table in ("review_events", "overrides", "accepted", "jobs"):
+                        db.execute(f"DELETE FROM {table} WHERE submission_id=?", (sid,))
+                db.execute("DELETE FROM submissions WHERE assignment_id=?", (assignment_id,))
+                db.execute("DELETE FROM assignments WHERE id=?", (assignment_id,))
+            # Decisions this teacher made on anyone else's sheets (none in normal use) go too.
+            for table in ("review_events", "overrides", "accepted"):
+                db.execute(f"DELETE FROM {table} WHERE teacher_id=?", (teacher_id,))
+            for class_id in class_ids:
+                db.execute("DELETE FROM students WHERE class_id=?", (class_id,))
+                db.execute("DELETE FROM classes WHERE id=?", (class_id,))
+            email = normal_email(teacher[0])
+            db.execute("DELETE FROM login_codes WHERE email=?", (email,))
+            db.execute("DELETE FROM login_requests WHERE email=?", (email,))
+            db.execute("DELETE FROM teachers WHERE id=?", (teacher_id,))
+        for assignment_id in assignment_ids:
+            self.files.forget(assignment_id)
+        return {"classes": len(class_ids), "assignments": len(assignment_ids), "sheets": sheets}
 
     def classes(self, teacher_id: int) -> list[dict]:
         """List owned classes with live roster, assignment and review counts."""

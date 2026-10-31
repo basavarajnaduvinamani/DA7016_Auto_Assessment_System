@@ -243,7 +243,9 @@ def test_seed_has_offline_review_rows_and_is_idempotent(tmp_path, monkeypatch):
         assert len(app.state.store.assignments(1)) == 1
         seed(app.state.store, reset=True)
         seed_assignment(app.state.store)
-        assert len(app.state.store.submissions(1)) == 4
+        store = app.state.store
+        classroom = store.classes(store.teacher_by_email("demo@redink.local")["id"])[0]
+        assert len(store.submissions(store.assignments(classroom["id"])[0]["id"])) == 4
 
 
 def test_override_bounds_all_or_nothing_and_stale_edit(classroom_app):

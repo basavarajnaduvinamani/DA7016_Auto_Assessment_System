@@ -16,8 +16,8 @@ Open http://localhost:8000, then **Sign in as demo teacher**. The SQLite file an
 ## Docker
 
 ```bash
-docker build -t redink .
-docker run --rm -p 8000:8000 -e AUTOASSESS_DEMO_DRY_RUN=1 -v redink-data:/var/lib/redink redink
+docker build -t secondread .
+docker run --rm -p 8000:8000 -e AUTOASSESS_DEMO_DRY_RUN=1 -v secondread-data:/var/lib/secondread secondread
 ```
 
 Open http://localhost:8000. The Python 3.12 slim image runs as a non-root user. `PORT` defaults to 8000; if changed, map that container port. The named volume preserves SQLite, uploads and annotations. Without a volume, removing the container loses app data and the next container starts with the synthetic seed. Mount provider credentials at runtime or pass them as environment variables; never bake them into the image. `.dockerignore` excludes private datasets, run/cache directories, local app data and `.env` files. CI builds without pushing and checks startup with container networking disabled. On a network with a private TLS proxy, an optional build-only certificate can be passed with `--secret id=build_ca,src=/path/to/ca-bundle.pem`; the certificate is not copied into the image and TLS verification remains enabled.
@@ -32,6 +32,91 @@ Open http://localhost:8000. The Python 3.12 slim image runs as a non-root user. 
 The blueprint installs `.[web,ingest,annotate]` and starts `autoassess serve --host 0.0.0.0 --port $PORT`. `GET /healthz` returns `{"ok": true, "llm": "<provider or none>", "ocr": "<configured provider>"}` without provider calls; this is process readiness, not connectivity. Render generates `AUTOASSESS_SECRET_KEY` and stores data at `/tmp/redink`. **The free plan’s disk resets on restart/redeploy: app records, overrides, uploads, annotations and local ledgers are lost, and the synthetic demo data is re-seeded.** Download anything needed before a restart. A fixed signing key does not persist the database.
 
 The first start seeds ten synthetic students and a sample assignment pre-graded with the fake provider. This never uses paid startup grading. When OCR is configured, the optional S002 scan is assigned to synthetic S004 and seed-graded from its known packaged transcript, with no startup OCR calls. Live scan uploads still require working OCR. The demo extra pins Gradio to `>=6.30,<6.31`, tested with 6.30.0. Packaged samples support non-editable installs; `data/sample_exam/` remains the source of truth.
+
+## Pilot setup
+
+What a teacher pilot adds to the demo: sign-in by one-time email code, records and files that
+survive restarts, a pilot log export and a delete-my-data button. The demo teacher button and
+`AUTOASSESS_DEMO_DRY_RUN` behave exactly as before.
+
+### Sign-in
+
+A teacher types an email and gets a 6-digit code by email. Codes expire after 10 minutes, work
+once, and die after 5 wrong tries or when a newer code is sent. Only a keyed hash is stored.
+Limits: 3 codes per email per 15 minutes and 10 per day, 10 code requests per client per hour,
+and 20 wrong codes per client per 15 minutes. The account is created at the first successful
+sign-in, for emails on `AUTOASSESS_PILOT_EMAILS` (addresses or `@domain`, or `*` for anyone).
+Everyone else sees the same "check your email" screen, but no email is sent.
+
+Mail goes through an HTTPS API, never SMTP:
+- **Resend** (`RESEND_API_KEY`): free for 3,000 emails a month, 100 a day. It sends to other
+  people only from a domain you have verified (DNS records). Without one it delivers only to
+  your own address.
+- **Brevo** (`BREVO_API_KEY`): free for 300 emails a day. One verified sender address is enough,
+  so it works without a domain (mail from a gmail.com sender may land in spam).
+
+### Storage
+
+With `DATABASE_URL` set, every table lives in Postgres and every uploaded sheet and marked
+PDF/page is also copied into the `blobs` table. After a restart, an assignment's files come back
+the first time it is opened. Measured size: about 1 MB per typed sheet (marked PDF plus pages),
+more for scans (the scan and its page images), and the same again for a re-marked copy after a
+change. `AUTOASSESS_S3_BUCKET` (with `pip install ".[s3]"`) moves the files to any S3-compatible bucket.
+
+Free tiers (checked 31 Oct 2026; confirm on each pricing page):
+
+| Service | Free limits that matter |
+| --- | --- |
+| Neon Postgres | 0.5 GB storage per project, 100 CU-hours compute per project per month, 5 GB network transfer per month; scales to zero after 5 minutes idle |
+| Supabase | 500 MB database, 1 GB file storage, 2 active projects; paused after 1 week without activity |
+| Render web service | 750 instance hours per workspace per month; sleeps after 15 minutes without traffic, about a minute to wake; disk is wiped on every restart and deploy |
+| Render Postgres | 1 GB, expires 30 days after creation, no backups (not recommended for a pilot) |
+
+At about 1 to 3 MB per sheet, Neon's 0.5 GB holds roughly 150 to 400 marked sheets. Check
+usage on the Neon dashboard. A teacher's delete button frees their space at once.
+
+### Render settings
+
+Service > Settings:
+- Build Command: `pip install ".[web,ingest,annotate,postgres]"`
+- Start Command: `autoassess serve --host 0.0.0.0 --port $PORT`
+- Health Check Path: `/healthz`
+
+Service > Environment, added to the existing keys:
+
+| Key | Value |
+| --- | --- |
+| `DATABASE_URL` | Neon connection string, `postgresql://...neon.tech/neondb?sslmode=require` (create the project in the region nearest the Render service) |
+| `BREVO_API_KEY` or `RESEND_API_KEY` | the mail key |
+| `AUTOASSESS_MAIL_FROM` | `Second Read <the verified sender>` |
+| `AUTOASSESS_PILOT_EMAILS` | the pilot teachers' emails, comma separated (or `@school.edu`) |
+| `AUTOASSESS_ADMIN_EMAILS` | your own email, for the all-teachers pilot log |
+| `AUTOASSESS_SECRET_KEY` | a long random string, so sign-ins survive restarts |
+| `AUTOASSESS_BEHIND_PROXY` | `1` |
+| `AUTOASSESS_PILOT_END` | the date pilot data is deleted, e.g. `31 December 2026` |
+| `AUTOASSESS_DATA_LOCATION` | e.g. `Render (Oregon, US) and Neon Postgres (AWS US West)` |
+
+The schema is created on first start. `autoassess migrate` does it by hand, and
+`autoassess migrate --from-sqlite .redink --data-dir /tmp/redink` copies a local workspace in
+(`--data-dir` must match the server's `AUTOASSESS_DATA_DIR`).
+
+### Keeping it awake
+
+GitHub runs scheduled workflows late: the 10-minute keep-warm ran three times in eleven hours on
+31 Oct 2026. For a pilot, add a free external monitor that requests
+`https://secondread-grader.onrender.com/healthz` every 5 minutes (UptimeRobot's free plan, or
+cron-job.org). An always-on service uses about 744 of the 750 free hours, so keep only one.
+
+### Pilot data
+
+- Each teacher: **Account > Download my pilot log (CSV)**. Admins also get **Download every
+  teacher's log**. From a shell: `autoassess pilot-export --out pilot.csv`.
+- The CSV has one row per assignment and a summary row per teacher (`level`): sheets graded and
+  reviewed, review minutes, minutes per sheet, median seconds per answer, override rate,
+  calibration shift (mean teacher-minus-AI mark change) and direction. Teachers appear as `T<id>`.
+  There is no student text, no names, no roll numbers and no reasons.
+- **Account > Delete all my data** (after typing the email) removes the teacher's account,
+  classes, rosters, sheets, marks, files, logs and sign-in records at once.
 
 ## A 60-second TA demonstration
 
@@ -61,7 +146,7 @@ Settings are loaded from process variables and an optional local `.env` (existin
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | Standalone lab bind address; teacher app uses `--host`. |
 | `PORT` | lab `7860`; container `8000` | Teacher CLI defaults to `--port 8000`; Render/container startup passes `$PORT`. |
-| `AUTOASSESS_DATA_DIR` | `.redink/` | SQLite and files; CLI `--data-dir` wins. Docker `/var/lib/redink`, Render `/tmp/redink`. |
+| `AUTOASSESS_DATA_DIR` | `.redink/` | SQLite and files; CLI `--data-dir` wins. Docker `/var/lib/secondread`, Render `/tmp/redink`. |
 | `AUTOASSESS_SECRET_KEY` | random per process | Signed demo-session secret. Unset values invalidate sessions after restart; Render generates one. |
 | `AUTOASSESS_DEMO_DRY_RUN` | unset / off | Exactly `1` selects the offline scripted text mode; blueprint `0`. |
 | `AUTOASSESS_MAX_UPLOAD_MB` | `10` | Maximum bytes per uploaded file in MiB, enforced by Gradio and sheet validation. |

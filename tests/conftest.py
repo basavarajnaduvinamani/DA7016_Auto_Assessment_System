@@ -43,7 +43,7 @@ def _no_real_keys(monkeypatch, tmp_path):
 def _postgres_when_asked(request, monkeypatch):
     """With AUTOASSESS_TEST_DATABASE_URL set, every web test runs on its own fresh Postgres database.
 
-    Example: AUTOASSESS_TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres pytest tests/test_web_*.py
+    Use an IP, not localhost (the web tests block DNS lookups): AUTOASSESS_TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres pytest tests/test_web_*.py
     """
     admin_url = os.getenv("AUTOASSESS_TEST_DATABASE_URL", "")
     if not admin_url or not Path(str(request.node.fspath)).name.startswith("test_web"):

@@ -90,21 +90,61 @@ LEFT, RIGHT_MARGIN, TOP, LINE_H = 150, 330, 120, 60
 TICK_GUTTER = 130  # space kept free between the written text and the margin rule for ticks
 
 
+# Indian scripts the red ink and typed sheets can draw, as (Unicode block, ink font, plain font).
+# Kalam (handwriting) covers Latin and Devanagari; the Noto Sans fonts carry Latin too, so a line
+# that mixes English terms with one Indian script renders with a single font.
+SCRIPT_FONTS = [
+    (r"[\u0900-\u097F]", "Kalam", "NotoSansDevanagari.ttf"),  # Devanagari (Hindi, Marathi)
+    (r"[\u0C80-\u0CFF]", "BalooTamma2.ttf", "NotoSansKannada.ttf"),  # Kannada
+    (r"[\u0B80-\u0BFF]", "NotoSansTamil.ttf", "NotoSansTamil.ttf"),  # Tamil
+    (r"[\u0C00-\u0C7F]", "NotoSansTelugu.ttf", "NotoSansTelugu.ttf"),  # Telugu
+]
+
+
+def _script_font(text: str, ink: bool) -> str | None:
+    """The font file for the first Indian script found in ``text``; None for Latin-only text."""
+    for pattern, ink_font, plain_font in SCRIPT_FONTS:
+        if re.search(pattern, text):
+            return ink_font if ink else plain_font
+    return None
+
+
 def _font(size: int, bold: bool = False, script_text: str = ""):
+    """Red-ink handwriting font (Kalam), switching to a font that has the glyphs of ``script_text``."""
     from PIL import ImageFont
 
-    if re.search(r"[ಀ-೿]", script_text):  # Kannada: Kalam has no Kannada glyphs
-        return ImageFont.truetype(str(FONT_DIR / "BalooTamma2.ttf"), size)
-    return ImageFont.truetype(str(FONT_DIR / ("Kalam-Bold.ttf" if bold else "Kalam-Regular.ttf")), size)
+    name = _script_font(script_text, ink=True)
+    if name is None or name == "Kalam":
+        name = "Kalam-Bold.ttf" if bold else "Kalam-Regular.ttf"
+    return ImageFont.truetype(str(FONT_DIR / name), size)
 
 
-def _student_font(size: int = 30):
+def _student_font(size: int = 30, script_text: str = ""):
+    """Plain font for typeset student text; Pillow's default unless the text needs an Indian script."""
     from PIL import ImageFont
 
+    name = _script_font(script_text, ink=False)
+    if name is not None:
+        return ImageFont.truetype(str(FONT_DIR / name), size)
     try:
         return ImageFont.load_default(size=size)
     except TypeError:  # Pillow < 10.1
         return ImageFont.load_default()
+
+
+def _wrap_to_width(text: str, max_px: float, size: int = 30) -> list[str]:
+    """Wrap ``text`` so every line fits ``max_px`` in the font it will be drawn with (Indian scripts run wider)."""
+    from PIL import Image, ImageDraw
+
+    draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    font = _student_font(size, text)
+    chars = int(max_px / 15.5)
+    while chars > 10:
+        parts = textwrap.wrap(text, width=chars)
+        if all(draw.textlength(part, font=font) <= max_px for part in parts):
+            return parts
+        chars -= 4
+    return textwrap.wrap(text, width=max(chars, 10))
 
 
 def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPage]:
@@ -117,7 +157,7 @@ def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPag
     wrapped: list[tuple[str, OCRLine]] = []
     for page in pages:
         for line in page.lines:
-            parts = textwrap.wrap(line.text, width=int(width / 15.5)) or [""]
+            parts = _wrap_to_width(line.text, width) or [""]
             wrapped += [(t, line) for t in parts]
     rows_per_page = (PAGE_H - TOP - 80) // LINE_H
     out: list[OCRPage] = []
@@ -136,8 +176,9 @@ def typeset(pages: list[OCRPage], out_dir: Path, student_id: str) -> list[OCRPag
             y = TOP + r * LINE_H
             if not text.strip():
                 continue
-            d.text((LEFT, y + 18), text, fill=STUDENT_INK, font=font)
-            x1 = LEFT + d.textlength(text, font=font)
+            line_font = _student_font(script_text=text) if _script_font(text, ink=False) else font
+            d.text((LEFT, y + 18), text, fill=STUDENT_INK, font=line_font)
+            x1 = LEFT + d.textlength(text, font=line_font)
             lines.append(
                 src.model_copy(update={"text": text, "bbox": BBox(x0=LEFT, y0=y + 12, x1=x1, y1=y + LINE_H - 6)})
             )
@@ -483,7 +524,7 @@ def _caret(d, m: Mark):
 def _stamp(img, xy, lines: list[str], size: float):
     from PIL import Image, ImageDraw
 
-    font = _font(int(size), True)
+    font = _font(int(size), True, " ".join(lines))
     d0 = ImageDraw.Draw(img)
     w = int(max(d0.textlength(t, font=font) for t in lines)) + 40
     h = int(len(lines) * size * 1.35) + 30
@@ -504,7 +545,7 @@ def render_cover(plan: AnnotationPlan, title: str):
     pf = _student_font(40)
     d.rectangle([60, 60, PAGE_W - 60, PAGE_H - 60], outline=(60, 60, 60), width=3)
     d.text((110, 110), "ANSWER BOOKLET", fill=(40, 40, 40), font=pf)
-    d.text((110, 170), title[:60], fill=(70, 70, 70), font=_student_font(28))
+    d.text((110, 170), title[:60], fill=(70, 70, 70), font=_student_font(28, title[:60]))
     d.text((110, 230), f"Candidate: {plan.student_id}", fill=(70, 70, 70), font=_student_font(28))
     d.text((110, 330), "FOR EXAMINER'S USE ONLY", fill=(40, 40, 40), font=_student_font(30))
     # The marks grid, printed; the examiner's entries are in red.
@@ -517,7 +558,7 @@ def render_cover(plan: AnnotationPlan, title: str):
         y = y0 + i * rh
         d.rectangle([x0, y, x0 + cw, y + rh], outline=(60, 60, 60), width=2)
         d.rectangle([x0 + cw, y, x0 + 2 * cw, y + rh], outline=(60, 60, 60), width=2)
-        d.text((x0 + 20, y + 16), q, fill=(40, 40, 40), font=_student_font(28))
+        d.text((x0 + 20, y + 16), q, fill=(40, 40, 40), font=_student_font(28, q))
         _ink_text(img, (x0 + cw + 24, y + 2), mk, 40 if q == "Total" else 36, bold=q == "Total")
     yb = y0 + (len(rows) + 1) * rh + 20
     _stamp(
@@ -540,7 +581,8 @@ def render_notes(plan: AnnotationPlan):
     pages = []
     img, y = None, 0
     for line in plan.notes:
-        for chunk in textwrap.wrap(line, width=62, subsequent_indent="    ") or [""]:
+        width = 46 if _script_font(line, ink=True) not in (None, "Kalam") else 62  # Kannada/Tamil/Telugu run wider
+        for chunk in textwrap.wrap(line, width=width, subsequent_indent="    ") or [""]:
             if img is None or y > PAGE_H - 120:
                 img = Image.new("RGBA", (PAGE_W, PAGE_H), (253, 252, 247, 255))
                 pages.append(img)

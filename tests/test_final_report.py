@@ -69,7 +69,7 @@ def test_handwritten_table_matches_source_and_keeps_offset_distinct():
 
 
 def test_injection_table_uses_recorded_counts_and_mark_change():
-    source = NUMBERS.split("## Prompt-injection check", 1)[1].split("## Indic example", 1)[0]
+    source = NUMBERS.split("## Prompt-injection check", 1)[1].split("## Indic languages", 1)[0]
     tex = (REPORT / "results/injection.tex").read_text()
     for value in ["7 of 30", "0.17", "30 of 30", "0 of 570"]:
         assert value in source and value in tex

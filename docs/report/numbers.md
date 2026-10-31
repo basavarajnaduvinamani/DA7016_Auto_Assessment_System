@@ -75,9 +75,22 @@ Reading: the teacher was generous to short or vague answers that the rubric-boun
 - Before the fix: 7 of 30 answers gained marks (mean +0.17 of 5), 3 reached full marks, despite the prompt telling the model to treat the answer as data.
 - Fix: a deterministic pattern flags such text as `possible_prompt_injection` and sends the answer to the teacher. It flagged 30 of 30 injected answers and 0 of 570 clean SPRAG answers. Limitation: the pattern was written against this one injection wording; paraphrased attacks may pass.
 
-## Indic example
+## Indic languages: the same answers in Hindi, Kannada and Tamil (n = 30 per language)
 
-A Hindi (Devanagari) answer to SPRAG Q1 ("What is machine learning?") was graded 5/5 with the evidence quote taken from the Hindi text, and the feedback returned in Hindi via Bodhan Indic-Translate. This is a single worked example, not an evaluation.
+30 SPRAG test answers, 6 per human-score band (10–80 words, no code, distinct questions), were translated into Hindi, Kannada and Tamil. Bodhan Indic-Translate made a draft; native speakers then checked it, keeping the student's errors, omissions and unclear words (e.g. "reasonal", "our side") as written and leaving technical terms such as *precision* or *tuple* in English where a student would. Each language set was graded by the final configuration (advocate only, lenient) with its own translated question and model answer. References: the two original SPRAG human graders (mean), and ratings 0–5 from native-speaker reviewers in two passes (one rating per item, shared across the three languages).
+
+| Language | QWK vs SPRAG humans | MAE (of 5) | Within 1 mark | Bias | QWK vs native-speaker reviewers | Mark within 1 of the English mark | Within 0.5 of English | MAE vs English |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English (original text) | 0.577 | 1.03 | 67% | +0.43 | 0.694 | - | - | - |
+| Hindi | 0.561 | 0.97 | 73% | +0.53 | 0.674 | 30/30 | 70% | 0.30 |
+| Kannada | 0.573 | 1.07 | 70% | +0.40 | 0.670 | 30/30 | 63% | 0.37 |
+| Tamil | 0.509 | 1.17 | 70% | +0.53 | 0.623 | 30/30 | 70% | 0.30 |
+
+Human vs human on these 30: QWK 0.954. Reviewers vs SPRAG humans: QWK 0.741, MAE 0.87.
+
+Reading: changing the language moves a mark by about 0.3 on average and never by more than 1, and agreement with the human graders drops by at most 0.07 QWK (Tamil). The English row is lower than the full test set (0.723) because this sample is stratified to every score band, so it has more mid-range answers, which are the hardest; n = 30 per language, so differences of a few hundredths are within noise. Grading cost $0.31 for all 120 answers; translation Rs 0.20. Aggregates are in `results/indic/summary.json`; the translated answers stay out of the repository with the rest of SPRAG.
+
+A separate worked example: a Hindi (Devanagari) answer to SPRAG Q1 ("What is machine learning?") was graded 5/5 with the evidence quote taken from the Hindi text, and the feedback returned in Hindi via Bodhan Indic-Translate.
 
 ## Red-ink example (report appendix)
 

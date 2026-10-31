@@ -43,3 +43,4 @@ kbd { font-size:11px; padding:2px 5px; border:1px solid var(--line); border-radi
   .queue-filter select { width:auto; }
   .marked-preview a { gap:14px; }
 }
+.code-step{max-width:480px;margin:40px auto}.code-step h1{font-size:28px}.code-step .resend{margin:16px 0 0}.privacy-short{margin-top:14px}.privacy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-bottom:28px}.button.danger{background:#7d1f25;border-color:#7d1f25}.button.danger:hover{background:#5f171c}.danger-zone{border-color:#edcbca}

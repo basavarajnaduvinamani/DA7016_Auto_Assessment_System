@@ -7,7 +7,7 @@ services:
     name: secondread-grader
     runtime: python
     plan: free
-    buildCommand: pip install ".[web,ingest,annotate]"
+    buildCommand: pip install ".[web,ingest,annotate,postgres]"
     startCommand: autoassess serve --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
@@ -15,6 +15,26 @@ services:
         value: "3.11.9"
       - key: AUTOASSESS_DATA_DIR
         value: /tmp/redink
+      # Pilot: Postgres keeps records and files across restarts (Neon or Supabase connection URL).
+      - key: DATABASE_URL
+        sync: false
+      # Pilot sign-in: one-time codes by email. Set one of the two keys and a sender.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: AUTOASSESS_MAIL_FROM
+        sync: false
+      - key: AUTOASSESS_PILOT_EMAILS
+        sync: false
+      - key: AUTOASSESS_ADMIN_EMAILS
+        sync: false
+      - key: AUTOASSESS_PILOT_END
+        sync: false
+      - key: AUTOASSESS_DATA_LOCATION
+        sync: false
+      - key: AUTOASSESS_BEHIND_PROXY
+        value: "1"
       - key: AUTOASSESS_SECRET_KEY
         generateValue: true
       - key: AUTOASSESS_LLM_PROVIDER

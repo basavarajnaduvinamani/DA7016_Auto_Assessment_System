@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from autoassess.cli import main
 from autoassess.web.app import create_app
+from autoassess.web.db import SCHEMA_VERSION
 from autoassess.web.seed import seed
 from autoassess.web.store import Store
 
@@ -120,9 +121,11 @@ def test_seed_is_idempotent_and_persists(tmp_path):
     seed(reopened)
     assert len(reopened.students(1)) == 13
     seed(reopened, reset=True)
-    assert len(reopened.students(1)) == 12
+    # Postgres never reuses ids, so find the re-seeded class rather than assuming id 1.
+    teacher = reopened.teacher_by_email("demo@redink.local")
+    assert len(reopened.students(reopened.classes(teacher["id"])[0]["id"])) == 12
     with store.connect() as db:
-        assert [r[0] for r in db.execute("SELECT version FROM schema_version")] == [3]
+        assert [r[0] for r in db.execute("SELECT version FROM schema_version")] == [SCHEMA_VERSION]
     assert (store.root / "files").is_dir()
 
 

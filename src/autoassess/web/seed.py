@@ -7,10 +7,12 @@ from autoassess.web.store import Store
 
 def seed(store: Store, reset: bool = False) -> None:
     """Initialise synthetic teacher and roster records, optionally resetting app data."""
+    if reset:
+        with store.connect() as db:
+            teacher_ids = [r[0] for r in db.execute("SELECT id FROM teachers")]
+        for teacher_id in teacher_ids:
+            store.delete_teacher_data(teacher_id)
     with store.connect() as db:
-        if reset:
-            db.execute("DELETE FROM classes")
-            db.execute("DELETE FROM teachers")
         if db.execute("SELECT 1 FROM teachers LIMIT 1").fetchone():
             return
         teacher = db.execute(

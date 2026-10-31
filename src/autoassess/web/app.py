@@ -15,14 +15,17 @@ from fastapi.templating import Jinja2Templates
 from starlette.responses import Response
 
 from autoassess.demo import health_payload
-from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, signer
+from autoassess.web.auth import COOKIE, MAX_AGE, DemoSession, session_token, signer
 from autoassess.web.downloads import mount_download_routes
 from autoassess.web.jobs import Jobs
-from autoassess.web.landing import FEATURES, LANGUAGE_NAMES, NAME, PROMISE, REPO_URL, STEPS, TAGLINE
+from autoassess.web.landing import FEATURES, LANGUAGE_NAMES, NAME, PROMISE, REPO_URL, STEPS, TAGLINE, privacy_note
+from autoassess.web.login import DEMO_EMAIL, client_id, email_sign_in_enabled, request_code, verify_code
+from autoassess.web.pilot import all_rows, teacher_rows
+from autoassess.web.pilot import to_csv as pilot_csv
 from autoassess.web.presentation import flag_chips
 from autoassess.web.routes import mount_assignment_routes
 from autoassess.web.seed import seed, seed_assignment
-from autoassess.web.store import Store
+from autoassess.web.store import Store, normal_email
 from autoassess.web.usage import usage
 
 HERE = Path(__file__).resolve().parent
@@ -61,6 +64,7 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
     templates = Jinja2Templates(directory=HERE / "templates")
     # One product name for every page, so a rename touches landing.NAME only.
     templates.env.globals["product_name"] = NAME
+    templates.env.globals["pilot_mode"] = email_sign_in_enabled()
     app.state.templates = templates
     templates.env.globals["flag_chips"] = flag_chips
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -95,37 +99,147 @@ def create_app(data_dir: str | Path | None = None, *, reset_demo: bool = False, 
             features=FEATURES,
             steps=STEPS,
             languages=LANGUAGE_NAMES,
+            email_sign_in=email_sign_in_enabled(),
+            privacy=privacy_note(),
             **context,
         )
 
-    @app.get("/sign-in")
-    def sign_in(request: Request) -> Response:
-        """Render the demo teacher sign-in page."""
-        return landing(request)
-
-    @app.post("/sign-in")
-    def continue_sign_in(request: Request, email: str = Form("")) -> Response:
-        """Set a signed session cookie for a known seeded teacher."""
-        teacher = store.teacher_by_email(email)
-        if teacher is None:
-            response = landing(request, error="We don't recognise that email. Try the demo teacher below.", email=email)
-            response.status_code = 400
-            return response
-        response = RedirectResponse("/", status_code=303)
+    def start_session(request: Request, teacher: dict[str, Any], to: str = "/") -> Response:
+        """Redirect with a signed session cookie for one teacher."""
+        response = RedirectResponse(to, status_code=303)
+        forwarded_https = (
+            os.getenv("AUTOASSESS_BEHIND_PROXY") == "1" and request.headers.get("x-forwarded-proto") == "https"
+        )
         response.set_cookie(
             COOKIE,
-            serializer.dumps(teacher["id"]),
+            session_token(serializer, teacher),
             max_age=MAX_AGE,
             httponly=True,
             samesite="lax",
-            secure=request.url.scheme == "https",
+            secure=request.url.scheme == "https" or forwarded_https,
         )
         return response
 
+    def code_page(request: Request, email: str, status: int = 200, **context: Any) -> Response:
+        """The 'check your email' step with the code form."""
+        response = render(request, "sign_in_code.html", email=email, privacy=privacy_note(), **context)
+        response.status_code = status
+        return response
+
+    @app.get("/sign-in")
+    def sign_in(request: Request) -> Response:
+        """Render the public landing page with the sign-in forms."""
+        deleted = request.query_params.get("deleted") == "1"
+        return landing(request, message="Your account and all its data were deleted." if deleted else None)
+
+    @app.post("/sign-in")
+    def continue_sign_in(request: Request, email: str = Form("")) -> Response:
+        """Sign the demo teacher straight in; email anyone else a one-time code."""
+        if normal_email(email) == DEMO_EMAIL:
+            return start_session(request, store.teacher_by_email(DEMO_EMAIL))
+        if not email_sign_in_enabled():
+            response = landing(request, error="We don't recognise that email. Try the demo teacher below.", email=email)
+            response.status_code = 400
+            return response
+        outcome = request_code(store, email, client_id(request))
+        if not outcome.ok:
+            response = landing(request, error=outcome.error, email=email)
+            response.status_code = 429 if outcome.retry_minutes else 400
+            return response
+        return code_page(request, normal_email(email))
+
+    @app.post("/sign-in/code")
+    def verify_sign_in(request: Request, email: str = Form(""), code: str = Form("")) -> Response:
+        """Check a one-time code and start a session."""
+        if not email_sign_in_enabled():
+            return RedirectResponse("/sign-in", status_code=303)
+        outcome = verify_code(store, email, code, client_id(request))
+        if not outcome.ok:
+            return code_page(
+                request, normal_email(email), status=429 if outcome.retry_minutes else 400, error=outcome.error
+            )
+        return start_session(request, store.teacher_by_email(email))
+
+    @app.get("/privacy")
+    def privacy(request: Request) -> Response:
+        """What is stored, where and for how long."""
+        return render(request, "privacy.html", privacy=privacy_note())
+
     @app.post("/sign-out")
     def sign_out() -> Response:
-        """Clear the demo session cookie and return to sign-in."""
+        """Clear the session cookie and return to sign-in."""
         response = RedirectResponse("/sign-in", status_code=303)
+        response.delete_cookie(COOKIE, httponly=True, samesite="lax")
+        return response
+
+    def is_admin(teacher: dict[str, Any]) -> bool:
+        """Teachers on AUTOASSESS_ADMIN_EMAILS may download the whole pilot's log."""
+        admins = {e.strip().lower() for e in os.getenv("AUTOASSESS_ADMIN_EMAILS", "").split(",") if e.strip()}
+        return teacher["email"].lower() in admins
+
+    @app.get("/account")
+    def account(request: Request) -> Response:
+        """Privacy note, pilot-log download and the delete-everything button."""
+        teacher = request.state.teacher
+        return render(
+            request,
+            "account.html",
+            privacy=privacy_note(),
+            is_demo=teacher["email"].lower() == DEMO_EMAIL,
+            is_admin=is_admin(teacher),
+        )
+
+    def csv_download(content: bytes, filename: str) -> Response:
+        """Send CSV bytes as an uncached attachment."""
+        return Response(
+            content,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
+        )
+
+    @app.get("/account/pilot-log.csv")
+    def my_pilot_log(request: Request) -> Response:
+        """This teacher's pilot log: counts and timings only, no student text."""
+        teacher = request.state.teacher
+        return csv_download(
+            pilot_csv(teacher_rows(store, teacher["id"])), f"second-read-pilot-log-T{teacher['id']}.csv"
+        )
+
+    @app.get("/pilot/export.csv")
+    def pilot_export(request: Request) -> Response:
+        """Every pilot teacher's log, for the people running the pilot (AUTOASSESS_ADMIN_EMAILS)."""
+        if not is_admin(request.state.teacher):
+            raise HTTPException(404, "Not found")
+        return csv_download(pilot_csv(all_rows(store)), "second-read-pilot-log-all.csv")
+
+    @app.post("/account/delete")
+    def delete_account(request: Request, confirm: str = Form("")) -> Response:
+        """Delete the signed-in teacher and everything they own, after they type their email to confirm."""
+        teacher = request.state.teacher
+        if teacher["email"].lower() == DEMO_EMAIL:
+            response = render(
+                request,
+                "account.html",
+                privacy=privacy_note(),
+                is_demo=True,
+                is_admin=is_admin(teacher),
+                error="The shared demo account can't be deleted. Sign in with your own email to delete your data.",
+            )
+            response.status_code = 400
+            return response
+        if normal_email(confirm) != teacher["email"].lower():
+            response = render(
+                request,
+                "account.html",
+                privacy=privacy_note(),
+                is_demo=False,
+                is_admin=is_admin(teacher),
+                error="Type your email address exactly to confirm. Nothing was deleted.",
+            )
+            response.status_code = 400
+            return response
+        store.delete_teacher_data(teacher["id"])
+        response = RedirectResponse("/sign-in?deleted=1", status_code=303)
         response.delete_cookie(COOKIE, httponly=True, samesite="lax")
         return response
 

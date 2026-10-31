@@ -6,6 +6,7 @@ import json
 import math
 import time
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
 
 from autoassess.demo import LANGUAGES
@@ -31,52 +32,6 @@ def apply_overrides(grade: SheetGrade, changes: list[dict], accepted: Iterable[s
 
 class AssignmentStore:
     """SQLite operations for assignments, jobs and append-only review decisions."""
-
-    def init_assignments(self) -> None:
-        """Create assignment tables and record the supported schema version."""
-        with self.connect() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS assignments (
-                    id INTEGER PRIMARY KEY, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-                    title TEXT NOT NULL, spec_json TEXT NOT NULL, released INTEGER NOT NULL DEFAULT 0,
-                    is_demo INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS submissions (
-                    id INTEGER PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
-                    student_id INTEGER REFERENCES students(id), original_name TEXT NOT NULL, path TEXT NOT NULL,
-                    grade_json TEXT, run_json TEXT, artifacts_json TEXT, UNIQUE(assignment_id,student_id)
-                );
-                CREATE TABLE IF NOT EXISTS jobs (
-                    id INTEGER PRIMARY KEY, submission_id INTEGER NOT NULL UNIQUE REFERENCES submissions(id) ON DELETE CASCADE,
-                    status TEXT NOT NULL CHECK(status IN ('queued','running','done','failed')),
-                    message TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS accepted (
-                    submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-                    question_id TEXT NOT NULL, teacher_id INTEGER NOT NULL REFERENCES teachers(id),
-                    PRIMARY KEY(submission_id,question_id)
-                );
-                CREATE TABLE IF NOT EXISTS overrides (
-                    id INTEGER PRIMARY KEY, submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-                    question_id TEXT NOT NULL, criterion_id TEXT NOT NULL,
-                    old_marks REAL NOT NULL, new_marks REAL NOT NULL, reason TEXT NOT NULL,
-                    teacher_id INTEGER NOT NULL REFERENCES teachers(id), kind TEXT NOT NULL,
-                    old_json TEXT NOT NULL, result_json TEXT NOT NULL, record_json TEXT,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-                -- Product telemetry: when a teacher opened and decided each answer. Read-only for marking.
-                CREATE TABLE IF NOT EXISTS review_events (
-                    id INTEGER PRIMARY KEY, submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-                    question_id TEXT NOT NULL, teacher_id INTEGER NOT NULL REFERENCES teachers(id),
-                    kind TEXT NOT NULL CHECK(kind IN ('open','accept','override')), at REAL NOT NULL
-                );
-                UPDATE schema_version SET version=3;
-            """)
-
-            # Existing classroom databases retain their records and default to English.
-            columns = {row[1] for row in db.execute("PRAGMA table_info(assignments)")}
-            if "feedback_language" not in columns:
-                db.execute("ALTER TABLE assignments ADD COLUMN feedback_language TEXT NOT NULL DEFAULT 'English'")
 
     def create_assignment(
         self, class_id: int, title: str, spec: ExamSpec, *, is_demo: bool = False, feedback_language: str = "English"
@@ -113,6 +68,7 @@ class AssignmentStore:
 
     def submissions(self, assignment_id: int) -> list[dict]:
         """List uploaded sheets with student matches and durable job status."""
+        self.files.restore(assignment_id)
         with self.connect() as db:
             return [
                 dict(r)
@@ -133,7 +89,9 @@ class AssignmentStore:
                 "SELECT s.*, st.roll_no, st.name FROM submissions s LEFT JOIN students st ON st.id=s.student_id WHERE s.id=?",
                 (submission_id,),
             ).fetchone()
-            return dict(row) if row else None
+        if row:
+            self.files.restore(row["assignment_id"])
+        return dict(row) if row else None
 
     def add_submissions(self, assignment_id: int, files: list[tuple]) -> list[int]:
         """Atomically register staged files on an unreleased assignment."""
@@ -148,7 +106,9 @@ class AssignmentStore:
                         (assignment_id, student_id, name, str(path)),
                     ).lastrowid
                 )
-            return ids
+        for _, _, path in files:
+            self.files.save(path)
+        return ids
 
     def match_submission(self, submission_id: int, student_id: int) -> None:
         """Associate an unlocked upload with an unused student in the same class."""
@@ -212,6 +172,18 @@ class AssignmentStore:
                 (grade.model_dump_json(), run_json, json.dumps(artifacts), row["submission_id"]),
             )
             db.execute("UPDATE jobs SET status='done',message='Marked and ready to review.' WHERE id=?", (job_id,))
+        self.save_artifacts(artifacts)
+
+    def save_artifacts(self, artifacts: dict) -> None:
+        """Copy a marking result's folder (input copy, page images, PDF, PNGs, report) to durable storage."""
+        if artifacts.get("html"):
+            self.files.save_tree(Path(artifacts["html"]).parent)
+
+    def set_artifacts(self, submission_id: int, artifacts: dict) -> None:
+        """Point a sheet at regenerated artifacts and keep them durable."""
+        with self.connect() as db:
+            db.execute("UPDATE submissions SET artifacts_json=? WHERE id=?", (json.dumps(artifacts), submission_id))
+        self.save_artifacts(artifacts)
 
     def fail_job(self, job_id: int, message: str) -> None:
         """Record a readable failure notice for a running job."""

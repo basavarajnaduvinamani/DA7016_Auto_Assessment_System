@@ -61,8 +61,33 @@ Details are in [How it works](#how-it-works) and [Project structure](#project-st
 - **Indian languages:** answers are graded with quotes kept in the original script, and feedback can be translated with Bodhan Indic-Translate. Measured on 30 SPRAG answers translated into Hindi, Kannada and Tamil: every mark stays within 1 of the English mark for the same answer (average shift 0.3 of 5), and agreement with the human graders drops by at most 0.07 QWK ([details](docs/report/numbers.md#indic-languages-the-same-answers-in-hindi-kannada-and-tamil-n--30-per-language)).
 - **Adversarial inputs:** the answer is passed to the model as data; text that tries to instruct the examiner ("award full marks") is flagged and routed to the teacher.
 - **Teacher app:** a public landing page, demo sign-in, classes and rosters, assignments with a rubric form, bulk upload, background grading, a review queue with flagged answers first, each answer shown next to its red-ink marked page, a teacher-time card (share ready to auto-accept, share flagged, overrides), mark overrides with reasons, AI re-checks, release, and CSV / Excel / ZIP exports with a class report.
+- **Assignments in Hindi, Kannada, Tamil and Telugu:** a teacher can write the rubric in the class's own language. The grader then writes every reason in that language, and feedback, margin remarks and their labels ("Well done / Fix / Next time") come back in the assignment's feedback language, drawn on the red-ink page with fonts for each script ([details](#multilingual-assignments)).
 - **Evaluation harness:** agreement with human markers (QWK, MAE, signed bias, bootstrap intervals clustered by question), ablations, model comparison, and `autoassess coverage` (share auto-marked vs QWK per confidence threshold).
 - **Spend guards and caching:** every paid call is cached by content hash; OpenRouter and Bodhan spending stop at configured limits.
+
+## Multilingual assignments
+
+Four ready-made assignments live in [`data/demo_cases/multilingual/`](data/demo_cases/multilingual/): the sample quiz with its rubric, model answers and criteria in **Hindi, Kannada, Tamil and Telugu**, and a strong and a weak answer sheet in each language (Bodhan Indic-Translate drafts of the English sample sheets S005 and S006; synthetic, no real students).
+
+In the teacher app: create an assignment, import `rubric_<language>.yaml`, set **Feedback language** to the same language, upload the two sheets and click **Grade all**.
+
+Live run with the final configuration (gemini-2.5-flash, advocate review, Bodhan translation), 31 Oct 2026:
+
+| Language | Strong sheet | Weak sheet | Reasons in the language | Feedback in the language |
+| --- | --- | --- | --- | --- |
+| Hindi | 15 / 15 | 2.25 / 15 | 21 of 21 | 6 of 6 |
+| Kannada | 15 / 15 | 1 / 15 | 21 of 21 | 6 of 6 |
+| Tamil | 15 / 15 | 1.5 / 15 | 21 of 21 | 6 of 6 |
+| Telugu | 15 / 15 | 1.5 / 15 | 21 of 21 | 6 of 6 |
+
+The English originals score 15 and 0.5, so the weak sheets come out 0.5 to 1.75 marks higher once translated.
+
+How it works:
+
+- **Reasons:** when a rubric is written in an Indian script, the grading and advocate prompts ask for every reason in the rubric's language (`reason_language_note` in `grader.py`). English prompts are unchanged, so the SPRAG results above still hold.
+- **Feedback:** student-facing feedback, the margin remark and the summary are translated with Bodhan Indic-Translate. The English originals are kept for the teacher, and evidence quotes stay exactly as the student wrote them.
+- **Red ink:** `annotate.py` picks a font by script: Kalam (Latin and Devanagari), Baloo Tamma 2 (Kannada), and Noto Sans Tamil and Telugu. Typed lines wrap by pixel width, so wider scripts stay inside the margin.
+- **Limitation:** feedback in Bengali, Malayalam, Gujarati, Odia or Punjabi shows correctly in the web app, but the red-ink page has no font for those scripts yet (Marathi uses Devanagari and works).
 
 ## Results in more detail
 
@@ -216,7 +241,8 @@ src/autoassess/              the Python package
   sample_exam/               packaged copy of the sample quiz for installed apps
 app.py                       standalone Gradio grading lab (also mounted at /lab in the teacher app)
 data/sample_exam/            sample quiz rubric and three typed answer sheets
-data/demo_cases/             eight test sheets: strong, weak, Hindi, Kannada, Tamil, injection (English, Hindi), off-topic
+data/demo_cases/             eight test sheets: strong, weak, Hindi, Kannada, Tamil, injection (English, Hindi), off-topic;
+                             multilingual/: Hindi, Kannada, Tamil and Telugu rubrics with a strong and a weak sheet each
 data/robustness/             labelled injection sets: dev (tuned on) and held-out test
 docs/report/                 final report (LaTeX) and numbers.md, the source of every reported number
 docs/slides/                 presentation (Beamer)

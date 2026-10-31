@@ -1,0 +1,91 @@
+{
+ "n": 30,
+ "human_vs_human": {
+  "qwk": 0.954,
+  "mae": 0.267
+ },
+ "languages": {
+  "english": {
+   "vs_human": {
+    "qwk": 0.577,
+    "mae": 1.03,
+    "within_1": 0.67,
+    "bias": 0.43
+   },
+   "vs_review": {
+    "qwk": 0.694,
+    "mae": 0.87
+   },
+   "vs_english": {
+    "mae": 0.0,
+    "within_0_5": 1.0,
+    "within_1": 1.0
+   },
+   "mean_mark": 2.73,
+   "auto_marked_share": 0.43
+  },
+  "hindi": {
+   "vs_human": {
+    "qwk": 0.561,
+    "mae": 0.97,
+    "within_1": 0.73,
+    "bias": 0.53
+   },
+   "vs_review": {
+    "qwk": 0.674,
+    "mae": 0.83
+   },
+   "vs_english": {
+    "mae": 0.3,
+    "within_0_5": 0.7,
+    "within_1": 1.0
+   },
+   "mean_mark": 2.83,
+   "auto_marked_share": 0.4
+  },
+  "kannada": {
+   "vs_human": {
+    "qwk": 0.573,
+    "mae": 1.07,
+    "within_1": 0.7,
+    "bias": 0.4
+   },
+   "vs_review": {
+    "qwk": 0.67,
+    "mae": 0.87
+   },
+   "vs_english": {
+    "mae": 0.37,
+    "within_0_5": 0.63,
+    "within_1": 1.0
+   },
+   "mean_mark": 2.7,
+   "auto_marked_share": 0.4
+  },
+  "tamil": {
+   "vs_human": {
+    "qwk": 0.509,
+    "mae": 1.17,
+    "within_1": 0.7,
+    "bias": 0.53
+   },
+   "vs_review": {
+    "qwk": 0.623,
+    "mae": 0.97
+   },
+   "vs_english": {
+    "mae": 0.3,
+    "within_0_5": 0.7,
+    "within_1": 1.0
+   },
+   "mean_mark": 2.83,
+   "auto_marked_share": 0.3
+  }
+ },
+ "native_reviewers_vs_human": {
+  "qwk": 0.741,
+  "mae": 0.867
+ },
+ "config": "advocate only, lenient, 3 runs, gemini-2.5-flash via OpenRouter, 31 Oct 2026",
+ "sample": "30 SPRAG test answers, 6 per human-score band; translations Bodhan draft + native-speaker check"
+}

@@ -80,6 +80,8 @@ def test_teacher_time_counts_auto_accepted_flagged_and_overrides(seeded):
         and f"{stats['auto_pct']}%" in page
         and "pauses over 15 minutes are left out" in page
     )
+    assert stats["calibration_n"] == 1 and stats["calibration_shift"] == -criterion.marks_awarded
+    assert "YOUR MARKING VS THE AI" in page and "A pattern shows after 5." in page
 
 
 def test_teacher_time_before_grading(tmp_path, monkeypatch):
@@ -116,3 +118,17 @@ def test_opening_and_accepting_an_answer_is_logged_and_shown(seeded):
     assert kinds == ["open", "accept"]
     page = client.get("/assignments/1").text
     assert "Override rate" in page and "Answers you decided" in page
+
+
+def test_calibration_reports_the_teachers_average_shift():
+    from autoassess.web.teacher_time import calibration
+
+    assert calibration([]) == {"calibration_n": 0, "calibration_shift": None, "calibration_direction": None}
+    assert calibration([1.0, 0.5])["calibration_direction"] is None  # too few changes to call a habit
+    assert calibration([1.0, 0.5, 0.5, 1.0, 0.5]) == {
+        "calibration_n": 5,
+        "calibration_shift": 0.7,
+        "calibration_direction": "more generous",
+    }
+    assert calibration([-1.0] * 5)["calibration_direction"] == "stricter"
+    assert calibration([0.5, -0.5, 0.0, 0.25, -0.25])["calibration_direction"] == "in line"
